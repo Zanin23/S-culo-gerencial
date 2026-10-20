@@ -1,8 +1,8 @@
-import type { CSSProperties } from 'react';
 import { FACTIONS, GAME } from '../game/constants';
 import { scoreOf, VICTORY_TARGET } from '../game/progress';
 import { useGameStore } from '../store/gameStore';
 import { fmt } from './format';
+import { WaxSeal } from './art/Glyph';
 import { Icon } from './Icon';
 import { ProgressBar } from './primitives';
 
@@ -34,18 +34,26 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
   return (
     <div className="start-screen">
       <div className="start-screen__grain" aria-hidden="true" />
-      <div className="start-screen__hexes" aria-hidden="true">
-        {Array.from({ length: 17 }).map((_, index) => (
-          <span key={index} style={{ '--i': index } as CSSProperties} />
-        ))}
-      </div>
+      {/* Carta de fundo: rose dos ventos e meridianos, no lugar dos hexágonos. */}
+      <svg className="start-screen__chart" viewBox="0 0 400 400" aria-hidden="true">
+        <g fill="none" stroke="currentColor" strokeWidth="1">
+          {Array.from({ length: 9 }).map((_, index) => (
+            <circle key={index} cx="200" cy="200" r={38 + index * 20} opacity={0.5 - index * 0.04} strokeDasharray={index % 2 ? '2 6' : undefined} />
+          ))}
+          {Array.from({ length: 12 }).map((_, index) => {
+            const angle = (index * Math.PI) / 6;
+            return <line key={`r${index}`} x1={200 + Math.cos(angle) * 34} y1={200 + Math.sin(angle) * 34} x2={200 + Math.cos(angle) * 198} y2={200 + Math.sin(angle) * 198} opacity={0.22} />;
+          })}
+        </g>
+        <path d="M200 44 232 200 200 356 168 200Z" fill="currentColor" opacity="0.16" />
+        <path d="M44 200 200 168 356 200 200 232Z" fill="currentColor" opacity="0.1" />
+        <circle cx="200" cy="200" r="9" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.5" />
+      </svg>
 
       <div className="start-screen__content">
         <section className="start-hero">
           <div className="start-hero__brand">
-            <span className="brand__mark brand__mark--xl" aria-hidden="true">
-              <span /><span /><span />
-            </span>
+            <WaxSeal size={78} letter="T" />
             <div>
               <div className="eyebrow">Estratégia territorial · {GAME.world}</div>
               <h1>{GAME.name}</h1>

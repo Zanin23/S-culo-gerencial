@@ -10,6 +10,7 @@ import { buyUnitPrice, marketTrend, round2, sellUnitPrice } from '../game/market
 import type { MarketKey, ResourceKey } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 import { fmt, fmtRate, trendClass } from './format';
+import { ResourceGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { Badge, cx, EmptyState, ProgressBar, SectionHeader } from './primitives';
 import { ViewShell } from './ViewShell';
@@ -106,7 +107,7 @@ function MarketCard({ resource }: { resource: MarketKey }) {
   return (
     <div className="market-card">
       <div className="market-card__head">
-        <span className="market-card__icon" style={{ color: RESOURCES[resource].color }}><Icon name={RESOURCES[resource].icon} size={17} /></span>
+        <span className="market-card__icon" style={{ color: RESOURCES[resource].color }}><ResourceGlyph resource={resource} size={20} /></span>
         <div>
           <strong>{MARKET_LABELS[resource]}</strong>
           <span className={cx('market-card__trend', trend === 'up' ? 'is-positive' : trend === 'down' ? 'is-negative' : 'is-neutral')}>
@@ -231,7 +232,7 @@ export function EconomyPanel() {
                   className={cx('flow-row flow-row--clickable', detail === key && 'is-selected')}
                   onClick={() => setDetail(key)}
                 >
-                  <span className="flow-row__name"><span className="flow-row__icon" style={{ color: RESOURCES[key].color }}><Icon name={RESOURCES[key].icon} size={14} /></span>{RESOURCES[key].label}</span>
+                  <span className="flow-row__name"><span className="flow-row__icon" style={{ color: RESOURCES[key].color }}><ResourceGlyph resource={key} size={17} /></span>{RESOURCES[key].label}</span>
                   <span className="flow-row__stock">{fmt(player.stocks[key])}</span>
                   <span className="flow-row__prod">+{fmt(eco.production[key])}</span>
                   <span className="flow-row__cons">−{fmt(eco.demand[key])}</span>
@@ -241,7 +242,7 @@ export function EconomyPanel() {
             </div>
             <div className="resource-detail">
               <div className="resource-detail__head">
-                <span style={{ color: RESOURCES[detail].color }}><Icon name={RESOURCES[detail].icon} size={15} /></span>
+                <span style={{ color: RESOURCES[detail].color }}><ResourceGlyph resource={detail} size={18} /></span>
                 <strong>{RESOURCES[detail].label}</strong>
                 <Badge tone={detailNet >= 0 ? 'teal' : 'red'}>{fmtRate(detailNet)}/ciclo</Badge>
               </div>
@@ -280,7 +281,7 @@ export function EconomyPanel() {
                 <div className="chip-tabs">
                   {CHART_OPTIONS.map((key) => (
                     <button key={key} className={cx('chip-tab', chartResource === key && 'is-active')} onClick={() => setChartResource(key)} type="button">
-                      <Icon name={RESOURCES[key].icon} size={12} /> {RESOURCES[key].short}
+                      <ResourceGlyph resource={key} size={14} /> {RESOURCES[key].short}
                     </button>
                   ))}
                 </div>
@@ -386,7 +387,7 @@ export function EconomyPanel() {
                 const risk = eco.net[key] < 0 && player.stocks[key] / Math.max(1, Math.abs(eco.net[key])) < 5;
                 return (
                   <div className="forecast-row" key={key}>
-                    <span style={{ color: RESOURCES[key].color }}><Icon name={RESOURCES[key].icon} size={13} /></span>
+                    <span style={{ color: RESOURCES[key].color }}><ResourceGlyph resource={key} size={16} /></span>
                     <span>{RESOURCES[key].short}</span>
                     <span>+1c <b>{fmt(weeks[0])}</b></span>
                     <span>+3c <b>{fmt(weeks[1])}</b></span>

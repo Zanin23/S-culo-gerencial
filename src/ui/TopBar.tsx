@@ -4,6 +4,7 @@ import { computeEconomy } from '../game/economy';
 import { scoreOf, VICTORY_TARGET } from '../game/progress';
 import { CYCLE_SECONDS, useGameStore } from '../store/gameStore';
 import { fmt, fmtRate, trendClass } from './format';
+import { ResourceGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { cx, Ring, Tooltip } from './primitives';
 
@@ -86,7 +87,7 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
                 onClick={() => setView('economy')}
               >
                 <span className="res-chip__icon" style={{ color: RESOURCES[key].color }}>
-                  <Icon name={RESOURCES[key].icon} size={15} />
+                  <ResourceGlyph resource={key} size={21} />
                 </span>
                 <span className="res-chip__body">
                   <span className="res-chip__label">{RESOURCES[key].label}</span>

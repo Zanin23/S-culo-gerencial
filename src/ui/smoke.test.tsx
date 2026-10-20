@@ -73,7 +73,7 @@ it('boots the menu, chooses a city and founds the seat on a plot', async () => {
   await act(async () => {
     useGameStore.getState().setView('map');
   });
-  expect(container.querySelector('.map-svg')).toBeTruthy();
+  expect(container.querySelector('.atlas-svg')).toBeTruthy();
   expect(container.querySelector('.context-panel')).toBeTruthy();
 });
 
@@ -270,9 +270,11 @@ it('selects countries, provinces and cities on the world map', async () => {
     useGameStore.getState().finishTutorial();
   });
 
-  const countries = Array.from(container.querySelectorAll('path.flat-country')) as SVGPathElement[];
+  // O atlas ilustrado é a leitura principal do mapa.
+  expect(container.querySelector('.atlas-illustrated')).toBeTruthy();
+  expect(container.querySelector('.atlas-compass')).toBeTruthy();
+  const countries = Array.from(container.querySelectorAll('path.atlas-country__hit')) as SVGPathElement[];
   expect(countries.length).toBeGreaterThan(200);
-  expect(container.querySelector('.map-fallback-note')).toBeTruthy();
 
   await act(async () => {
     countries[4].dispatchEvent(new MouseEvent('click', { bubbles: true }));

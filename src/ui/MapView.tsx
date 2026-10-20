@@ -16,14 +16,16 @@ import { claimableNeighbors, countryInfo, tilesOfFaction } from '../game/map';
 import { capitalLabel, cityLabel } from '../game/names';
 import type { FactionId, Tile } from '../game/types';
 import { useGameStore } from '../store/gameStore';
+import { FACTION_HATCH_ANGLE, IllustratedAtlas, type IllustratedAtlasHandle } from './art/IllustratedAtlas';
 import { FlatAtlas, type FlatAtlasHandle } from './FlatAtlas';
 import { fmt } from './format';
 import type { GlobeMap, GlobeHover } from './globe/globe';
 import { supportsWebGL } from './globe/webgl';
+import { TerrainGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { cx } from './primitives';
 
-type MapMode = '3d' | '2d';
+type MapMode = 'atlas' | '3d' | '2d';
 type GlobeModule = typeof import('./globe/globe');
 
 interface TooltipState {
@@ -84,7 +86,9 @@ export function MapView() {
   const focusCountry = useGameStore((s) => s.focusCountry);
 
   const [webgl] = useState(() => supportsWebGL());
-  const [mode, setMode] = useState<MapMode>(webgl ? '3d' : '2d');
+  // O atlas ilustrado é a tela principal do jogo; globo e carta ficam como
+  // leituras alternativas do mesmo estado.
+  const [mode, setMode] = useState<MapMode>('atlas');
   const [globeModule, setGlobeModule] = useState<GlobeModule | null>(null);
   const [showCities, setShowCities] = useState(true);
   const [showBorders, setShowBorders] = useState(true);
@@ -95,6 +99,7 @@ export function MapView() {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const globeRef = useRef<GlobeMap | null>(null);
   const flatRef = useRef<FlatAtlasHandle | null>(null);
+  const atlasRef = useRef<IllustratedAtlasHandle | null>(null);
 
   // three.js pesa ~600 kB: carrega só quando há WebGL e o globo está visível.
   useEffect(() => {
@@ -174,12 +179,14 @@ export function MapView() {
 
   const zoom = useCallback((factor: number) => {
     if (mode === '3d') globeRef.current?.zoomBy(factor);
-    else flatRef.current?.zoom(factor);
+    else if (mode === '2d') flatRef.current?.zoom(factor);
+    else atlasRef.current?.zoom(factor);
   }, [mode]);
 
   const reset = useCallback(() => {
     if (mode === '3d') globeRef.current?.resetView();
-    else flatRef.current?.reset();
+    else if (mode === '2d') flatRef.current?.reset();
+    else atlasRef.current?.reset();
     focusCountry(null);
   }, [mode, focusCountry]);
 
@@ -202,6 +209,7 @@ export function MapView() {
         meta: `${fmt(tile.pop)} hab · ${info.provinces} províncias`,
         text: tile.owner ? FACTIONS[tile.owner].name : claimable.has(hover.id) ? 'Elegível para expansão' : 'Território neutro',
         foot: `${TERRAIN[tile.terrain].name} · valor estratégico ${tile.strategic}/3`,
+        terrain: tile.terrain,
         claim: claimable.has(hover.id),
       };
     }
@@ -218,6 +226,7 @@ export function MapView() {
         meta: `${fmt(province.pop)} hab · ${province.cities} cidades`,
         text: 'Província / estado',
         foot: 'Clique para inspecionar a divisão interna',
+        terrain: null,
         claim: false,
       };
     }
@@ -232,6 +241,7 @@ export function MapView() {
       meta: `${fmt(city.pop)} hab`,
       text: 'Cidade',
       foot: 'Clique para abrir a ficha da cidade',
+      terrain: null,
       claim: false,
     };
   }, [hover, tiles, claimable]);
@@ -280,7 +290,27 @@ export function MapView() {
         aria-hidden={!active}
       />
 
-      {!globeReady && !globePending && (
+      {mode === 'atlas' && (
+        <IllustratedAtlas
+          ref={atlasRef}
+          tiles={tiles}
+          shapes={OUTLINE}
+          detail={detail}
+          focusCountryId={resolvedFocus}
+          selectedCountryId={selectedTileId}
+          selectedProvinceId={selectedProvinceId}
+          selectedCityId={selectedCityId}
+          playerId={playerId}
+          claimable={claimable}
+          showCities={showCities}
+          onSelectCountry={(id, focus) => selectCountry(id, focus)}
+          onSelectProvince={(id) => selectProvince(id)}
+          onSelectCity={(id) => selectCity(id)}
+          onClear={() => clearSelection()}
+        />
+      )}
+
+      {mode === '2d' && (
         <FlatAtlas
           ref={flatRef}
           tiles={tiles}
@@ -300,7 +330,7 @@ export function MapView() {
         />
       )}
 
-      {globePending && (
+      {mode === '3d' && globePending && (
         <div className="globe-loading">
           <span className="globe-loading__orbit" />
           <strong>Montando o globo</strong>
@@ -311,7 +341,7 @@ export function MapView() {
       <div className="map-title">
         <strong>{GAME.world}</strong>
         <span>
-          {mode === '3d' && active ? 'Globo interativo' : 'Carta plana'} · {fmt(Object.keys(tiles).length)} países ·{' '}
+          {mode === '3d' ? 'Globo interativo' : mode === '2d' ? 'Carta plana' : 'Atlas ilustrado'} · {fmt(Object.keys(tiles).length)} países ·{' '}
           {fmt(PROVINCES.length)} províncias · {fmt(CITIES.length)} cidades
         </span>
       </div>
@@ -399,20 +429,41 @@ export function MapView() {
         >
           <Icon name="Layers" size={15} />
         </button>
+      </div>
+
+      <div className="map-modes" role="tablist" aria-label="Leitura do mapa">
         <button
           type="button"
-          className={cx('map-control', mode === '2d' && 'is-active')}
-          onClick={() => setMode((value) => (value === '3d' ? '2d' : '3d'))}
-          aria-pressed={mode === '2d'}
-          aria-label={mode === '3d' ? 'Ver carta plana' : 'Ver globo 3D'}
-          title={webgl ? (mode === '3d' ? 'Carta plana' : 'Globo 3D') : 'WebGL indisponível neste navegador'}
-          disabled={!webgl && mode === '2d'}
+          role="tab"
+          aria-selected={mode === 'atlas'}
+          className={cx(mode === 'atlas' && 'is-active')}
+          onClick={() => setMode('atlas')}
         >
-          <Icon name={mode === '3d' ? 'Map' : 'Globe2'} size={15} />
+          <Icon name="Map" size={13} /> Atlas
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === '3d'}
+          className={cx(mode === '3d' && 'is-active')}
+          onClick={() => setMode('3d')}
+          disabled={!webgl}
+          title={webgl ? 'Globo tridimensional' : 'WebGL indisponível neste navegador'}
+        >
+          <Icon name="Globe2" size={13} /> Globo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === '2d'}
+          className={cx(mode === '2d' && 'is-active')}
+          onClick={() => setMode('2d')}
+        >
+          <Icon name="Layers" size={13} /> Carta
         </button>
       </div>
 
-      {(!webgl || globeFailed) && mode === '2d' && (
+      {(!webgl || globeFailed) && mode === '3d' && (
         <div className="map-fallback-note" role="status">
           <Icon name="Info" size={13} /> WebGL indisponível: exibindo a carta plana com os mesmos dados e seleção.
         </div>
@@ -423,14 +474,26 @@ export function MapView() {
         <div className="map-legend__grid">
           {playerFaction && (
             <span className="legend-item">
-              <i style={{ background: playerFaction.color }} /> Sua Casa
+              <i
+                style={{
+                  background: playerFaction.color,
+                  backgroundImage: `repeating-linear-gradient(${FACTION_HATCH_ANGLE[playerFaction.id] ?? 38}deg, rgba(255,255,255,.55) 0 1px, transparent 1px 3px)`,
+                }}
+              />{' '}
+              Sua Casa
             </span>
           )}
           {Object.values(FACTIONS)
             .filter((faction) => faction.id !== playerId)
             .map((faction) => (
               <span className="legend-item" key={faction.id}>
-                <i style={{ background: faction.color }} /> {faction.short}
+                <i
+                  style={{
+                    background: faction.color,
+                    backgroundImage: `repeating-linear-gradient(${FACTION_HATCH_ANGLE[faction.id] ?? 38}deg, rgba(255,255,255,.45) 0 1px, transparent 1px 3px)`,
+                  }}
+                />{' '}
+                {faction.short}
               </span>
             ))}
           <span className="legend-item"><i className="is-neutral" /> Neutro</span>
@@ -493,6 +556,9 @@ export function MapView() {
           }}
         >
           <div className="map-tooltip__top">
+            {tooltip.terrain ? (
+              <span className="map-tooltip__glyph"><TerrainGlyph terrain={tooltip.terrain} size={30} /></span>
+            ) : null}
             <span className="map-tooltip__owner" style={{ background: tooltip.accent }} />
             <div>
               <strong>{tooltip.title}</strong>
@@ -514,18 +580,20 @@ export function MapView() {
         <Icon name="MousePointer2" size={12} />
         {mode === '3d' && active
           ? 'Arraste para girar · roda ou pinça para aproximar · clique no país, na província ou na cidade · duplo clique foca'
-          : 'Arraste para navegar · roda do mouse para aproximar · clique no país, na província ou na cidade'}
+          : mode === 'atlas'
+            ? 'Arraste o atlas · roda para aproximar · clique no território, na província ou na cidade · duplo clique foca o país'
+            : 'Arraste para navegar · roda do mouse para aproximar · clique no país, na província ou na cidade'}
       </div>
 
       <div className="map-owner-badge">
         <span className="map-owner-badge__dot" style={{ background: owner ? FACTIONS[owner].color : '#6a7883' }} />
         {owner ? FACTIONS[owner].name : selectedTileId ? 'Neutro' : `${ownCount} países sob sua soberania`}
         <span className="map-owner-badge__sep">·</span>
-        <span>{GLOBAL_CITIES.length} cidades visíveis no globo</span>
+        <span>{GLOBAL_CITIES.length} cidades marcadas no atlas</span>
       </div>
 
       <div className="map-scale">
-        <span className="map-scale__line"><i /> {mode === '3d' && active ? 'projeção esférica' : 'projeção equirretangular'}</span>
+        <span className="map-scale__line"><i /> {mode === '3d' && active ? 'projeção esférica' : mode === 'atlas' ? 'carta ilustrada · equirretangular' : 'projeção equirretangular'}</span>
         <span>atlas Natural Earth</span>
       </div>
     </div>

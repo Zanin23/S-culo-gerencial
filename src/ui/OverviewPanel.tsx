@@ -7,6 +7,7 @@ import type { LogKind } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 import { cityLabel } from '../game/names';
 import { fmt, fmtRate, trendClass } from './format';
+import { ResourceGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { Badge, ProgressBar, Ring, SectionHeader } from './primitives';
 
@@ -142,7 +143,7 @@ export function OverviewPanel() {
           <div className="mini-flow">
             {RESOURCE_KEYS.map((key) => (
               <div className="mini-flow__row" key={key}>
-                <span className="mini-flow__icon" style={{ color: RESOURCES[key].color }}><Icon name={RESOURCES[key].icon} size={14} /></span>
+                <span className="mini-flow__icon" style={{ color: RESOURCES[key].color }}><ResourceGlyph resource={key} size={17} /></span>
                 <span className="mini-flow__name">{RESOURCES[key].label}</span>
                 <strong>{fmt(player.stocks[key])}</strong>
                 <span className={`mini-flow__net ${trendClass(eco.net[key])}`}>{fmtRate(eco.net[key])}</span>

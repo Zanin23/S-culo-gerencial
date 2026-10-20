@@ -14,6 +14,7 @@ import { canBuild } from '../game/commands';
 import type { BuildingKey, Tile } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 import { fmt } from './format';
+import { BuildingGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { Badge, Cost, cx, EmptyState, LevelPips, ProgressBar, SectionHeader } from './primitives';
 import { ViewShell } from './ViewShell';
@@ -38,8 +39,8 @@ function BuildingCard({ tile, building }: { tile: Tile; building: BuildingKey })
   return (
     <article className={cx('building-card', project && 'is-building', level > 0 && 'has-level', !check.ok && !project && 'is-locked')}>
       <div className="building-card__head">
-        <span className="building-card__icon" style={{ color: def.accent, background: `${def.accent}12`, borderColor: `${def.accent}38` }}>
-          <Icon name={def.icon} size={20} />
+        <span className="building-card__icon">
+          <BuildingGlyph kind={building} size={40} />
         </span>
         <div className="building-card__title">
           <div className="eyebrow">{def.category}</div>

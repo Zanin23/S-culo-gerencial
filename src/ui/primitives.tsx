@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { RESOURCES } from '../game/constants';
 import type { Flow, ResourceKey, Stocks } from '../game/types';
 import { costEntries, fmt, fmtRate, trendClass } from './format';
+import { ResourceGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 
 export function cx(...values: Array<string | false | null | undefined>): string {
@@ -34,7 +35,7 @@ export function Cost({
         const missing = stocks ? (stocks[key] ?? 0) + 1e-9 < value : false;
         return (
           <span key={key} className={cx('cost-chip', missing && 'is-missing')} title={RESOURCES[key].label}>
-            <Icon name={RESOURCES[key].icon} size={12} />
+            <ResourceGlyph resource={key} size={14} />
             <span>{fmt(value)}</span>
           </span>
         );

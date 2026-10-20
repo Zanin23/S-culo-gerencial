@@ -8,6 +8,7 @@ import { cityLabel } from '../game/names';
 import { useGameStore } from '../store/gameStore';
 import { CityStage } from './city3d/CityStage';
 import { fmt, fmtRate, trendClass } from './format';
+import { ResourceGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { Badge, cx, ProgressBar, SectionHeader } from './primitives';
 
@@ -220,7 +221,7 @@ export function CityView() {
                     {flow.map((entry) => (
                       <div className="city-flow__row" key={entry.key}>
                         <span className="city-flow__icon" style={{ color: RESOURCES[entry.key].color }}>
-                          <Icon name={RESOURCES[entry.key].icon} size={14} />
+                          <ResourceGlyph resource={entry.key} size={16} />
                         </span>
                         <span>{RESOURCES[entry.key].label}</span>
                         <b className={trendClass(entry.value)}>{fmtRate(entry.value)}</b>

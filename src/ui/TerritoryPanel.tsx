@@ -36,6 +36,7 @@ import {
 import type { BuildingKey, FactionId, GameState, Tile } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 import { fmt, fmtRate, trendClass } from './format';
+import { ResourceGlyph, TerrainGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { Badge, Cost, cx, EmptyState, LevelPips, ProgressBar, SectionHeader } from './primitives';
 
@@ -56,7 +57,7 @@ function FlowRow({
   if (Math.abs(production) < 0.05 && Math.abs(consumption) < 0.05 && !stocks) return null;
   return (
     <div className="flow-row">
-      <span className="flow-row__icon" style={{ color: RESOURCES[resource].color }}><Icon name={RESOURCES[resource].icon} size={14} /></span>
+      <span className="flow-row__icon" style={{ color: RESOURCES[resource].color }}><ResourceGlyph resource={resource} size={17} /></span>
       <span className="flow-row__name">{RESOURCES[resource].label}</span>
       <span className="flow-row__prod">+{fmt(production)}</span>
       <span className="flow-row__cons">−{fmt(consumption)}</span>
@@ -310,7 +311,7 @@ export function TerritoryPanel() {
           </div>
           <h2>{tile.name}</h2>
           <div className="tile-subline">
-            <span>{TERRAIN[tile.terrain].name}</span>
+            <span className="tile-subline__terrain"><TerrainGlyph terrain={tile.terrain} size={17} /> {TERRAIN[tile.terrain].name}</span>
             <span className="tile-subline__sep">·</span>
             <span>{NODES[tile.node].name}</span>
             <span className="tile-subline__sep">·</span>
