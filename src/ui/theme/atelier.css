@@ -1228,7 +1228,7 @@ thead th {
 .tile-stat > span,
 .kpi-grid > div > span,
 .city-kpis > div > span {
-  color: #7a6746;
+  color: #675538;
   font-size: 8.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1251,7 +1251,7 @@ thead th {
 .tile-stat small,
 .kpi-grid > div small,
 .city-kpis > div small {
-  color: #7a6746;
+  color: #675538;
 }
 
 .tile-stat .progress,
@@ -1497,16 +1497,76 @@ thead th {
   display: none;
 }
 
-.legend-item i::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(48deg, rgba(255, 255, 255, 0.5) 0 1px, transparent 1px 3px);
-}
-
 .legend-item i {
   position: relative;
   border-radius: 2px;
   border: 1px solid rgba(59, 50, 38, 0.35);
   overflow: hidden;
+}
+
+
+/* Terreno ilustrado no cabeçalho da ficha e no balão do mapa. */
+.tile-subline__terrain {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tile-subline__terrain svg {
+  flex: none;
+  opacity: 0.9;
+}
+
+.map-tooltip__glyph {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 3px;
+  border: 1px solid #bfa87c;
+  background: linear-gradient(180deg, #f7ecd2, #e7d6b3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+
+/* ---------------------------------------------------- superfícies herdadas */
+
+.context-slot {
+  background: linear-gradient(180deg, #211811, #1a120c);
+  border-left: 1px solid var(--line-strong);
+}
+
+.tooltip {
+  border-radius: 3px;
+  border: 1px solid #a8926a;
+  background: linear-gradient(180deg, #f6ecd3, #e9d8b4);
+  color: var(--ink-paper);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.tooltip-wrap::after {
+  border-radius: 3px;
+  border: 1px solid #a8926a;
+  background: rgba(246, 236, 211, 0.97);
+  color: #3b3226;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.dot-badge {
+  background: var(--seal);
+  color: #fdf1e2;
+  box-shadow: 0 0 0 2px #17110d;
+}
+
+.city-stage {
+  background:
+    radial-gradient(720px 420px at 50% 34%, #2a2118 0%, #17110d 68%, #120d09 100%);
+}
+
+.city-side {
+  background: linear-gradient(180deg, #211811, #1a120c);
+  border-left: 1px solid var(--line-strong);
 }

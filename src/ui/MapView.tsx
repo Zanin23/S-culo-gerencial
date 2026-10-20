@@ -16,11 +16,12 @@ import { claimableNeighbors, countryInfo, tilesOfFaction } from '../game/map';
 import { capitalLabel, cityLabel } from '../game/names';
 import type { FactionId, Tile } from '../game/types';
 import { useGameStore } from '../store/gameStore';
-import { IllustratedAtlas, type IllustratedAtlasHandle } from './art/IllustratedAtlas';
+import { FACTION_HATCH_ANGLE, IllustratedAtlas, type IllustratedAtlasHandle } from './art/IllustratedAtlas';
 import { FlatAtlas, type FlatAtlasHandle } from './FlatAtlas';
 import { fmt } from './format';
 import type { GlobeMap, GlobeHover } from './globe/globe';
 import { supportsWebGL } from './globe/webgl';
+import { TerrainGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { cx } from './primitives';
 
@@ -208,6 +209,7 @@ export function MapView() {
         meta: `${fmt(tile.pop)} hab · ${info.provinces} províncias`,
         text: tile.owner ? FACTIONS[tile.owner].name : claimable.has(hover.id) ? 'Elegível para expansão' : 'Território neutro',
         foot: `${TERRAIN[tile.terrain].name} · valor estratégico ${tile.strategic}/3`,
+        terrain: tile.terrain,
         claim: claimable.has(hover.id),
       };
     }
@@ -224,6 +226,7 @@ export function MapView() {
         meta: `${fmt(province.pop)} hab · ${province.cities} cidades`,
         text: 'Província / estado',
         foot: 'Clique para inspecionar a divisão interna',
+        terrain: null,
         claim: false,
       };
     }
@@ -238,6 +241,7 @@ export function MapView() {
       meta: `${fmt(city.pop)} hab`,
       text: 'Cidade',
       foot: 'Clique para abrir a ficha da cidade',
+      terrain: null,
       claim: false,
     };
   }, [hover, tiles, claimable]);
@@ -470,14 +474,26 @@ export function MapView() {
         <div className="map-legend__grid">
           {playerFaction && (
             <span className="legend-item">
-              <i style={{ background: playerFaction.color }} /> Sua Casa
+              <i
+                style={{
+                  background: playerFaction.color,
+                  backgroundImage: `repeating-linear-gradient(${FACTION_HATCH_ANGLE[playerFaction.id] ?? 38}deg, rgba(255,255,255,.55) 0 1px, transparent 1px 3px)`,
+                }}
+              />{' '}
+              Sua Casa
             </span>
           )}
           {Object.values(FACTIONS)
             .filter((faction) => faction.id !== playerId)
             .map((faction) => (
               <span className="legend-item" key={faction.id}>
-                <i style={{ background: faction.color }} /> {faction.short}
+                <i
+                  style={{
+                    background: faction.color,
+                    backgroundImage: `repeating-linear-gradient(${FACTION_HATCH_ANGLE[faction.id] ?? 38}deg, rgba(255,255,255,.45) 0 1px, transparent 1px 3px)`,
+                  }}
+                />{' '}
+                {faction.short}
               </span>
             ))}
           <span className="legend-item"><i className="is-neutral" /> Neutro</span>
@@ -540,6 +556,9 @@ export function MapView() {
           }}
         >
           <div className="map-tooltip__top">
+            {tooltip.terrain ? (
+              <span className="map-tooltip__glyph"><TerrainGlyph terrain={tooltip.terrain} size={30} /></span>
+            ) : null}
             <span className="map-tooltip__owner" style={{ background: tooltip.accent }} />
             <div>
               <strong>{tooltip.title}</strong>

@@ -39,7 +39,7 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
    - Confirme em **Fundar a sede**. O país da cidade é anexado à Casa e passa a ser a capital.
 2. Leia o tutorial de seis passos. Ele explica o ciclo, a economia, obras, expansão, diplomacia e a condição de vitória.
 3. O relógio do ciclo roda a cada 14 segundos quando você está no mapa. Você pode pausar, avançar manualmente ou simplesmente tomar decisões.
-4. Gire o globo até o país desejado e clique nele para abrir o painel do território. Aproxime para revelar **províncias/estados** e **cidades**; duplo clique foca o país e carrega a malha interna.
+4. No **atlas de papel** (leitura padrão do mapa), arraste para percorrer o mundo, use a roda para aproximar e clique num país para abrir a ficha do território. Aproxime para revelar **províncias/estados** e **cidades**; duplo clique foca o país e carrega a malha interna. Os botões **Atlas / Globo / Carta** trocam a leitura sem perder seleção.
 5. Vença alcançando **360 de hegemonia** antes de uma Casa rival. Hegemonia soma territórios, desenvolvimento, tecnologias, força militar, influência, acordos e uma fração limitada do tesouro.
 
 ### Controles
@@ -52,12 +52,13 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 | Pisos do corte da sede | Botões **1–4** no canto superior esquerdo da maquete |
 | Câmera da cidade | Arrastar para orbitar, roda para zoom, **+ / − / recentrar** à direita da maquete |
 | Entrar no prédio | Aba Cidade → Interior (ou duplo clique na fachada) |
-| Girar o globo | Arrastar |
+| Percorrer o atlas | Arrastar |
+| Girar o globo | Arrastar (modo Globo) |
 | Aproximar/afastar | Roda do mouse, pinça ou botões `+` / `−` |
 | Selecionar país | Clique no país; duplo clique foca e carrega províncias |
 | Selecionar província/estado | Clique na divisão interna do país focado |
 | Selecionar cidade | Clique no marcador de cidade (camada “Mostrar cidades”) |
-| Alternar globo 3D / carta plana | Botão de camada no canto superior direito |
+| Trocar atlas / globo / carta | Botões **Atlas · Globo · Carta** no canto superior direito |
 | Localizar país, província ou cidade | Seletores no canto superior esquerdo (também acessíveis por teclado) |
 | Painel da nação | Clique no fundo do mapa / botão “Painel da nação” |
 | Trocar de tela | Barra lateral; teclas `1`–`8` |
@@ -81,13 +82,22 @@ Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6
 - **Câmera**: órbita, zoom, panorâmica com botão direito/Shift e controles `+` / `−` / recentrar; modos **Cidade**, **Sede** (corte) e **Interior** (sala de comando com vista real para os prédios vizinhos pelas janelas).
 - **Minimapa** e planta 2D determinística como fallback sem WebGL — o jogo continua jogável.
 
-### Mapa-múndi em 3D
-- Globo em WebGL (three.js) com países extrudados sobre a esfera, atmosfera, campo de estrelas e grade lat/lon.
+### Direção de arte — atlas de atelier
+- **Identidade**: TESSERA é jogado sobre uma **carta ilustrada de papel** pousada numa mesa de couro. Nada de painéis translúcidos, brilhos ou gradientes futuristas — a interface imita **gravura, nanquim e latão**.
+- **Tipografia**: títulos em **Fraunces Variable** (serifa editorial, eixos SOFT/WONK), dados e rótulos em **Inter Variable** com algarismos tabulares. Toda a hierarquia vem dos tokens `--display`, `--serif`, `--sans`.
+- **Paleta**: papel `#efe2c4` / `#f6ecd4`, tinta `#3b3226`, mar `#9dbfb4`, terra em cinco lavagens naturais (planície, floresta, colina, montanha, deserto), latão `#a97b3f`, verdete `#4c7f6f` e selo `#b4553c`. Fundos neutros escuros (couro) para o papel respirar.
+- **Glifos desenhados no projeto** (`src/ui/art/Glyph.tsx`): um conjunto único de 32×32 para os sete recursos, os seis terrenos e as nove construções, além do selo de cera da Casa — sem emojis nem bibliotecas misturadas.
+- **Soberania legível sem cor**: cada Casa tem **inclinação de hachura própria** (24°, 68°, 112°, 156°) sobre a tinta de facção, então territórios continuam distinguíveis por padrão em daltonismo; a legenda repete o mesmo ângulo.
+- **Superfícies**: `.paper-card`, fichas de indicador com canto cortado, janelas com moldura dupla, plaquetas de latão para botões e estados explícitos (`state-tag--ready/locked/busy/done/event`).
+- **Movimento discreto**: fumaça nas capitais, bandeiras, navios em rotas marítimas, anel de seleção e transições de 180 ms — tudo respeitando `prefers-reduced-motion`.
+
+### Atlas-múndi, globo e carta
+- **Leitura principal**: atlas ilustrado em SVG (equirretangular, 360×180 unidades) com lavagem de terreno hachurada, orla de areia, sombra de papel recortado, graticula, rosácea dos ventos e escala. Pan por arrasto, zoom por roda (1×–11×), foco automático no país e seleção de país, província e cidade.
+- **Detalhe sob demanda**: com um país em foco, as províncias reais são desenhadas e clicáveis; as cidades viram conjuntos urbanos ilustrados a partir de 1,35× e viram pinos discretos no mundo inteiro.
+- **Globo WebGL** (three.js) com países extrudados, atmosfera e estrelas, e **carta plana 2D** como alternativa acessível — os três modos compartilham o mesmo estado, a mesma seleção e o mesmo painel contextual.
 - **231 países** como territórios; **4.502 províncias/estados** e **1.203 cidades** como camadas selecionáveis. A geometria do país é carregada sob demanda (`public/atlas/geo/{ISO}.json`), então a seleção nacional nunca depende de um único arquivo gigante.
-- Clique no país, na província (com o país focado) ou na cidade. Duplo clique aproxima e troca o detalhe interno; o painel contextual mostra a ficha do território.
 - Localizador com três seletores (país → província → cidade) resolve o problema de clicar em países minúsculos e serve de caminho acessível por teclado.
-- Órbita com arrastar, zoom por roda/pinça (1,32×–4,2×), rótulos de cidades em HTML projetados, destaque de reivindicáveis e tooltip com dono, população, terreno e valor estratégico.
-- **Carta plana 2D** (projeção equirretangular, SVG) como fallback automático sem WebGL e como alternativa acessível; usa o mesmo estado, as mesmas cores e a mesma seleção.
+- Tooltip com terreno ilustrado, dono, população, terreno e valor estratégico.
 - Cada território possui terreno, nó de recurso, população, desordem, valor estratégico, espaços construíveis, estruturas (níveis 0–3), defesa, produção e consumo locais.
 - Painel de território com abas **Resumo / Estruturas / Ações**, recrutamento, expansão, guerra e negociação.
 
@@ -112,9 +122,9 @@ Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6
 - Eventos dinâmicos com escolhas e efeitos consistentes (colheita, seca, greve, refugiados, corsários, inovação, dívida, entre outros).
 
 ### Interface e persistência
-- Barra superior com recursos, saldo, ciclo, hegemonia e alertas; navegação lateral; painel contextual; notificações; crônicas completas.
+- Barra superior em livro-razão com glifos ilustrados de recurso, saldo, ciclo, hegemonia e alertas; navegação lateral em plaquetas; painel contextual em papel; notificações; crônicas completas.
 - Tutorial de onboarding, manual, confirmações para ações destrutivas, estados vazios, erros de validação e feedback por toast.
-- Layout responsivo (desktop, tablet e celular), tipografia Inter + Spectral, globo WebGL + carta plana SVG.
+- Layout responsivo (desktop, tablet e celular); atlas ilustrado, globo WebGL e carta plana SVG sob o mesmo tema de atelier (Fraunces + Inter).
 - Nomes de capitais e grandes cidades em português (`names.ts`) sobre os nomes originais do Natural Earth.
 - Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício.
 

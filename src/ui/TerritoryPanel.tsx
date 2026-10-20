@@ -36,7 +36,7 @@ import {
 import type { BuildingKey, FactionId, GameState, Tile } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 import { fmt, fmtRate, trendClass } from './format';
-import { ResourceGlyph } from './art/Glyph';
+import { ResourceGlyph, TerrainGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { Badge, Cost, cx, EmptyState, LevelPips, ProgressBar, SectionHeader } from './primitives';
 
@@ -311,7 +311,7 @@ export function TerritoryPanel() {
           </div>
           <h2>{tile.name}</h2>
           <div className="tile-subline">
-            <span>{TERRAIN[tile.terrain].name}</span>
+            <span className="tile-subline__terrain"><TerrainGlyph terrain={tile.terrain} size={17} /> {TERRAIN[tile.terrain].name}</span>
             <span className="tile-subline__sep">·</span>
             <span>{NODES[tile.node].name}</span>
             <span className="tile-subline__sep">·</span>

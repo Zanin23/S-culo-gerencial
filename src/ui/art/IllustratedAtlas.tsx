@@ -32,6 +32,14 @@ const INK = '#3b3226';
 const INK_SOFT = '#6c5f4a';
 
 /** Terra por terreno — lavagens quentes e dessaturadas. */
+/** Inclinação da hachura de cada Casa (uma por quadrante, sem ambiguidade). */
+export const FACTION_HATCH_ANGLE: Record<string, number> = {
+  concordia: 24,
+  aurelia: 68,
+  kestrel: 112,
+  vantor: 156,
+};
+
 const LAND: Record<TerrainKey, { wash: string; shade: string; motif: string }> = {
   planicie: { wash: '#d3c480', shade: '#bfae6a', motif: '#a8934f' },
   floresta: { wash: '#8fae6f', shade: '#789a5b', motif: '#577a45' },
@@ -222,7 +230,15 @@ function FactionPatterns() {
   return (
     <>
       {Object.values(FACTIONS).map((faction) => (
-        <pattern key={faction.id} id={`atlas-hatch-${faction.id}`} width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(38)">
+        <pattern
+          key={faction.id}
+          id={`atlas-hatch-${faction.id}`}
+          width={6}
+          height={6}
+          patternUnits="userSpaceOnUse"
+          /* Cada Casa tem inclinação própria: a soberania continua legível sem cor. */
+          patternTransform={`rotate(${FACTION_HATCH_ANGLE[faction.id] ?? 38})`}
+        >
           <path d="M0 0v6" stroke={faction.color} strokeWidth={0.85} opacity={0.55} />
         </pattern>
       ))}
@@ -761,8 +777,14 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
                 {faction && (
                   <path d={paths[iso]} fill={faction.color} fillOpacity={owner === playerId ? 0.4 : 0.26} fillRule="evenodd" pointerEvents="none" />
                 )}
-                {faction && owner === playerId && (
-                  <path d={paths[iso]} fill={`url(#atlas-hatch-${faction.id})`} fillRule="evenodd" pointerEvents="none" opacity={0.8} />
+                {faction && (
+                  <path
+                    d={paths[iso]}
+                    fill={`url(#atlas-hatch-${faction.id})`}
+                    fillRule="evenodd"
+                    pointerEvents="none"
+                    opacity={owner === playerId ? 0.8 : 0.42}
+                  />
                 )}
                 {claim && (
                   <path d={paths[iso]} fill="url(#atlas-claim)" fillRule="evenodd" pointerEvents="none" opacity={0.5} />
@@ -773,8 +795,8 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
                   fill="none"
                   fillRule="evenodd"
                   stroke="#3f3323"
-                  strokeOpacity={0.5}
-                  strokeWidth={0.55 * unit}
+                  strokeOpacity={0.45}
+                  strokeWidth={0.45 * unit}
                   strokeLinejoin="round"
                   pointerEvents="none"
                 />
@@ -784,8 +806,8 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
                     fill="none"
                     fillRule="evenodd"
                     stroke={faction.color}
-                    strokeOpacity={0.95}
-                    strokeWidth={1.25 * unit}
+                    strokeOpacity={0.92}
+                    strokeWidth={1.0 * unit}
                     strokeLinejoin="round"
                     pointerEvents="none"
                   />
