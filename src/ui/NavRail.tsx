@@ -1,5 +1,3 @@
-import { AI_FACTIONS } from '../game/constants';
-import { getRelation } from '../game/diplomacy';
 import { useGameStore, type ViewKey } from '../store/gameStore';
 import { Icon } from './Icon';
 import { cx, Tooltip } from './primitives';
@@ -7,13 +5,14 @@ import { cx, Tooltip } from './primitives';
 const ITEMS: Array<{ view: ViewKey; label: string; icon: string }> = [
   { view: 'map', label: 'Mundo', icon: 'Map' },
   { view: 'city', label: 'Cidade', icon: 'Building2' },
+  { view: 'companies', label: 'Empresas', icon: 'Store' },
   { view: 'economy', label: 'Economia', icon: 'Coins' },
   { view: 'construction', label: 'Obras', icon: 'Hammer' },
-  { view: 'tech', label: 'Ciência', icon: 'FlaskConical' },
+  { view: 'tech', label: 'P&D', icon: 'FlaskConical' },
   { view: 'expansion', label: 'Expansão', icon: 'Target' },
-  { view: 'diplomacy', label: 'Diplomacia', icon: 'Handshake' },
+  { view: 'diplomacy', label: 'Acordos', icon: 'Handshake' },
   { view: 'objectives', label: 'Metas', icon: 'Award' },
-  { view: 'chronicle', label: 'Registro', icon: 'ScrollText' },
+  { view: 'chronicle', label: 'Relatório', icon: 'ScrollText' },
 ];
 
 export function NavRail({ onHelp }: { onHelp: () => void }) {
@@ -25,7 +24,7 @@ export function NavRail({ onHelp }: { onHelp: () => void }) {
   const playerId = game.playerFactionId;
   const offers = game.offers.filter((o) => o.to === playerId).length;
   const pendingProjects = game.projects.filter((p) => p.factionId === playerId).length;
-  const wars = AI_FACTIONS.filter((id) => getRelation(game, playerId, id).war).length;
+  const openOperations = game.operations.filter((op) => op.factionId === playerId).length;
 
   const go = (next: ViewKey) => {
     if (next === 'map' && view === 'map' && selectedTileId) {
@@ -50,7 +49,7 @@ export function NavRail({ onHelp }: { onHelp: () => void }) {
                 <Icon name={item.icon} size={19} />
                 {item.view === 'diplomacy' && offers ? <span className="dot-badge">{offers}</span> : null}
                 {item.view === 'construction' && pendingProjects ? <span className="dot-badge dot-badge--teal">{pendingProjects}</span> : null}
-                {item.view === 'diplomacy' && wars ? <span className="war-dot" /> : null}
+                {item.view === 'companies' && openOperations ? <span className="dot-badge dot-badge--teal">{openOperations}</span> : null}
               </span>
               <span className="nav-item__label">{item.label}</span>
             </button>

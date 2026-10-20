@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { AI_FACTIONS, FACTIONS, GAME } from '../game/constants';
+import { FACTIONS, GAME } from '../game/constants';
 import { computeEconomy, developmentOf } from '../game/economy';
-import { hasActivePact, getRelation } from '../game/diplomacy';
+import { hasActivePact } from '../game/diplomacy';
 import { leaderboard, objectivesOf, rankOf, scoreParts, VICTORY_TARGET, victoryInfo } from '../game/progress';
 import { tilesOfFaction } from '../game/map';
 import { useGameStore } from '../store/gameStore';
@@ -26,14 +26,15 @@ export function ObjectivesPanel() {
   const completedObjectives = objectives.filter((objective) => objective.done).length;
   const totalDev = tiles.reduce((sum, tile) => sum + developmentOf(tile), 0);
   const pacts = Object.keys(game.diplomacy).filter((key) => key.includes(playerId) && hasActivePact(game.diplomacy[key])).length;
-  const wars = AI_FACTIONS.filter((id) => getRelation(game, playerId, id).war).length;
+  const playerOperations = game.operations.filter((op) => op.factionId === playerId).length;
+  const rivalOperations = game.operations.filter((op) => op.factionId !== playerId).length;
   const leaderGap = victory.leader.isPlayer ? 0 : Math.max(0, victory.leader.score - victory.playerScore);
 
   return (
     <ViewShell
       eyebrow="Painel de metas"
       title="Objetivos e hegemonia"
-      subtitle={`A campanha termina quando uma Casa alcança ${VICTORY_TARGET} de hegemonia. Territórios, desenvolvimento, tecnologia e acordos constroem sua pontuação — não apenas exércitos.`}
+      subtitle={`A campanha termina quando uma companhia alcança ${VICTORY_TARGET} de hegemonia. Mercados, filiais, desenvolvimento, tecnologia e acordos constroem sua pontuação.`}
       icon="Award"
       actions={<Badge tone="gold" icon="Crown">{fmt(victory.playerScore)} de hegemonia</Badge>}
     >
@@ -59,7 +60,8 @@ export function ObjectivesPanel() {
             <span><Icon name="Landmark" size={13} /> {totalDev} desenvolvimento</span>
             <span><Icon name="FlaskConical" size={13} /> {player.techs.length} tecnologias</span>
             <span><Icon name="Handshake" size={13} /> {pacts} acordos</span>
-            {wars ? <span className="tone-red"><Icon name="Swords" size={13} /> {wars} guerra(s)</span> : null}
+            <span><Icon name="Store" size={13} /> {playerOperations} filiais</span>
+            {rivalOperations ? <span className="tone-gold"><Icon name="Store" size={13} /> {rivalOperations} rivais no mercado</span> : null}
           </div>
         </div>
       </div>
@@ -74,7 +76,7 @@ export function ObjectivesPanel() {
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Award" size={14} /> Sua posição</span>
           <strong>{victory.playerRank}º</strong>
-          <span className="summary-card__delta">de {board.length} Casas</span>
+          <span className="summary-card__delta">de {board.length} companhias</span>
           <small>O ranking soma todas as fontes de hegemonia.</small>
         </div>
         <div className="summary-card">
@@ -114,10 +116,10 @@ export function ObjectivesPanel() {
 
       <div className="objectives-layout">
         <section className="view-card">
-          <SectionHeader eyebrow="Corrida continental" title="Ranking das Casas" icon="Crown" />
+          <SectionHeader eyebrow="Corrida continental" title="Ranking das companhias" icon="Crown" />
           <div className="ranking-table">
             <div className="ranking-table__head">
-              <span>#</span><span>Casa</span><span>Hegemonia</span><span>Territórios</span><span>Tecnologias</span><span>Militar</span>
+              <span>#</span><span>Companhia</span><span>Hegemonia</span><span>Mercados</span><span>Tecnologias</span><span>Filiais</span>
             </div>
             {board.map((row, index) => (
               <div className={`ranking-row ${row.isPlayer ? 'is-player' : ''}`} key={row.id}>
@@ -129,13 +131,13 @@ export function ObjectivesPanel() {
                 </span>
                 <span>{row.territories}</span>
                 <span>{row.techs}</span>
-                <span>{Math.round(row.military)}</span>
+                <span>{row.operations}</span>
               </div>
             ))}
           </div>
           <div className="ranking-note">
             <Icon name="Info" size={13} />
-            A IA joga com as mesmas regras de custo, produção e expansão. Nenhuma Casa recebe recursos ou ações fora das regras.
+            A IA joga com as mesmas regras de custo, produção e expansão. Nenhuma companhia recebe recursos ou ações fora das regras.
           </div>
         </section>
 
@@ -153,7 +155,7 @@ export function ObjectivesPanel() {
             <span>Total</span>
             <strong>{fmt(victory.playerScore)}</strong>
           </div>
-          <p className="table-note">A pontuação é recalculada a cada ciclo. Estoques de créditos e influência têm teto de contribuição para evitar inatividade lucrativa.</p>
+          <p className="table-note">A pontuação é recalculada a cada ciclo. Estoques de créditos e relações institucionais têm teto de contribuição para evitar inatividade lucrativa.</p>
         </aside>
       </div>
 
@@ -163,19 +165,19 @@ export function ObjectivesPanel() {
           <div className="endgame-rules">
             <div className="endgame-rule is-victory">
               <span><Icon name="Award" size={18} /></span>
-              <div><strong>Vitória de Concórdia</strong><p>Alcance {VICTORY_TARGET} de hegemonia antes das Casas rivais.</p></div>
+              <div><strong>Vitória de Concórdia</strong><p>Alcance {VICTORY_TARGET} de hegemonia antes das rivais.</p></div>
             </div>
             <div className="endgame-rule is-defeat">
               <span><Icon name="AlertTriangle" size={18} /></span>
-              <div><strong>Derrota</strong><p>Uma Casa rival alcança {VICTORY_TARGET} ou Concórdia perde todos os territórios.</p></div>
+              <div><strong>Derrota</strong><p>Uma companhia rival alcança {VICTORY_TARGET} ou Concórdia perde todos os mercados.</p></div>
             </div>
             <div className="endgame-rule">
-              <span><Icon name="Swords" size={18} /></span>
-              <div><strong>Eliminação</strong><p>Capitais ocupadas são transferidas e Casas sem territórios saem do jogo.</p></div>
+              <span><Icon name="Store" size={18} /></span>
+              <div><strong>Colapso fiscal</strong><p>Caixa negativo por vários ciclos força a companhia a fechar filiais; sem mercados, ela sai do jogo.</p></div>
             </div>
             <div className="endgame-rule">
               <span><Icon name="ScrollText" size={18} /></span>
-              <div><strong>Registro</strong><p>Cada decisão, batalha e evento fica nas crônicas da campanha.</p></div>
+              <div><strong>Relatório</strong><p>Cada decisão, operação e evento fica registrado no relatório da campanha.</p></div>
             </div>
           </div>
         </section>

@@ -24,19 +24,21 @@ import { nextRandom } from './rng';
 import {
   buyResource,
   canBuild,
-  declareWar,
+  expandOperation,
   expansionCost,
-  militaryCap,
+  openOperation,
   proposeTreaty,
-  recruit,
   requiredDevelopment,
   sellResource,
   sendGift,
   startConstruction,
   startExpansion,
-  startOperation,
   startResearch,
 } from './commands';
+import { citiesOf, cityById } from './atlas';
+import type { AtlasCity } from './atlas';
+import { operationCost } from './operations';
+import type { SectorKey } from './types';
 import { logEntry } from './state';
 import type {
   BuildingKey,
@@ -50,7 +52,7 @@ import type {
 const BRANCH_AFFINITY: Record<string, Record<string, number>> = {
   mercantil: { economia: 1, logistica: 0.7, estado: 0.55, industria: 0.35 },
   industrial: { industria: 1, logistica: 0.7, economia: 0.55, estado: 0.4 },
-  militar: { estado: 1, industria: 0.7, economia: 0.4, logistica: 0.45 },
+  expansionista: { logistica: 1, estado: 0.7, economia: 0.55, industria: 0.55 },
   tecnocrata: { estado: 0.9, economia: 0.8, industria: 0.7, logistica: 0.7 },
 };
 
@@ -74,25 +76,6 @@ function projectSlotsAvailable(state: GameState, id: FactionId): boolean {
 
 function ownedTiles(state: GameState, id: FactionId): Tile[] {
   return tilesOfFaction(state.tiles, id);
-}
-
-function adjacencyToFaction(state: GameState, id: FactionId, target: FactionId): Tile | null {
-  for (const tile of ownedTiles(state, id)) {
-    for (const n of neighborsOf(tile, state.tiles)) {
-      if (n.owner === target) return n;
-    }
-  }
-  return null;
-}
-
-function adjacentEnemyTiles(state: GameState, id: FactionId): Tile[] {
-  const out = new Map<string, Tile>();
-  for (const tile of ownedTiles(state, id)) {
-    for (const n of neighborsOf(tile, state.tiles)) {
-      if (n.owner && n.owner !== id) out.set(n.id, n);
-    }
-  }
-  return [...out.values()];
 }
 
 function frontierTiles(state: GameState, id: FactionId): Tile[] {
@@ -318,7 +301,7 @@ function expansionReserve(state: GameState, id: FactionId): number {
     }
   }
   if (cheapest !== null) return cheapest;
-  // If no neutral border is ready, keep a smaller war chest for the next opportunity.
+  // If no neutral border is ready, keep a smaller cash buffer for the next opportunity.
   return faction.stocks.creditos > 220 ? 40 : 0;
 }
 
@@ -330,57 +313,64 @@ function tryExpand(state: GameState, id: FactionId): boolean {
   return false;
 }
 
-function tryOperation(state: GameState, id: FactionId): boolean {
-  const faction = state.factions[id];
-  if (faction.military < 30) return false;
-  const enemies = adjacentEnemyTiles(state, id);
-  if (!enemies.length) return false;
-  const target = enemies.sort((a, b) => {
-    const da = a.buildings.defesa * 18 + (a.isCapital ? 20 : 0) - a.unrest * 0.2;
-    const db = b.buildings.defesa * 18 + (b.isCapital ? 20 : 0) - b.unrest * 0.2;
-    return da - db;
-  })[0];
-  if (!target.owner) return false;
-  return applyResult(state, startOperation(state, id, target.id));
-}
+const SECTOR_BY_PERSONALITY: Record<string, SectorKey> = {
+  mercantil: 'varejo',
+  industrial: 'industria',
+  expansionista: 'logistica',
+  tecnocrata: 'financas',
+};
 
-function tryRecruit(state: GameState, id: FactionId): void {
-  const faction = state.factions[id];
-  const def = FACTIONS[id];
-  const cap = militaryCap(state, id);
-  if (faction.military >= cap - 5) return;
-  if (faction.stocks.creditos < 110) return;
-  const war = Object.keys(state.factions).some((other) => {
-    if (other === id) return false;
-    return getRelation(state, id, other as FactionId).war;
-  });
-  const chance = war ? 0.85 : def.aggression * 0.3;
-  if (nextRandom(state) > chance) return;
-  applyResult(state, recruit(state, id, 1));
-}
-
-function tryWar(state: GameState, id: FactionId): void {
-  if (state.cycle < 18) return;
-  const def = FACTIONS[id];
-  if (def.aggression < 0.6) return;
-  const faction = state.factions[id];
-  const targets = (Object.keys(state.factions) as FactionId[]).filter((other) => other !== id);
-  for (const other of targets) {
-    const target = state.factions[other];
-    if (target.eliminated) continue;
-    const relation = getRelation(state, id, other);
-    if (relation.war) continue;
-    if (!adjacencyToFaction(state, id, other)) continue;
-    if (relation.relation > -18) continue;
-    if (faction.military < target.military * 1.2) continue;
-    if (state.projects.some((p) => p.kind === 'operacao' && p.factionId === id && p.targetFaction === other)) continue;
-    const pact = relation.trade || relation.nonAggression || relation.alliance;
-    const chance = def.aggression * 0.07 * (pact ? 0.35 : 1);
-    if (nextRandom(state) < chance) {
-      applyResult(state, declareWar(state, id, other));
-      return;
+function openableCities(state: GameState, id: FactionId): AtlasCity[] {
+  const out: AtlasCity[] = [];
+  for (const tile of ownedTiles(state, id)) {
+    const cities = citiesOf(tile.id)
+      .slice()
+      .sort((a, b) => b.pop - a.pop)
+      .slice(0, 8);
+    for (const city of cities) {
+      if (state.operations.some((op) => op.factionId === id && op.cityId === city.id)) continue;
+      out.push(city);
     }
   }
+  return out;
+}
+
+/** Custo de uma filial comparado ao caixa, deixando reserva para as obras. */
+function branchAffordable(state: GameState, id: FactionId, city: AtlasCity, sector: SectorKey, targetLevel = 1, reserve = 0): boolean {
+  const faction = state.factions[id];
+  const cost = operationCost(city, sector, targetLevel);
+  return faction.stocks.creditos - cost.creditos >= reserve
+    && faction.stocks.materias >= cost.materias
+    && faction.stocks.influencia >= cost.influencia;
+}
+
+/** A companhia abre filiais quando o caixa permite; prioriza as maiores cidades. */
+function tryOpenOperation(state: GameState, id: FactionId): boolean {
+  const preferred = SECTOR_BY_PERSONALITY[FACTIONS[id].personality] ?? 'varejo';
+  const sectors: SectorKey[] = [preferred, 'varejo', 'logistica', 'financas', 'industria'];
+  const cities = openableCities(state, id).sort((a, b) => b.pop - a.pop);
+  // A justa de caixa pode trocar a linha de negócio pela mais barata.
+  for (const city of cities.slice(0, 8)) {
+    const sector = sectors.find((key) => branchAffordable(state, id, city, key, 1));
+    if (!sector) continue;
+    if (nextRandom(state) > 0.5) return false;
+    return applyResult(state, openOperation(state, id, city.id, sector));
+  }
+  return false;
+}
+
+/** Ampliar a filial existente rende mais que abrir outra em cidade pequena. */
+function tryUpgradeOperation(state: GameState, id: FactionId): boolean {
+  const candidates = state.operations
+    .filter((op) => op.factionId === id && op.level < 3)
+    .filter((op) => {
+      const city = cityById(op.cityId);
+      return city ? branchAffordable(state, id, city, op.sector, op.level + 1, 30) : false;
+    });
+  if (!candidates.length) return false;
+  if (nextRandom(state) > 0.45) return false;
+  const target = candidates[Math.floor(nextRandom(state) * candidates.length)];
+  return applyResult(state, expandOperation(state, id, target.id));
 }
 
 function tryAIDiplomacy(state: GameState, id: FactionId): void {
@@ -389,22 +379,10 @@ function tryAIDiplomacy(state: GameState, id: FactionId): void {
   const others = (Object.keys(state.factions) as FactionId[]).filter((o) => o !== id && !state.factions[o].eliminated);
   if (nextRandom(state) > 0.25) return;
 
-  if (def.aggression > 0.6) {
-    const warEnemies = others.filter((o) => getRelation(state, id, o).war);
-    for (const enemy of warEnemies) {
-      const relation = getRelation(state, id, enemy);
-      const losing = faction.military < state.factions[enemy].military * 0.75;
-      if (state.cycle - relation.since >= 4 && (losing || nextRandom(state) < 0.2)) {
-        applyResult(state, proposeTreaty(state, id, enemy, 'peace'));
-        return;
-      }
-    }
-  }
-
   if (faction.stocks.creditos > 260 && faction.lastGiftCycle !== state.cycle) {
     const player = state.playerFactionId;
     const rel = getRelation(state, id, player);
-    if (!rel.war && rel.relation < 18 && nextRandom(state) < 0.35) {
+    if (rel.relation < 18 && nextRandom(state) < 0.35) {
       applyResult(state, sendGift(state, id, player));
       return;
     }
@@ -412,7 +390,7 @@ function tryAIDiplomacy(state: GameState, id: FactionId): void {
 
   const partners = others.filter((other) => {
     const rel = getRelation(state, id, other);
-    return !rel.war && !rel.alliance && rel.relation >= 35;
+    return !rel.alliance && rel.relation >= 35;
   });
   if (!partners.length) return;
   const target = partners.sort((a, b) => getRelation(state, id, b).relation - getRelation(state, id, a).relation)[0];
@@ -470,18 +448,14 @@ export function runAITurn(state: GameState, id: FactionId): void {
   const eco = computeEconomy(state, id);
   let acted = false;
 
-  // 1. War effort: operations take priority when already at war.
-  const atWar = Object.keys(state.factions).some(
-    (other) => other !== id && getRelation(state, id, other as FactionId).war,
-  );
-  if (atWar && projectSlotsAvailable(state, id) && nextRandom(state) < 0.7) {
-    acted = tryOperation(state, id);
-  }
-
-  // 2. Expansion first: territory is the engine of long-term score.
+  // 1. Expansion first: territory is the engine of long-term score.
   if (!acted && projectSlotsAvailable(state, id) && nextRandom(state) < def.expansionBias * 0.9) {
     acted = tryExpand(state, id);
   }
+
+  // 2. Rede de filiais: investimento recorrente que não ocupa vaga de obra.
+  if (nextRandom(state) < 0.55) tryOpenOperation(state, id);
+  else tryUpgradeOperation(state, id);
 
   // 3. Essential infrastructure, then research and development.
   if (!acted) {
@@ -497,11 +471,9 @@ export function runAITurn(state: GameState, id: FactionId): void {
     if (!acted) acted = tryUpgrade(state, id);
   }
 
-  // 4. Strategic layer: war, market, diplomacy. These never consume project slots.
+  // 4. Camada de mercado e acordos.
   if (!eco.overCapacity || eco.shortages.length) tryMarket(state, id);
-  if (!atWar) tryWar(state, id);
   tryAIDiplomacy(state, id);
-  tryRecruit(state, id);
 }
 
 export function runAITurns(state: GameState): void {
@@ -522,21 +494,15 @@ export function generateOffers(state: GameState): void {
     if (state.offers.length >= 3) break;
     const relation = getRelation(state, id, player);
     const def = FACTIONS[id];
-    let kind: 'trade' | 'nonAggression' | 'alliance' | 'peace' | null = null;
+    let kind: 'trade' | 'nonAggression' | 'alliance' | null = null;
 
-    if (relation.war) {
-      const losing = faction.military < state.factions[player].military * 0.85;
-      const duration = state.cycle - relation.since;
-      if ((losing && duration >= 3) || duration >= 7) {
-        if (nextRandom(state) < 0.22) kind = 'peace';
-      }
-    } else if (relation.alliance) {
+    if (relation.alliance) {
       continue;
-    } else if (!relation.war && def.diplomacyBias > 0.45) {
+    } else if (def.diplomacyBias > 0.45) {
       const chance = 0.035 + def.diplomacyBias * 0.04;
       if (!relation.trade && relation.relation >= 26 && nextRandom(state) < chance) kind = 'trade';
       else if (!relation.nonAggression && relation.relation >= 42 && nextRandom(state) < chance * 0.8) kind = 'nonAggression';
-      else if (!relation.nonAggression && !relation.trade && relation.relation >= 66 && nextRandom(state) < chance * 0.5) kind = 'alliance';
+      else if (!relation.alliance && relation.relation >= 66 && nextRandom(state) < chance * 0.5) kind = 'alliance';
     }
     if (!kind) continue;
     state.offers.push({
@@ -547,16 +513,15 @@ export function generateOffers(state: GameState): void {
       createdCycle: state.cycle,
       expiresCycle: state.cycle + 3,
     });
-    logEntry(state, 'diplomacia', `${FACTIONS[id].short} enviou uma proposta de ${kind === 'trade' ? 'acordo comercial' : kind === 'nonAggression' ? 'não-agressão' : kind === 'alliance' ? 'aliança' : 'paz'} a ${FACTIONS[player].short}.`, id);
+    logEntry(state, 'diplomacia', `${FACTIONS[id].short} enviou uma proposta de ${kind === 'trade' ? 'acordo comercial' : kind === 'nonAggression' ? 'não concorrência' : 'parceria estratégica'} a ${FACTIONS[player].short}.`, id);
   }
 }
 
 
 export function relationLabelFor(state: GameState, a: FactionId, b: FactionId): string {
   const rel = getRelation(state, a, b);
-  if (rel.war) return 'Guerra';
-  if (rel.alliance) return 'Aliança';
-  if (rel.nonAggression) return 'Não-agressão';
+  if (rel.alliance) return 'Parceria';
+  if (rel.nonAggression) return 'Não concorrência';
   if (rel.trade) return 'Comércio';
   return `${Math.round(rel.relation)}`;
 }
@@ -571,10 +536,10 @@ export function buildingLabel(key: BuildingKey): string {
 
 export function aiDoctrineSummary(id: FactionId): string {
   const def = FACTIONS[id];
-  if (def.personality === 'mercantil') return 'Comércio e acordos';
+  if (def.personality === 'mercantil') return 'Varejo e acordos';
   if (def.personality === 'industrial') return 'Indústria e extração';
-  if (def.personality === 'militar') return 'Expansão e força';
-  return 'Pesquisa e administração';
+  if (def.personality === 'expansionista') return 'Logística e expansão';
+  return 'Finanças e pesquisa';
 }
 
 export function allBuildingKeys(): BuildingKey[] {
@@ -591,10 +556,6 @@ export function techsByBranch(): Record<string, TechId[]> {
   return out;
 }
 
-export function factionMilitaryCap(state: GameState, id: FactionId): number {
-  return militaryCap(state, id);
-}
-
 export function techEffectSummary(state: GameState, id: FactionId): number {
-  return techEffects(state.factions[id]).militaryMult;
+  return techEffects(state.factions[id]).operationsMult;
 }

@@ -15,12 +15,12 @@ import type {
 import { EMPTY_FLOW, EMPTY_STOCKS } from './constants';
 import { clamp, round1 } from './rng';
 import { hqCommerceMult, hqDefenseMult, hqProductionMult } from './hq';
+import { operationsSummary } from './operations';
 
 export const POP_FOOD = 0.22;
 export const POP_ENERGY = 0.08;
 export const POP_GOODS = 0.012;
 export const TAX_PER_POP = 0.45;
-export const MILITARY_UPKEEP = 0.03;
 export const BASE_ADMIN_CAPACITY = 4;
 
 export interface EconomySources {
@@ -31,6 +31,7 @@ export interface EconomySources {
   commerce: Flow;
   institutions: Flow;
   diplomacy: Flow;
+  operations: Flow;
 }
 
 export interface EconomyDemands {
@@ -59,19 +60,21 @@ export interface FactionEconomy {
   pop: number;
   jobs: number;
   laborRatio: number;
-  warCount: number;
+  operationCount: number;
+  operationRevenue: number;
+  operationUpkeep: number;
   pactCount: number;
   energyRatio: number;
   materialRatio: number;
   defense: number;
   buildingUpkeep: number;
-  militaryUpkeep: number;
   researchDiscount: number;
 }
 
 const emptySources = (): EconomySources => ({
   base: EMPTY_FLOW(), nodes: EMPTY_FLOW(), buildings: EMPTY_FLOW(),
   taxes: EMPTY_FLOW(), commerce: EMPTY_FLOW(), institutions: EMPTY_FLOW(), diplomacy: EMPTY_FLOW(),
+  operations: EMPTY_FLOW(),
 });
 
 const emptyDemands = (): EconomyDemands => ({
@@ -109,7 +112,7 @@ export function techEffects(faction: Faction) {
     maxProjects: 0,
     slotsBonus: 0,
     defenseMult: 0,
-    militaryMult: 0,
+    operationsMult: 0,
     unrestReduction: 0,
     relationGainMult: 0,
     influencePerCycle: 0,
@@ -129,7 +132,7 @@ export function techEffects(faction: Faction) {
     effects.maxProjects += e.maxProjects ?? 0;
     effects.slotsBonus += e.slotsBonus ?? 0;
     effects.defenseMult += e.defenseMult ?? 0;
-    effects.militaryMult += e.militaryMult ?? 0;
+    effects.operationsMult += e.operationsMult ?? 0;
     effects.unrestReduction += e.unrestReduction ?? 0;
     effects.relationGainMult += e.relationGainMult ?? 0;
     effects.influencePerCycle += e.influencePerCycle ?? 0;
@@ -399,21 +402,24 @@ export function computeEconomy(state: GameState, factionId: FactionId): FactionE
     }
   }
 
+  // Operações urbanas: receita das filiais, custo e insumos.
+  const ops = operationsSummary(state, factionId, tech.operationsMult, 1);
+  sources.operations.creditos = ops.revenue;
+  demands.upkeep.creditos += ops.upkeep;
+  for (const [key, value] of Object.entries(ops.inputs) as Array<[ResourceKey, number]>) {
+    demands.industry[key] += value ?? 0;
+  }
+
   // Security & administration
   const adminCapacity = adminCapacityOfState(state, factionId);
   const territoryCount = tiles.length;
   const overCapacity = territoryCount > adminCapacity;
-  const warCount = Object.keys(state.diplomacy).filter(
-    (key) => key.includes(factionId) && state.diplomacy[key].war,
-  ).length;
-  const militaryUpkeep = faction.military * MILITARY_UPKEEP;
-  const warCost = warCount * 3;
-  demands.upkeep.creditos += buildingUpkeep + militaryUpkeep + warCost;
+  demands.upkeep.creditos += buildingUpkeep;
   sources.base.creditos += 0; // terrain taxes are handled above
 
   const production = sumFlow(
     sources.base, sources.nodes, sources.buildings, sources.taxes,
-    sources.commerce, sources.institutions, sources.diplomacy,
+    sources.commerce, sources.institutions, sources.diplomacy, sources.operations,
   );
   const demand = sumFlow(demands.population, demands.industry, demands.upkeep);
 
@@ -442,9 +448,18 @@ export function computeEconomy(state: GameState, factionId: FactionId): FactionE
     production.conhecimento = sources.buildings.conhecimento + sources.institutions.conhecimento;
   }
 
+  // A indústria sofre com falta de energia/insumos; as demais filiais não.
+  const opsAdjusted = operationsSummary(state, factionId, tech.operationsMult, industryFactor);
+  if (opsAdjusted.revenue !== ops.revenue) {
+    production.creditos += opsAdjusted.revenue - ops.revenue;
+    sources.operations.creditos = opsAdjusted.revenue;
+  }
+  const operationRevenue = opsAdjusted.revenue;
+
   if (overCapacity) {
     for (const k of RESOURCE_KEYS) {
       production[k] *= 0.9;
+      sources.operations[k] *= 0.9;
     }
   }
 
@@ -470,7 +485,7 @@ export function computeEconomy(state: GameState, factionId: FactionId): FactionE
     net,
     sources,
     demands,
-    upkeep: buildingUpkeep + militaryUpkeep + warCost,
+    upkeep: buildingUpkeep + ops.upkeep,
     commerce,
     income,
     expenses,
@@ -483,13 +498,14 @@ export function computeEconomy(state: GameState, factionId: FactionId): FactionE
     pop,
     jobs,
     laborRatio: jobs > 0 ? clamp(pop / jobs, 0, 1) : 1,
-    warCount,
+    operationCount: ops.count,
+    operationRevenue,
+    operationUpkeep: ops.upkeep,
     pactCount: pacts.length,
     energyRatio,
     materialRatio,
     defense,
     buildingUpkeep,
-    militaryUpkeep,
     researchDiscount,
   };
 }
@@ -515,11 +531,14 @@ export function applyEconomy(state: GameState, factionId: FactionId): FactionEco
   faction.lastProduction = { ...eco.production };
   faction.lastConsumption = actualDemand;
   faction.shortages = eco.shortages;
+  // Insolvência: caixa vazio e resultado negativo por ciclos seguidos.
+  faction.deficitCycles = faction.stocks.creditos <= 0.1 && eco.net.creditos < 0
+    ? (faction.deficitCycles ?? 0) + 1
+    : 0;
 
   // Unrest pressure & population dynamics
   const adminLevels = tiles.reduce((sum, t) => sum + t.buildings.administrativo, 0);
   const tech = techEffects(faction);
-  const warPressure = eco.warCount * 0.6;
   const shortagePressure = Math.min(9, eco.shortages.length * 3);
   const foodShortage = eco.shortages.includes('alimentos');
   const overCapPressure = eco.overCapacity ? 3 : 0;
@@ -534,8 +553,9 @@ export function applyEconomy(state: GameState, factionId: FactionId): FactionEco
     const falloff = 2.2 + adminLevels * 0.5 + (tile.isCapital ? 0.8 : 0);
     const reduction = 1 - Math.min(0.5, tech.unrestReduction);
     let unrest = tile.unrest;
-    unrest -= falloff * reduction;
-    unrest += warPressure + shortagePressure + overCapPressure + modifierUnrest;
+    // Segurança patrimonial acalma a operação local e reduz perdas.
+    unrest -= falloff * reduction + tile.buildings.defesa * 0.8;
+    unrest += shortagePressure + overCapPressure + modifierUnrest;
     if (tile.pop > popCap) unrest += 2.5;
     if (tile.pop < 0.45 * popCap) unrest += 0.4;
     tile.unrest = clamp(round1(unrest), 0, 100);
@@ -553,15 +573,13 @@ export function applyEconomy(state: GameState, factionId: FactionId): FactionEco
     tile.pop = round1(clamp(pop, 1, 90));
   }
 
-  // Consequences of empty treasury / famine
+  // Caixa vazio desorganiza a operação; escassez de alimentos pressiona as ruas.
   if (faction.stocks.creditos <= 0.1 && eco.net.creditos < 0) {
-    faction.military = Math.max(0, round1(faction.military - 1.5));
-    for (const tile of tiles) tile.unrest = clamp(tile.unrest + 1.5, 0, 100);
+    for (const tile of tiles) tile.unrest = clamp(tile.unrest + 2.5, 0, 100);
   }
   if (foodShortage) {
-    faction.military = Math.max(0, round1(faction.military - 0.8));
+    for (const tile of tiles) tile.unrest = clamp(tile.unrest + 1.2, 0, 100);
   }
-  faction.military = round1(clamp(faction.military, 0, 999));
 
   return eco;
 }

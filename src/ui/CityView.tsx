@@ -164,7 +164,7 @@ export function CityView() {
         <aside className="city-side">
           <header className="city-side__head">
             <div>
-              <div className="eyebrow">Sede da Casa</div>
+              <div className="eyebrow">Sede do grupo</div>
               <h2>{cityLabel(city.name)}</h2>
               <span>{country?.name} · fundada no ciclo {seat.foundedCycle}</span>
             </div>

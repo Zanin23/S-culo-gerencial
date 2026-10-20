@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chooseEvent, eventById } from './events';
 import { runAITurn } from './ai';
-import { advanceCycle } from './cycle';
+import { advanceCycle, resolveInsolvency } from './cycle';
 import { computeEconomy, defenseOf, developmentOf, techEffects, territoryProduction } from './economy';
 import { neighborsOf, tilesOfFaction } from './map';
 import { createInitialState, exportSave, importSave, validateState } from './state';
@@ -22,6 +22,28 @@ function resolvePending(state: GameState): GameState {
 }
 
 describe('MANAGEMENT CENTURY engine', () => {
+  it('encerra a companhia insolvente e libera os mercados', () => {
+    const state = createInitialState(99, 1);
+    const faction = state.factions.concordia;
+    const tileId = faction.capitalId;
+    state.operations.push({
+      id: 'op1',
+      factionId: 'concordia',
+      cityId: 'c1',
+      countryId: tileId,
+      sector: 'varejo',
+      level: 1,
+      openedCycle: 1,
+    });
+    faction.deficitCycles = 6;
+    const fallen = resolveInsolvency(state);
+    expect(fallen).toContain('concordia');
+    expect(state.factions.concordia.eliminated).toBe(true);
+    expect(state.operations).toHaveLength(0);
+    expect(tilesOfFaction(state.tiles, 'concordia')).toHaveLength(0);
+    expect(state.tiles[tileId].owner).toBeNull();
+  });
+
   it('creates a coherent world', () => {
     const state = createInitialState(123456, 1);
     expect(Object.keys(state.tiles).length).toBeGreaterThan(200);
@@ -65,7 +87,7 @@ describe('MANAGEMENT CENTURY engine', () => {
           food: Math.round(player.stocks.alimentos),
           energy: Math.round(player.stocks.energia),
           techs: player.techs.length,
-          military: Math.round(player.military),
+          operations: state.operations.filter((op) => op.factionId === 'concordia').length,
           score: scoreOf(state, 'concordia'),
           phase: state.phase,
         });

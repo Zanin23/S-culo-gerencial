@@ -5,6 +5,7 @@ import { rankOf, scoreParts, VICTORY_TARGET } from './game/progress';
 import type { CycleReport, ResourceKey } from './game/types';
 import { CYCLE_SECONDS, useGameStore } from './store/gameStore';
 import { ChroniclePanel } from './ui/ChroniclePanel';
+import { CompaniesPanel } from './ui/CompaniesPanel';
 import { CityView } from './ui/CityView';
 import { ConstructionPanel } from './ui/ConstructionPanel';
 import { DiplomacyPanel } from './ui/DiplomacyPanel';
@@ -27,6 +28,7 @@ import { TopBar } from './ui/TopBar';
 const VIEWS = {
   map: MapView,
   city: CityView,
+  companies: CompaniesPanel,
   economy: EconomyPanel,
   construction: ConstructionPanel,
   tech: TechPanel,
@@ -37,52 +39,55 @@ const VIEWS = {
   settings: SettingsPanel,
 } as const;
 
-const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'city' | 'economy' | 'construction' | 'tech' | 'diplomacy' | 'objectives'; hint: string }> = [
+/** Teclas 1–9 percorrem as telas principais; 0 abre o relatório. */
+const KEY_VIEWS = ['map', 'city', 'companies', 'economy', 'construction', 'tech', 'expansion', 'diplomacy', 'objectives'] as const;
+
+const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'city' | 'economy' | 'construction' | 'tech' | 'companies' | 'diplomacy' | 'objectives'; hint: string }> = [
   {
-    title: 'Sua Casa, seu mundo',
-    body: 'Você governa a Casa Concórdia, dona de Portugal e Espanha. A campanha começa na escolha da cidade-sede: terreno real, ruas geradas e o lote onde a primeira construção será erguida.',
+    title: 'Sua companhia, seu mercado',
+    body: 'Você dirige o Grupo Concórdia, com operações em Portugal e Espanha. A campanha começa na escolha da cidade-sede: terreno real, ruas geradas e o lote onde a primeira estrutura será erguida.',
     icon: 'Globe2',
     view: 'city',
     hint: 'Na aba Cidade você alterna entre a maquete, a fachada da sede e o interior do prédio.',
   },
   {
     title: 'Gestão, não aventura',
-    body: 'Cada decisão é econômica: o ciclo fecha produção, consumo e manutenção; obras elevam o desenvolvimento; a expansão compra países inteiros com créditos, materiais e influência. O distrito da sede já entra no cálculo.',
+    body: 'Cada decisão é econômica: o ciclo fecha produção, consumo e manutenção; obras elevam o desenvolvimento; a expansão compra licenças para operar em novos países com créditos, materiais e relações. O distrito da sede já entra no cálculo.',
     icon: 'Building2',
     view: 'economy',
-    hint: 'Use Economia para ver saldo e tendências, Obras para construir e Expansão para reivindicar países.',
+    hint: 'Use Economia para ver saldo e tendências, Obras para construir e Expansão para entrar em novos mercados.',
   },
   {
     title: 'O ciclo move o mundo',
-    body: `A cada ${CYCLE_SECONDS} segundos um ciclo fecha: produção entra, consumo sai, projetos avançam, a IA age e eventos podem surgir. Use Avançar para controlar o ritmo ou deixe o autoplay ligado — nada acontece fora do ciclo.`,
+    body: `A cada ${CYCLE_SECONDS} segundos um ciclo fecha: produção entra, consumo sai, projetos avançam, as rivais agem e eventos podem surgir. Use Avançar para controlar o ritmo ou deixe o autoplay ligado — nada acontece fora do ciclo.`,
     icon: 'Play',
     view: 'map',
     hint: 'Espaço avança um ciclo. O autoplay pausa automaticamente ao abrir modais.',
   },
   {
-    title: 'Construir também é expandir',
-    body: 'Obras elevam o desenvolvimento local, desbloqueiam produção e sustentam fronteiras maiores. O capital é a âncora: quanto mais desenvolvido, mais longe você pode reivindicar sem guerra — e o objetivo de capital exige exatamente isso.',
+    title: 'Construir é crescer',
+    body: 'Obras elevam o desenvolvimento local, desbloqueiam produção e sustentam mercados maiores. A sede é a âncora: quanto mais desenvolvida, mais longe a companhia pode operar — e o objetivo da sede exige exatamente isso.',
     icon: 'Hammer',
     view: 'construction',
     hint: 'Cada território tem vagas limitadas. Obras ocupam uma vaga de projeto até concluir.',
   },
   {
-    title: 'Ciência com trade-offs',
-    body: 'A árvore tem quatro ramos e nenhuma trilha obrigatória. Economia acelera o mercado, expansão reduz o custo de fronteira, indústria melhora produtos e defesa aumenta o teto militar. Toda tecnologia custa conhecimento e créditos.',
+    title: 'P&D com trade-offs',
+    body: 'A árvore tem quatro ramos e nenhuma trilha obrigatória. Mercados aceleram a receita, Logística reduz o custo de expansão, Indústria melhora produtos e Gestão amplia administração e segurança. Toda tecnologia custa conhecimento e créditos.',
     icon: 'FlaskConical',
     view: 'tech',
     hint: 'Pré-requisitos aparecem em cinza. O desconto de pesquisa é global e ajuda a alcançar tiers altos.',
   },
   {
-    title: 'A guerra é uma decisão, não um botão',
-    body: 'Expedições exigem guerra declarada, fronteira comum e poder militar. Operações custam créditos, materiais, bens e influência, resolvem por força relativa com risco e deixam consequências na região. Diplomacia costuma ser mais barata.',
-    icon: 'Swords',
-    view: 'diplomacy',
-    hint: 'Pactos geram receita e estabilidade, mas limitam quem você pode atacar.',
+    title: 'Filiais disputam o mercado',
+    body: 'Cada cidade tem um mercado próprio, do tamanho da sua população. Abra filiais de Varejo, Indústria, Logística ou Finanças nos países que administra: quanto maior a sua capacidade na cidade, maior a sua participação — e a das rivais dilui a sua.',
+    icon: 'Store',
+    view: 'companies',
+    hint: 'A aba Empresas mostra receita, margem e participação de cada filial. Cidades grandes sustentam mercados maiores.',
   },
   {
-    title: 'O objetivo é a hegemonia',
-    body: `Vença alcançando ${VICTORY_TARGET} pontos ou cumprindo a meta de desenvolvimento do capital. Você perde se perder o capital ou ficar sem territórios. As quatro Casas adversárias perseguem doutrinas diferentes e não recebem vantagens ocultas.`,
+    title: 'O objetivo é a liderança',
+    body: `Vença alcançando ${VICTORY_TARGET} pontos ou cumprindo a meta de desenvolvimento da sede. Você perde se perder a sede ou ficar sem mercados. As três companhias rivais perseguem doutrinas diferentes e não recebem vantagens ocultas.`,
     icon: 'Award',
     view: 'objectives',
     hint: 'A aba Metas lista objetivos, ranking e a composição exata da sua pontuação.',
@@ -92,10 +97,10 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
 const HELP_CARDS = [
   { icon: 'Map', title: 'Leia o território', body: 'Solo, depósito, população, estruturas e valor estratégico determinam o que cada país pode render. Clique para abrir a ficha completa.' },
   { icon: 'Play', title: 'Decida no ciclo', body: 'Produção, consumo, manutenção e projetos só mudam quando um ciclo fecha. Avance manualmente ou deixe o autoplay correr.' },
-  { icon: 'Hammer', title: 'Desenvolver ou avançar', body: 'Um território rico e construído pode valer mais que dois pobres recém-reivindicados. O capital desenvolvido é a âncora da expansão.' },
-  { icon: 'Handshake', title: 'Negocie antes de lutar', body: 'Acordos geram receita e segurança. Guerra custa caro, exige preparação e desestabiliza a região — mas resolve disputas que a diplomacia não resolve.' },
+  { icon: 'Store', title: 'Abra filiais', body: 'Cidades grandes sustentam mercados maiores. Cada filial disputa participação com as rivais: expandir a capacidade local aumenta a sua fatia.' },
+  { icon: 'Handshake', title: 'Negocie acordos', body: 'Acordos comerciais, não concorrência e parcerias estratégicas geram receita e estabilidade. Relações boas abrem portas que o caixa sozinho não abre.' },
   { icon: 'FlaskConical', title: 'Escolha um caminho', body: 'São quatro ramos de pesquisa com pré-requisitos claros. Nenhuma tecnologia é obrigatória; cada uma troca custo por uma vantagem concreta.' },
-  { icon: 'Award', title: 'Persiga a hegemonia', body: `${VICTORY_TARGET} pontos ou a meta de desenvolvimento do capital encerram a partida. Perder o capital ou ficar sem territórios é derrota.` },
+  { icon: 'Award', title: 'Lidere o mercado', body: `${VICTORY_TARGET} pontos ou a meta de desenvolvimento da sede encerram a partida. Perder a sede ou ficar sem mercados é derrota.` },
 ];
 
 export function App() {
@@ -131,10 +136,9 @@ export function App() {
         if (store.game?.phase === 'playing' && !store.game?.pendingEventId) store.advance();
         return;
       }
-      const index = Number.parseInt(event.key, 10);
-      if (index >= 1 && index <= Object.keys(VIEWS).length) {
+      if (/^[0-9]$/.test(event.key)) {
         event.preventDefault();
-        store.setView(Object.keys(VIEWS)[index - 1] as keyof typeof VIEWS);
+        store.setView(event.key === '0' ? 'chronicle' : KEY_VIEWS[Number(event.key) - 1]);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -322,7 +326,6 @@ function describeEffect(effect: EventEffect): string {
   }
   if (effect.unrest) parts.push(`desordem ${effect.unrest > 0 ? '+' : ''}${effect.unrest}`);
   if (effect.relations) parts.push(`relações ${effect.relations > 0 ? '+' : ''}${effect.relations}`);
-  if (effect.military) parts.push(`poder militar ${effect.military > 0 ? '+' : ''}${fmt(effect.military)}`);
   if (effect.modifier) parts.push(`${effect.modifier.label} por ${effect.modifier.cycles} ciclos`);
   return parts.length ? parts.join(' · ') : effect.log;
 }
@@ -335,10 +338,10 @@ function CycleDigest() {
       open={Boolean(digest)}
       onClose={dismiss}
       title={digest ? `Ciclo ${String(digest.cycle).padStart(2, '0')} concluído` : ''}
-      eyebrow="Boletim do conselho"
+      eyebrow="Boletim da diretoria"
       icon="Activity"
       size="md"
-      footer={<button className="button button--primary" onClick={dismiss} type="button">Continuar governando</button>}
+      footer={<button className="button button--primary" onClick={dismiss} type="button">Continuar operando</button>}
     >
       {digest ? <DigestBody report={digest} /> : null}
     </Modal>
@@ -374,16 +377,6 @@ function DigestBody({ report }: { report: CycleReport }) {
           </div>
         </div>
       </div>
-      {report.battles.length ? (
-        <section className="digest-section digest-section--battle">
-          <h4><Icon name="Swords" size={12} /> Frente militar</h4>
-          {report.battles.map((battle) => (
-            <p key={`${battle.tileId}-${battle.cycle}`}>
-              <strong>{battle.tileName}</strong> · {FACTIONS[battle.attacker].short} × {FACTIONS[battle.defender].short} · {battle.success ? 'vitória' : 'derrota'} · perdas {Math.round(battle.attackerLoss)} / {Math.round(battle.defenderLoss)}
-            </p>
-          ))}
-        </section>
-      ) : null}
       {report.events.length ? (
         <section className="digest-section">
           <h4><Icon name="Sparkles" size={12} /> Eventos</h4>
@@ -496,7 +489,7 @@ function Toasts() {
   const toasts = useGameStore((s) => s.toasts);
   const remove = useGameStore((s) => s.removeToast);
   if (!toasts.length) return null;
-  const icons: Record<string, string> = { success: 'Check', error: 'AlertTriangle', info: 'Info', warning: 'AlertTriangle', battle: 'Swords' };
+  const icons: Record<string, string> = { success: 'Check', error: 'AlertTriangle', info: 'Info', warning: 'AlertTriangle', operation: 'Store' };
   return (
     <div className="toast-stack" aria-live="polite">
       {toasts.map((toast) => (

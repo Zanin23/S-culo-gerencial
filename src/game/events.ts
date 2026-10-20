@@ -19,7 +19,6 @@ export interface EventEffect {
   unrest?: number;
   relations?: number;
   market?: Partial<Record<MarketKey, number>>;
-  military?: number;
   modifier?: {
     label: string;
     description: string;
@@ -100,7 +99,7 @@ export const EVENTS: GameEvent[] = [
     title: 'Seca no mundo',
     category: 'Clima',
     icon: 'Sun',
-    description: 'Três meses sem chuva. Os rios baixaram e os produtores rurais de todas as Casas alertam para perdas severas.',
+    description: 'Três meses sem chuva. Os rios baixaram e os produtores rurais de todas as companhias alertam para perdas severas.',
     minCycle: 8,
     weight: 9,
     choices: [
@@ -222,7 +221,7 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'locais',
         label: 'Conceder às comunidades locais',
-        description: 'Renuncie ao controle direto: +8 influência e +4 relações com todas as Casas.',
+        description: 'Renuncie ao controle direto: +8 influência e +4 relações com todas as companhias.',
         tone: 'good',
         effect: {
           stockDelta: { influencia: 8 },
@@ -258,15 +257,15 @@ export const EVENTS: GameEvent[] = [
         },
       },
       {
-        id: 'guarda',
-        label: 'Mobilizar a guarda',
-        description: 'Imponha a volta ao trabalho: −8 de poder militar, −10 de desordem, +3 influência.',
+        id: 'seguranca',
+        label: 'Contratar segurança temporária',
+        description: 'Pague 60 créditos para conter os piquetes: −10 de desordem, +3 de relações.',
         tone: 'bad',
         effect: {
-          military: -8,
+          cost: { creditos: 60 },
           unrest: -10,
           stockDelta: { influencia: 3 },
-          log: 'A guarda reabriu as fundições à força; o custo foi militar e político.',
+          log: 'Segurança contratada reabriu as fundições; o custo foi financeiro e reputacional.',
         },
       },
       {
@@ -303,24 +302,24 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'ajuda',
         label: 'Enviar ajuda humanitária',
-        description: 'Gaste 60 créditos sem abrir as fronteiras: +6 relações com todas as Casas e +3 influência.',
+        description: 'Gaste 60 créditos sem abrir as fronteiras: +6 relações com todas as companhias e +3 influência.',
         tone: 'good',
         effect: {
           cost: { creditos: 60 },
           stockDelta: { influencia: 3 },
           relations: 6,
-          log: 'A ajuda humanitária de Concórdia foi reconhecida pelas outras Casas.',
+          log: 'A ajuda humanitária de Concórdia foi reconhecida pelas outras companhias.',
         },
       },
       {
         id: 'fechar',
         label: 'Fechar as fronteiras',
-        description: 'Mantenha o controle: −4 de desordem, mas −6 relações com todas as Casas.',
+        description: 'Mantenha o controle: −4 de desordem, mas −6 relações com todas as companhias.',
         tone: 'bad',
         effect: {
           unrest: -4,
           relations: -6,
-          log: 'Concórdia fechou as fronteiras ao comboio, irritando as demais Casas.',
+          log: 'Concórdia fechou as fronteiras ao comboio, irritando as demais companhias.',
         },
       },
     ],
@@ -375,10 +374,10 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'corsarios',
-    title: 'Corsários na Rota Sul',
+    title: 'Cargas desviadas',
     category: 'Crise',
     icon: 'Ship',
-    description: 'Navios sem bandeira interceptaram carregamentos nas rotas do sul. Seguradoras elevam taxas e mercadores exigem escolta.',
+    description: 'Carregamentos desapareceram nas rotas do sul. As seguradoras elevam o prêmio e os clientes exigem garantias.',
     minCycle: 10,
     weight: 7,
     choices: [
@@ -393,14 +392,14 @@ export const EVENTS: GameEvent[] = [
         },
       },
       {
-        id: 'patrulha',
-        label: 'Reforçar as patrulhas',
-        description: 'Gaste 20 matérias-primas e ganhe +6 de poder militar.',
+        id: 'escolta',
+        label: 'Contratar escolta privada',
+        description: 'Gaste 50 créditos: as cargas seguem e a rede ganha confiança (+4 relações).',
         tone: 'good',
         effect: {
-          cost: { materias: 20 },
-          military: 6,
-          log: 'Novas patrulhas foram equipadas com material de Concórdia.',
+          cost: { creditos: 50 },
+          stockDelta: { influencia: 4 },
+          log: 'Escoltas privadas mantiveram as entregas de Concórdia no prazo.',
         },
       },
       {
@@ -411,7 +410,7 @@ export const EVENTS: GameEvent[] = [
         effect: {
           stockDelta: { creditos: -40, alimentos: -8 },
           unrest: 5,
-          log: 'Os corsários saquearam cargas de Concórdia sem resposta.',
+          log: 'Cargas de Concórdia foram perdidas sem resposta.',
         },
       },
     ],
@@ -455,23 +454,23 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'conselho',
-    title: 'Conselho das Casas',
+    title: 'Cúpula do setor',
     category: 'Política',
     icon: 'Landmark',
-    description: 'As quatro Casas enviam enviados ao Coração do Mundo. A pauta é a segurança das rotas e o futuro da Partilha.',
+    description: 'As quatro companhias se reúnem para discutir rotas, tarifas e padrões de governança. A pauta é o futuro do mercado global.',
     minCycle: 15,
     weight: 6,
     choices: [
       {
         id: 'sediar',
         label: 'Sediar o conselho',
-        description: 'Pague 100 créditos: +12 influência e +10 relações com todas as Casas.',
+        description: 'Pague 100 créditos: +12 influência e +10 relações com todas as companhias.',
         tone: 'good',
         effect: {
           cost: { creditos: 100 },
           stockDelta: { influencia: 12 },
           relations: 10,
-          log: 'Concórdia sediou o Conselho das Casas e colheu prestígio.',
+          log: 'Concórdia sediou a Cúpula do setor e colheu prestígio.',
         },
       },
       {
@@ -488,44 +487,53 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'ausentar',
         label: 'Não comparecer',
-        description: 'Economize recursos, mas as Casas notam a ausência: −5 relações.',
+        description: 'Economize recursos, mas as companhias notam a ausência: −5 relações.',
         tone: 'bad',
         effect: {
           relations: -5,
-          log: 'A ausência de Concórdia no Conselho das Casas foi mal recebida.',
+          log: 'A ausência de Concórdia na Cúpula do setor foi mal recebida.',
         },
       },
     ],
   },
   {
-    id: 'eclipse',
-    title: 'O Eclipse',
-    category: 'Ciência',
-    icon: 'Moon',
-    description: 'Uma sombra dupla cruza o mundo. Arquivistas preveem um fenômeno raro; a população vê um presságio.',
+    id: 'concessoes',
+    title: 'Leilão de concessões',
+    category: 'Oportunidade',
+    icon: 'Landmark',
+    description: 'O governo abre licenças de infraestrutura: portos, energia e saneamento. O prazo é curto e a concorrência já está na sala.',
     minCycle: 9,
-    weight: 5,
+    weight: 6,
     choices: [
       {
-        id: 'estudar',
-        label: 'Estudar o fenômeno',
-        description: '+10 conhecimento, mas +5 de desordem por boatos.',
-        tone: 'neutral',
+        id: 'arrematar',
+        label: 'Arrematar a concessão',
+        description: 'Pague 90 créditos: +12 relações com o regulador e +10 bens para os primeiros contratos.',
+        tone: 'good',
         effect: {
-          stockDelta: { conhecimento: 10 },
-          unrest: 5,
-          log: 'A rede de observadores de Concórdia registrou o eclipse.',
+          cost: { creditos: 90 },
+          stockDelta: { influencia: 12, bens: 10 },
+          log: 'Concórdia arrematou uma concessão de infraestrutura no leilão.',
         },
       },
       {
-        id: 'acalmar',
-        label: 'Acalmar a população',
-        description: '−7 de desordem e +2 influência.',
-        tone: 'good',
+        id: 'consorcio',
+        label: 'Entrar em consórcio',
+        description: 'Pague 40 créditos: +6 relações, +6 conhecimento e menos risco.',
+        tone: 'neutral',
         effect: {
-          unrest: -7,
-          stockDelta: { influencia: 2 },
-          log: 'Procissões e avisos oficiais acalmaram a população de Concórdia.',
+          cost: { creditos: 40 },
+          stockDelta: { influencia: 6, conhecimento: 6 },
+          log: 'Concórdia entrou num consórcio para dividir o risco da concessão.',
+        },
+      },
+      {
+        id: 'passar',
+        label: 'Deixar passar',
+        description: 'Sem custos. A concorrência leva a licença e o assunto esfria.',
+        tone: 'bad',
+        effect: {
+          log: 'Concórdia preferiu preservar caixa e ficou fora do leilão de concessões.',
         },
       },
     ],
@@ -592,9 +600,6 @@ export function chooseEvent(state: GameState, factionId: FactionId, choiceId: st
     for (const tile of Object.values(next.tiles)) {
       if (tile.owner === factionId) tile.unrest = clamp(tile.unrest + effect.unrest, 0, 100);
     }
-  }
-  if (effect.military) {
-    player.military = round1(clamp(player.military + effect.military, 0, 999));
   }
   if (effect.relations) {
     for (const other of Object.keys(next.factions) as FactionId[]) {

@@ -58,7 +58,7 @@ const START_BUILDINGS: Record<FactionId, Partial<Record<BuildingKey, number>>> =
 };
 
 const SEAT_NOTES: Record<string, string> = {
-  PRT: 'Sede da Casa Concórdia, no estuário do Tejo. O conselho governa daqui.',
+  PRT: 'Sede do Grupo Concórdia, no estuário do Tejo. O conselho governa daqui.',
   ESP: 'A fronteira sul de Concórdia. Serve de escudo e de celeiro para Lisboa.',
   ITA: 'Sede da Liga Aureliana. Os bancos de Roma financiam metade do Mediterrâneo.',
   AUT: 'O corredor alpino de Aurelia: madeira, túneis e pedágio sobre o comércio do norte.',

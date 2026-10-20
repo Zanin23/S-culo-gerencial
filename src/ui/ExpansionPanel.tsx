@@ -49,7 +49,7 @@ export function ExpansionPanel() {
       title="Expansão territorial"
       subtitle="Reivindique países neutros que fazem fronteira com os seus. O país de partida precisa de desenvolvimento suficiente, e o custo cresce com o tamanho da nação."
       icon="Target"
-      actions={<Badge tone="teal" icon="Crown">{fmt(player.stocks.influencia)} influência</Badge>}
+      actions={<Badge tone="teal" icon="Crown">{fmt(player.stocks.influencia)} relações</Badge>}
     >
       <div className="summary-grid summary-grid--4">
         <div className="summary-card summary-card--teal">
@@ -65,10 +65,10 @@ export function ExpansionPanel() {
           <small>Países neutros vizinhos dos seus</small>
         </div>
         <div className="summary-card">
-          <span className="summary-card__label"><Icon name="Coins" size={14} /> Influência</span>
+          <span className="summary-card__label"><Icon name="Handshake" size={14} /> Relações</span>
           <strong>{fmt(player.stocks.influencia)}</strong>
           <span className="summary-card__delta">custo cresce com territórios</span>
-          <small>Cada expansão consome influência política</small>
+          <small>Cada expansão consome relações institucionais</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Hammer" size={14} /> Vagas de projeto</span>
@@ -92,7 +92,7 @@ export function ExpansionPanel() {
       {rarest ? (
         <div className="callout callout--gold">
           <Icon name="Gem" size={17} />
-          <span><strong>{rarest} depósito(s) raro(s) ao alcance</strong><small>Territórios raros produzem créditos e influência extras. Priorize-os se puder arcar com o custo.</small></span>
+          <span><strong>{rarest} depósito(s) raro(s) ao alcance</strong><small>Territórios raros produzem créditos e relações extras. Priorize-os se puder arcar com o custo.</small></span>
         </div>
       ) : null}
 
@@ -130,7 +130,7 @@ export function ExpansionPanel() {
         <div className="rules-grid">
           <div><span>1</span><strong>Fronteira</strong><p>O alvo precisa fazer fronteira com um país seu.</p></div>
           <div><span>2</span><strong>Base desenvolvida</strong><p>O território de partida precisa atingir o desenvolvimento exigido pelo alvo.</p></div>
-          <div><span>3</span><strong>Custo crescente</strong><p>Créditos, matérias-primas e influência aumentam com o número de territórios.</p></div>
+          <div><span>3</span><strong>Custo crescente</strong><p>Créditos, matérias-primas e relações aumentam com o número de territórios.</p></div>
           <div><span>4</span><strong>Proclamação</strong><p>A soberania chega em 2 ciclos e gera desordem inicial. Se outro poder chegar antes, parte do custo é reembolsada.</p></div>
         </div>
       </section>

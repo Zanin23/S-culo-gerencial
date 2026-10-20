@@ -6,6 +6,7 @@ import type {
   Personality,
   ResourceKey,
   ResourceNode,
+  SectorKey,
   Stocks,
   TechBranch,
   TechId,
@@ -17,15 +18,16 @@ import type {
 export const GAME = {
   id: 'management-century',
   name: 'MANAGEMENT CENTURY',
-  subtitle: 'Crônicas da Partilha',
-  world: 'Terra · A Partilha',
-  tagline: 'Toda fronteira é uma decisão.',
-  version: 2,
-  saveVersion: 2,
+  subtitle: 'Companhias, mercados e influência',
+  world: 'Terra · Mercado global',
+  tagline: 'Todo mercado é uma decisão.',
+  version: 3,
+  saveVersion: 3,
   baseProjectSlots: 2,
   baseAdminCapacity: 4,
   maxBuildingLevel: 3,
-  victoryTitle: 'Hegemonia Consolidada',
+  maxOperationLevel: 3,
+  victoryTitle: 'Liderança de Mercado',
 };
 
 export const RESOURCE_KEYS: ResourceKey[] = [
@@ -53,31 +55,31 @@ export interface ResourceMeta {
 export const RESOURCES: Record<ResourceKey, ResourceMeta> = {
   creditos: {
     key: 'creditos', label: 'Créditos', short: 'Cr', icon: 'Coins', color: '#e4bd72',
-    description: 'Moeda de reserva do sistema. Financia obras, tropas, acordos e expansão.',
+    description: 'Capital de giro. Financia obras, filiais, P&D e expansão.',
   },
   alimentos: {
     key: 'alimentos', label: 'Alimentos', short: 'Al', icon: 'Wheat', color: '#82c97c',
-    description: 'Sustenta a população. Escassez gera fome, desordem e êxodo.',
+    description: 'Abastece as cidades. Escassez pressiona custos, desordem e produtividade.',
   },
   energia: {
     key: 'energia', label: 'Energia', short: 'En', icon: 'Zap', color: '#6cc8e8',
-    description: 'Move indústrias e centros de pesquisa. O déficit reduz a produção.',
+    description: 'Move fábricas e centros de P&D. O déficit derruba a produção.',
   },
   materias: {
     key: 'materias', label: 'Matérias-primas', short: 'Mp', icon: 'Pickaxe', color: '#c7a17b',
-    description: 'Insumo de construção e da indústria. Pode ser vendido no mercado.',
+    description: 'Insumo de construção e da indústria. Commodity negociada no mercado.',
   },
   bens: {
     key: 'bens', label: 'Bens industriais', short: 'Bi', icon: 'Package', color: '#c6a5ea',
-    description: 'Produzidos pelos complexos industriais e valorizados pelo comércio.',
+    description: 'Produzidos pelos complexos industriais e vendidos pela rede de varejo.',
   },
   influencia: {
-    key: 'influencia', label: 'Influência', short: 'In', icon: 'Crown', color: '#6fd9c7',
-    description: 'Capital político para reivindicar territórios e firmar acordos.',
+    key: 'influencia', label: 'Relações', short: 'Re', icon: 'Handshake', color: '#6fd9c7',
+    description: 'Peso institucional: abre licenças, acordos e novos mercados.',
   },
   conhecimento: {
-    key: 'conhecimento', label: 'Conhecimento', short: 'Co', icon: 'FlaskConical', color: '#93b7f4',
-    description: 'Produzido por centros de pesquisa. Desbloqueia a árvore tecnológica.',
+    key: 'conhecimento', label: 'P&D', short: 'P&D', icon: 'FlaskConical', color: '#93b7f4',
+    description: 'Produzido pelos centros de pesquisa. Desbloqueia tecnologia aplicada.',
   },
 };
 
@@ -185,16 +187,16 @@ const b = (
 
 export const BUILDINGS: Record<BuildingKey, BuildingDef> = {
   fazenda: {
-    key: 'fazenda', name: 'Fazendas Coletivas', short: 'Fazenda', icon: 'Wheat',
+    key: 'fazenda', name: 'Agroindústria', short: 'Agro', icon: 'Wheat',
     category: 'Alimentos', accent: '#82c97c',
-    description: 'Cooperativas agrícolas que alimentam as cidades e sustentam o crescimento populacional.',
+    description: 'Unidades agrícolas que abastecem as cidades e sustentam a operação.',
     levels: [b(45, 6, 1, 0, 2), b(85, 16, 4, 0, 3), b(150, 30, 9, 0, 4)],
     production: { alimentos: 8 }, consumption: {}, upkeep: { creditos: 0.5 }, jobs: 7,
     terrainBonus: { nodes: ['fertil'], terrains: ['planicie'], resource: 'alimentos', multiplier: 0.5 },
     techUnlock: { 3: 'ec2' }, effect: '+8 alimentos/ciclo por nível.',
   },
   extratora: {
-    key: 'extratora', name: 'Instalações de Extração', short: 'Extração', icon: 'Pickaxe',
+    key: 'extratora', name: 'Unidades de Extração', short: 'Extração', icon: 'Pickaxe',
     category: 'Matérias-primas', accent: '#c7a17b',
     description: 'Minas e serrarias mecanizadas que transformam o subsolo em insumo produtivo.',
     levels: [b(50, 10, 2, 0, 2), b(95, 22, 5, 0, 3), b(165, 40, 10, 0, 4)],
@@ -205,7 +207,7 @@ export const BUILDINGS: Record<BuildingKey, BuildingDef> = {
   usina: {
     key: 'usina', name: 'Complexo Energético', short: 'Energia', icon: 'Zap',
     category: 'Energia', accent: '#6cc8e8',
-    description: 'Turbinas e caldeiras que mantêm a rede estável. Sem energia, a nação desacelera.',
+    description: 'Turbinas e caldeiras que mantêm a rede estável. Sem energia, a operação desacelera.',
     levels: [b(60, 15, 0, 0, 2), b(110, 28, 0, 0, 3), b(190, 48, 0, 0, 4)],
     production: { energia: 8 }, consumption: { materias: 0.8 }, upkeep: { creditos: 1.2 }, jobs: 5,
     terrainBonus: { nodes: ['energia'], terrains: ['montanha'], resource: 'energia', multiplier: 0.4 },
@@ -221,39 +223,39 @@ export const BUILDINGS: Record<BuildingKey, BuildingDef> = {
     techUnlock: { 3: 'in3' }, effect: '+7 bens/ciclo por nível; consome insumos.',
   },
   entreposto: {
-    key: 'entreposto', name: 'Entreposto Comercial', short: 'Comércio', icon: 'Store',
+    key: 'entreposto', name: 'Rede de Varejo', short: 'Varejo', icon: 'Store',
     category: 'Comércio', accent: '#e4bd72',
-    description: 'Casas de comércio que vendem bens industriais e geram créditos conforme o mercado.',
+    description: 'Lojas e centros de distribuição que vendem bens e geram caixa conforme o mercado.',
     levels: [b(70, 16, 4, 0, 2), b(130, 30, 8, 0, 3), b(220, 52, 14, 0, 4)],
     production: { creditos: 12 }, consumption: { bens: 1.5 }, upkeep: { creditos: 1.4 }, jobs: 6,
     terrainBonus: { terrains: ['costa'], resource: 'creditos', multiplier: 0.3 },
     techUnlock: { 3: 'ec1' }, effect: '≈12 créditos/ciclo por nível (varia com o preço dos bens).',
   },
   administrativo: {
-    key: 'administrativo', name: 'Centro Administrativo', short: 'Administração', icon: 'Landmark',
+    key: 'administrativo', name: 'Escritório Central', short: 'Administração', icon: 'Landmark',
     category: 'Administração', accent: '#9fc2b4',
-    description: 'Burocracia eficiente: gera influência política e reduz a desordem local.',
+    description: 'Estrutura de gestão: amplia a capacidade administrativa e reduz a desordem local.',
     levels: [b(75, 14, 3, 0, 3), b(140, 28, 8, 0, 3), b(240, 50, 14, 0, 4)],
     production: { influencia: 2.5, creditos: 2 }, consumption: {}, upkeep: { creditos: 2 }, jobs: 5,
     techUnlock: { 3: 'es1' }, effect: '+2,5 influência e +0,5 capacidade administrativa por nível.',
   },
   pesquisa: {
-    key: 'pesquisa', name: 'Centro de Pesquisa', short: 'Pesquisa', icon: 'FlaskConical',
-    category: 'Ciência', accent: '#93b7f4',
-    description: 'Laboratórios e academias que produzem conhecimento para novas tecnologias.',
+    key: 'pesquisa', name: 'Centro de P&D', short: 'P&D', icon: 'FlaskConical',
+    category: 'Pesquisa', accent: '#93b7f4',
+    description: 'Laboratórios aplicados que produzem conhecimento para novas tecnologias.',
     levels: [b(90, 22, 8, 0, 3), b(165, 42, 16, 0, 4), b(280, 75, 28, 0, 5)],
     production: { conhecimento: 3.5 }, consumption: { energia: 1.5 }, upkeep: { creditos: 2.8 }, jobs: 8,
     terrainBonus: { terrains: ['planicie'], resource: 'conhecimento', multiplier: 0.1 },
     techUnlock: { 3: 'es4' }, effect: '+3,5 conhecimento/ciclo por nível.',
   },
   defesa: {
-    key: 'defesa', name: 'Instalações de Defesa', short: 'Defesa', icon: 'Shield',
-    category: 'Defesa', accent: '#e39a80',
-    description: 'Muralhas, baterias e guarnições permanentes que protegem o território.',
+    key: 'defesa', name: 'Segurança Patrimonial', short: 'Segurança', icon: 'Shield',
+    category: 'Segurança', accent: '#e39a80',
+    description: 'Vigilância, seguro e controle de perdas: protege ativos e segura a desordem.',
     levels: [b(60, 26, 2, 0, 2), b(115, 48, 8, 0, 3), b(200, 85, 18, 0, 4)],
     production: {}, consumption: {}, upkeep: { creditos: 1.8 }, jobs: 3, defense: 18,
     terrainBonus: { terrains: ['montanha', 'colina'], resource: 'creditos', multiplier: 0 },
-    techUnlock: { 3: 'es3' }, effect: '+18 defesa territorial por nível.',
+    techUnlock: { 3: 'es3' }, effect: '+18 de proteção e −0,8 de desordem/ciclo por nível.',
   },
   logistica: {
     key: 'logistica', name: 'Malha Logística', short: 'Logística', icon: 'Truck',
@@ -283,7 +285,7 @@ export interface TechEffects {
   maxProjects?: number;
   slotsBonus?: number;
   defenseMult?: number;
-  militaryMult?: number;
+  operationsMult?: number;
   unrestReduction?: number;
   relationGainMult?: number;
   influencePerCycle?: number;
@@ -308,10 +310,10 @@ export interface TechDef {
 }
 
 export const TECH_BRANCHES: Record<TechBranch, { name: string; icon: string; color: string; description: string }> = {
-  economia: { name: 'Economia', icon: 'Coins', color: '#e4bd72', description: 'Mercados, agricultura e finanças.' },
+  economia: { name: 'Mercados', icon: 'Coins', color: '#e4bd72', description: 'Preços, crédito e receita.' },
   industria: { name: 'Indústria', icon: 'Factory', color: '#c6a5ea', description: 'Extração, energia e manufatura.' },
-  logistica: { name: 'Logística', icon: 'Route', color: '#8fbfa5', description: 'Rotas, capacidade e integração territorial.' },
-  estado: { name: 'Estado', icon: 'Scale', color: '#8fb4f5', description: 'Administração, diplomacia e defesa.' },
+  logistica: { name: 'Logística', icon: 'Route', color: '#8fbfa5', description: 'Rotas, capacidade e integração.' },
+  estado: { name: 'Gestão', icon: 'Scale', color: '#8fb4f5', description: 'Administração, acordos e segurança.' },
 };
 
 export const TECHS: Record<TechId, TechDef> = {
@@ -332,8 +334,8 @@ export const TECHS: Record<TechId, TechDef> = {
     benefits: ['+20% produção de alimentos', 'Fazendas nível III'],
   },
   ec3: {
-    id: 'ec3', branch: 'economia', tier: 3, name: 'Bancos Nacionais', icon: 'Landmark',
-    description: 'Crédito soberano e câmbio estável reduzem o custo de crescer.',
+    id: 'ec3', branch: 'economia', tier: 3, name: 'Crédito Corporativo', icon: 'Landmark',
+    description: 'Linhas de crédito e câmbio estável reduzem o custo de crescer.',
     cost: { conhecimento: 44, creditos: 180 }, requires: ['ec2'],
     effects: { production: { creditos: 0.12 }, expansionCostMult: -0.12 },
     benefits: ['+12% de receita urbana', '−12% custo de expansão'],
@@ -406,35 +408,35 @@ export const TECHS: Record<TechId, TechDef> = {
     benefits: ['+10% produção global', '+1 espaço construível por território'],
   },
   es1: {
-    id: 'es1', branch: 'estado', tier: 1, name: 'Administração Civil', icon: 'Scale',
-    description: 'Servidores treinados e registros unificados dão alcance ao Estado.',
+    id: 'es1', branch: 'estado', tier: 1, name: 'Gestão Integrada', icon: 'Scale',
+    description: 'Processos unificados e equipes treinadas dão alcance à companhia.',
     cost: { conhecimento: 15, creditos: 70 }, requires: [],
     effects: { unrestReduction: 0.2, adminCapacity: 1 },
     unlocks: [{ building: 'administrativo', level: 3 }],
     benefits: ['−20% desordem', '+1 capacidade administrativa', 'Administração nível III'],
   },
   es2: {
-    id: 'es2', branch: 'estado', tier: 2, name: 'Diplomacia de Salão', icon: 'Handshake',
-    description: 'Uma corte habilidosa transforma concessões pequenas em acordos duradouros.',
+    id: 'es2', branch: 'estado', tier: 2, name: 'Relações Institucionais', icon: 'Handshake',
+    description: 'Uma mesa de relações habilidosa transforma concessões pequenas em acordos duradouros.',
     cost: { conhecimento: 30, creditos: 130 }, requires: ['es1'],
     effects: { relationGainMult: 0.5, expansionInfluenceMult: -0.2 },
     benefits: ['+50% ganho de relações', '−20% influência em expansões'],
   },
   es3: {
-    id: 'es3', branch: 'estado', tier: 3, name: 'Doutrina de Defesa', icon: 'Shield',
-    description: 'Comando unificado e reservistas preparados protegem as fronteiras.',
+    id: 'es3', branch: 'estado', tier: 3, name: 'Gestão de Risco', icon: 'Shield',
+    description: 'Auditoria, seguro e compliance reduzem perdas e protegem a receita.',
     cost: { conhecimento: 48, creditos: 215 }, requires: ['es2'],
-    effects: { defenseMult: 0.25, militaryMult: 0.2 },
+    effects: { defenseMult: 0.25, unrestReduction: 0.12, operationsMult: 0.06 },
     unlocks: [{ building: 'defesa', level: 3 }],
-    benefits: ['+25% defesa territorial', '+20% poder militar', 'Defesa nível III'],
+    benefits: ['+25% proteção patrimonial', '−12% desordem', '+6% receita operacional', 'Segurança nível III'],
   },
   es4: {
-    id: 'es4', branch: 'estado', tier: 4, name: 'Grande Conselho', icon: 'Crown',
-    description: 'As Casas reconhecem sua legitimidade. O Estado vira instituição continental.',
+    id: 'es4', branch: 'estado', tier: 4, name: 'Conselho de Administração', icon: 'Crown',
+    description: 'O mercado reconhece sua governança. A companhia vira instituição global.',
     cost: { conhecimento: 72, creditos: 320 }, requires: ['es3'],
     effects: { influencePerCycle: 1, adminCapacity: 1 },
     unlocks: [{ building: 'pesquisa', level: 3 }],
-    benefits: ['+1 influência/ciclo', '+1 capacidade administrativa', 'Pesquisa nível III'],
+    benefits: ['+1 relação/ciclo', '+1 capacidade administrativa', 'P&D nível III'],
   },
 };
 
@@ -471,34 +473,34 @@ export interface FactionDef {
 
 export const FACTIONS: Record<FactionId, FactionDef> = {
   concordia: {
-    id: 'concordia', name: 'Casa Concórdia', short: 'Concórdia', epithet: 'A Casa do Equilíbrio',
-    leader: 'Conselho de Lisboa', motto: 'Nada se conquista sem sustentar.',
-    description: 'Uma casa de mercadores e engenheiros nascida no estuário do Tejo. Troca a força bruta por infraestrutura, crédito e acordos que sobrevivem a governos.',
+    id: 'concordia', name: 'Grupo Concórdia', short: 'Concórdia', epithet: 'Holding de infraestrutura',
+    leader: 'Diretoria de Lisboa', motto: 'Crescer sem perder o lastro.',
+    description: 'Holding de infraestrutura e serviços nascida no estuário do Tejo. Prefere contratos longos, logística e crédito barato à competição predatória.',
     color: '#3fd6c2', colorSoft: '#14685f', personality: 'mercantil', capitalName: 'Lisboa',
     aggression: 0.3, expansionBias: 0.7, industryBias: 0.7, techBias: 0.75, tradeBias: 0.9,
     diplomacyBias: 0.8, relationBaseline: 0, emblem: 'compass',
   },
   aurelia: {
-    id: 'aurelia', name: 'Liga Aureliana', short: 'Aurelia', epithet: 'A Casa do Ouro',
-    leader: 'Chanceler Otávia Rhen', motto: 'Todo acordo tem seu preço justo.',
-    description: 'Bancos, arquivos e institutos de cálculo de Roma. Compra influência com crédito e transforma informação em vantagem antes que as outras Casas percebam.',
+    id: 'aurelia', name: 'Aurélia Capital', short: 'Aurélia', epithet: 'Banco de investimento',
+    leader: 'Comitê Executivo de Roma', motto: 'Todo acordo tem seu preço justo.',
+    description: 'Banco de investimento e mesa de câmbio em Roma. Compra participações antes que o mercado perceba e transforma informação em margem.',
     color: '#e4b566', colorSoft: '#6a5226', personality: 'tecnocrata', capitalName: 'Roma',
     aggression: 0.22, expansionBias: 0.55, industryBias: 0.55, techBias: 0.95, tradeBias: 0.95,
     diplomacyBias: 0.9, relationBaseline: 14, emblem: 'coin',
   },
   kestrel: {
-    id: 'kestrel', name: 'Consórcio Kestrel', short: 'Kestrel', epithet: 'A Casa da Forja',
-    leader: 'Diretor Soren Vask', motto: 'O futuro é fundido, não herdado.',
-    description: 'Um consórcio de fundições e engenheiros sediado em Londres. Mede poder em toneladas de aço e aceita qualquer acordo que mantenha suas forjas acesas.',
+    id: 'kestrel', name: 'Kestrel Indústrias', short: 'Kestrel', epithet: 'Consórcio industrial',
+    leader: 'Diretoria de Londres', motto: 'O futuro é fundido, não herdado.',
+    description: 'Consórcio de fundições, energia e manufatura sediado em Londres. Mede força em toneladas de aço e capacidade instalada.',
     color: '#a78cf8', colorSoft: '#4b3b82', personality: 'industrial', capitalName: 'Londres',
     aggression: 0.4, expansionBias: 0.72, industryBias: 0.95, techBias: 0.85, tradeBias: 0.55,
     diplomacyBias: 0.55, relationBaseline: 2, emblem: 'anvil',
   },
   vantor: {
-    id: 'vantor', name: 'Domínio Vantor', short: 'Vantor', epithet: 'A Casa do Punho',
-    leader: 'Generalíssima Iska Vantor', motto: 'A fronteira é onde a força termina.',
-    description: 'Um domínio militar que nasceu controlando o Bósforo e ainda considera a diplomacia um intervalo entre campanhas.',
-    color: '#e36d63', colorSoft: '#6b2e2b', personality: 'militar', capitalName: 'Ancara',
+    id: 'vantor', name: 'Vantor Logística', short: 'Vantor', epithet: 'Operadora logística',
+    leader: 'Diretoria de Ancara', motto: 'A rota é o ativo.',
+    description: 'Operadora de portos, ferrovias e frotas nascida no Bósforo. Cresce fechando corredores e comprando concorrentes.',
+    color: '#e36d63', colorSoft: '#6b2e2b', personality: 'expansionista', capitalName: 'Ancara',
     aggression: 0.85, expansionBias: 0.82, industryBias: 0.6, techBias: 0.45, tradeBias: 0.35,
     diplomacyBias: 0.25, relationBaseline: -12, emblem: 'sword',
   },
@@ -520,40 +522,46 @@ export interface ObjectiveDef {
 
 export const OBJECTIVES: ObjectiveDef[] = [
   {
-    id: 'capital', title: 'Coração de Concórdia', target: 60, unit: 'dev.',
-    description: 'Leve o desenvolvimento da capital a 60.',
+    id: 'capital', title: 'Sede de referência', target: 60, unit: 'dev.',
+    description: 'Leve o desenvolvimento da sede a 60.',
     icon: 'Landmark',
-    hint: 'Construa e melhore estruturas na capital. Logística e administração valorizam o território.',
+    hint: 'Construa e melhore estruturas na sede. Logística e administração valorizam o território.',
   },
   {
-    id: 'territorios', title: 'Presença global', target: 8, unit: 'países',
+    id: 'operacoes', title: 'Rede de filiais', target: 8, unit: 'operações',
+    description: 'Abra 8 operações em cidades diferentes.',
+    icon: 'Building2',
+    hint: 'Abra filiais nas cidades dos países que administra. Cidades grandes sustentam mercados maiores.',
+  },
+  {
+    id: 'territorios', title: 'Presença internacional', target: 8, unit: 'países',
     description: 'Administre ao menos 8 países.',
     icon: 'Map',
-    hint: 'Reivindique países neutros que fazem fronteira com os seus. Cada expansão exige créditos e influência.',
+    hint: 'Reivindique países neutros que fazem fronteira com os seus. Cada expansão exige créditos e relações.',
   },
   {
-    id: 'industria', title: 'A forja global', target: 30, unit: 'bens/ciclo',
+    id: 'industria', title: 'Escala industrial', target: 30, unit: 'bens/ciclo',
     description: 'Produza 30 bens industriais em um único ciclo.',
     icon: 'Factory',
     hint: 'Complexos industriais convertem matérias-primas e energia em bens. Cuide das cadeias de suprimento.',
   },
   {
-    id: 'tecnologia', title: 'Vanguarda científica', target: 7, unit: 'tecnologias',
+    id: 'tecnologia', title: 'Vantagem tecnológica', target: 7, unit: 'tecnologias',
     description: 'Pesquise 7 tecnologias.',
     icon: 'FlaskConical',
-    hint: 'Centros de pesquisa geram conhecimento. Cada ramo abre caminhos diferentes.',
+    hint: 'Centros de P&D geram conhecimento. Cada ramo abre caminhos diferentes.',
   },
   {
-    id: 'influencia', title: 'Voz no Conselho', target: 100, unit: 'influência',
-    description: 'Acumule 100 de influência política.',
-    icon: 'Crown',
-    hint: 'Centros administrativos e a capital geram influência. Expandir-se consome parte dela.',
-  },
-  {
-    id: 'acordos', title: 'Conselho das Casas', target: 2, unit: 'potências',
-    description: 'Tenha um acordo ativo com 2 potências.',
+    id: 'influencia', title: 'Relações institucionais', target: 100, unit: 'relações',
+    description: 'Acumule 100 de relações.',
     icon: 'Handshake',
-    hint: 'Presentes e acordos comerciais elevam relações. Pactos de não-agressão contam para o objetivo.',
+    hint: 'Escritórios centrais e a sede geram relações. Expandir-se consome parte delas.',
+  },
+  {
+    id: 'acordos', title: 'Rede de parcerias', target: 2, unit: 'companhias',
+    description: 'Tenha um acordo ativo com 2 companhias.',
+    icon: 'Handshake',
+    hint: 'Presentes e acordos comerciais elevam relações. Pactos de não concorrência contam para o objetivo.',
   },
 ];
 
@@ -575,11 +583,56 @@ export const STARTING_STOCKS: Stocks = {
   conhecimento: 10,
 };
 
-export const STARTING_MILITARY = 45;
-
 export const RANKS = [
-  { min: 0, name: 'Casa Emergente', note: 'Ainda uma voz entre muitas.' },
-  { min: 120, name: 'Potência Regional', note: 'O mundo começa a ouvir você.' },
-  { min: 220, name: 'Potência Continental', note: 'Seu nome pesa nas negociações.' },
-  { min: 330, name: 'Hegemon', note: 'A ordem do mundo se escreve em sua capital.' },
+  { min: 0, name: 'Companhia Emergente', note: 'Ainda uma voz entre muitas.' },
+  { min: 120, name: 'Grupo Regional', note: 'Seu nome começa a pesar nas negociações.' },
+  { min: 220, name: 'Grupo Continental', note: 'Presença consolidada em vários mercados.' },
+  { min: 330, name: 'Líder Global', note: 'A companhia dita o ritmo do mercado.' },
 ];
+
+
+// ── Operações urbanas ───────────────────────────────────────────────────────
+
+export interface SectorDef {
+  key: SectorKey;
+  name: string;
+  short: string;
+  icon: string;
+  color: string;
+  description: string;
+  /** Multiplicador de receita sobre o mercado local. */
+  revenue: number;
+  /** Custos recorrentes por nível, em recursos. */
+  inputs?: Partial<Flow>;
+  /** Bônus de preço de venda para toda a rede. */
+  sellBonus?: number;
+  /** Receita extra por operação já aberta (finanças). */
+  networkBonus?: number;
+  /** Custo de abertura e de expansão, em créditos. */
+  cost: number;
+}
+
+export const SECTORS: Record<SectorKey, SectorDef> = {
+  varejo: {
+    key: 'varejo', name: 'Varejo', short: 'Varejo', icon: 'Store', color: '#e4bd72',
+    description: 'Lojas e franquias. Caixa rápido, margem estável e presença imediata.',
+    revenue: 1, cost: 70,
+  },
+  industria: {
+    key: 'industria', name: 'Indústria', short: 'Indústria', icon: 'Factory', color: '#c6a5ea',
+    description: 'Fábricas locais. Consome matérias-primas e energia, mas paga mais por unidade.',
+    revenue: 1.45, inputs: { materias: 0.6, energia: 0.45 }, cost: 130,
+  },
+  logistica: {
+    key: 'logistica', name: 'Logística', short: 'Logística', icon: 'Truck', color: '#8fbfa5',
+    description: 'Centros de distribuição. Melhora o preço de venda de toda a rede.',
+    revenue: 1.12, sellBonus: 0.025, cost: 95,
+  },
+  financas: {
+    key: 'financas', name: 'Finanças', short: 'Finanças', icon: 'Landmark', color: '#93b7f4',
+    description: 'Crédito, câmbio e seguros. Escala com o tamanho da rede de filiais.',
+    revenue: 0.85, networkBonus: 0.05, cost: 110,
+  },
+};
+
+export const SECTOR_ORDER: SectorKey[] = ['varejo', 'industria', 'logistica', 'financas'];

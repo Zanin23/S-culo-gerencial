@@ -4,7 +4,6 @@ import {
   FACTIONS,
   GAME,
   MARKET_BASE,
-  STARTING_MILITARY,
   STARTING_STOCKS,
 } from './constants';
 import { CITY_BY_ID, COUNTRY_BY_ID, cityById } from './atlas';
@@ -24,9 +23,9 @@ import type {
 } from './types';
 
 
-export const SAVE_KEY = 'management-century.save.v2';
+export const SAVE_KEY = 'management-century.save.v3';
 /** Chaves de versões anteriores do jogo: lidas uma vez e migradas. */
-export const LEGACY_SAVE_KEYS = ['tessera.save.v2'];
+export const LEGACY_SAVE_KEYS = ['management-century.save.v2', 'tessera.save.v2'];
 export const SAVE_VERSION = GAME.saveVersion;
 
 const AI_START: Stocks = {
@@ -45,14 +44,13 @@ function newFaction(id: FactionId, capitalId: string, stocks: Stocks): Faction {
     stocks: { ...stocks },
     techs: [],
     capitalId,
-    military: STARTING_MILITARY + (id === 'vantor' ? 25 : id === 'kestrel' ? 8 : 0),
     lastFlow: EMPTY_FLOW(),
     lastProduction: EMPTY_FLOW(),
     lastConsumption: EMPTY_FLOW(),
     shortages: [],
     debts: [],
-    warExhaustion: 0,
     eliminated: false,
+    deficitCycles: 0,
     lastGiftCycle: -10,
   };
 }
@@ -87,7 +85,7 @@ export function snapshot(state: GameState): CycleSnapshot {
   };
 }
 
-/** Cidades onde a Casa Concórdia pode fundar a sede (Portugal e Espanha). */
+/** Cidades onde o Grupo Concórdia pode fundar a sede (Portugal e Espanha). */
 export const SEAT_CITIES = ['c1044', 'c1146', 'c1039', 'c746', 'c830', 'c225', 'c224', 'c205', 'c65', 'c223', 'c669'];
 
 export interface SeatChoice {
@@ -144,8 +142,8 @@ export function createInitialState(seed = Date.now() % 1000000, now = Date.now()
     pendingEventId: null,
     usedEvents: [],
     lastReport: null,
-    lastBattle: null,
     victoryCycle: null,
+    operations: [],
     tutorial: { seenIntro: false, step: 0, done: false },
     settings: { showDigest: true },
     city: null,
@@ -179,9 +177,9 @@ export function createInitialState(seed = Date.now() % 1000000, now = Date.now()
 
   state.history.push(snapshot(state));
   const seatLabel = state.city ? `${state.city.cityName} (${COUNTRY_BY_ID[state.city.countryId]?.name ?? state.city.countryId})` : 'Lisboa';
-  logEntry(state, 'sistema', `O Conselho de Concórdia assume o governo de ${seatLabel}.`);
-  logEntry(state, 'sistema', 'Quatro Casas disputam a Terra. A Partilha começa.');
-  logEntry(state, 'economia', 'Ciclo 1: o tesouro inicial financia as primeiras decisões.');
+  logEntry(state, 'sistema', `A diretoria de Concórdia assume a sede em ${seatLabel}.`);
+  logEntry(state, 'sistema', 'Quatro companhias disputam o mercado global. O primeiro ciclo começa.');
+  logEntry(state, 'economia', 'Ciclo 1: o caixa inicial financia as primeiras decisões.');
   return state;
 }
 
@@ -202,7 +200,49 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Structural validation. A save is only trusted when the essentials are present
  *  and coherent; anything else is rejected rather than silently repaired. */
-export function validateState(raw: unknown): LoadResult {
+/**
+ * Atualiza saves antigos para o formato atual. A v3 substituiu o exército e a
+ * guerra por operações urbanas: campos militares são descartados e as relações
+ * perdem a bandeira de guerra. Nenhum território, obra ou tecnologia se perde.
+ */
+export function migrateSave(input: unknown): unknown {
+  if (!isRecord(input)) return input;
+  const version = typeof input.version === 'number' ? input.version : 0;
+  if (version >= SAVE_VERSION) return input;
+  const next = JSON.parse(JSON.stringify(input)) as Record<string, unknown>;
+  next.version = SAVE_VERSION;
+  if (!Array.isArray(next.operations)) next.operations = [];
+  if (isRecord(next.factions)) {
+    for (const faction of Object.values(next.factions)) {
+      if (!isRecord(faction)) continue;
+      delete faction.military;
+      delete faction.warExhaustion;
+      if (typeof faction.deficitCycles !== 'number') faction.deficitCycles = 0;
+    }
+  }
+  if (isRecord(next.diplomacy)) {
+    for (const relation of Object.values(next.diplomacy)) {
+      if (isRecord(relation)) delete relation.war;
+    }
+  }
+  if (Array.isArray(next.projects)) {
+    next.projects = next.projects.filter((project) => !isRecord(project) || project.kind !== 'operacao');
+  }
+  if (Array.isArray(next.offers)) {
+    next.offers = next.offers.filter((offer) => !isRecord(offer) || offer.kind !== 'peace');
+  }
+  delete next.lastBattle;
+  if (isRecord(next.lastReport)) delete next.lastReport.battles;
+  if (Array.isArray(next.log)) {
+    for (const entry of next.log) {
+      if (isRecord(entry) && entry.kind === 'militar') entry.kind = 'operacoes';
+    }
+  }
+  return next;
+}
+
+export function validateState(input: unknown): LoadResult {
+  const raw = migrateSave(input);
   if (!isRecord(raw)) return { state: null, error: 'O arquivo não contém um mundo válido.' };
   if (raw.version !== SAVE_VERSION) {
     return { state: null, error: 'Versão de save incompatível com esta build.' };
@@ -245,6 +285,9 @@ export function validateState(raw: unknown): LoadResult {
   }
   if (!isRecord(raw.tutorial) || typeof raw.nextId !== 'number') {
     return { state: null, error: 'Estado de interface incompleto.' };
+  }
+  if (!Array.isArray(raw.operations)) {
+    return { state: null, error: 'Registro de operações ausente.' };
   }
 
   const state = raw as unknown as GameState;

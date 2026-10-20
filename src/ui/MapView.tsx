@@ -482,7 +482,7 @@ export function MapView() {
                   backgroundImage: `repeating-linear-gradient(${FACTION_HATCH_ANGLE[playerFaction.id] ?? 38}deg, rgba(255,255,255,.55) 0 1px, transparent 1px 3px)`,
                 }}
               />{' '}
-              Sua Casa
+              Seu grupo
             </span>
           )}
           {Object.values(FACTIONS)

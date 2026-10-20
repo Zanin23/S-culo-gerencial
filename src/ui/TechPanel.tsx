@@ -104,7 +104,7 @@ export function TechPanel() {
     <ViewShell
       eyebrow="Conselho de ciência"
       title="Árvore tecnológica"
-      subtitle="Cada ramo abre caminhos diferentes. Pesquisas ocupam vagas de projeto e exigem conhecimento e créditos."
+      subtitle="Cada ramo abre caminhos diferentes. Pesquisas ocupam vagas de projeto e exigem P&D e créditos."
       icon="FlaskConical"
       actions={<Badge tone="blue" icon="Lock">{completed}/{TECH_ORDER.length} concluídas</Badge>}
     >
@@ -112,7 +112,7 @@ export function TechPanel() {
         <div className="callout callout--gold">
           <Icon name="FlaskConical" size={17} />
           <span>
-            <strong>Sua nação ainda não gera conhecimento</strong>
+            <strong>Sua companhia ainda não gera P&D</strong>
             <small>Construa um Centro de Pesquisa em um território seu. Sem laboratórios, a árvore tecnológica permanece inacessível.</small>
           </span>
           <button className="button button--tiny button--gold" onClick={() => setView('construction')} type="button">Ir às obras</button>
@@ -121,7 +121,7 @@ export function TechPanel() {
 
       <div className="summary-grid summary-grid--4">
         <div className="summary-card summary-card--blue">
-          <span className="summary-card__label"><Icon name="FlaskConical" size={14} /> Conhecimento</span>
+          <span className="summary-card__label"><Icon name="FlaskConical" size={14} /> P&amp;D</span>
           <strong>{fmt(faction.stocks.conhecimento)}</strong>
           <span className="summary-card__delta">{fmtRate(eco.net.conhecimento)}/ciclo</span>
           <small>Gerado por centros de pesquisa e territórios estratégicos</small>
@@ -213,7 +213,7 @@ export function TechPanel() {
 
       <div className="panel-note">
         <Icon name="Info" size={14} />
-        <p>Pré-requisitos são obrigatórios. Pesquisar não exige que a tecnologia anterior esteja no mesmo território. O conhecimento acumula entre ciclos e não é gasto por manutenção.</p>
+        <p>Pré-requisitos são obrigatórios. Pesquisar não exige que a tecnologia anterior esteja no mesmo território. Os pontos de P&amp;D acumulam entre ciclos e não é gasto por manutenção.</p>
       </div>
 
       <Modal
@@ -252,7 +252,7 @@ export function TechPanel() {
               <Badge tone={faction.techs.includes(selectedTech.id) ? 'teal' : 'blue'}>
                 {faction.techs.includes(selectedTech.id) ? 'Pesquisada' : selectedTech.requires.length ? 'Requer pré-requisitos' : 'Disponível'}
               </Badge>
-              <span className="muted small">Custo base: {selectedTech.cost.conhecimento} conhecimento · {selectedTech.cost.creditos} créditos</span>
+              <span className="muted small">Custo base: {selectedTech.cost.conhecimento} de P&amp;D · {selectedTech.cost.creditos} créditos</span>
             </div>
             <div className="tech-detail__grid">
               <div>
