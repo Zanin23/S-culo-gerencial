@@ -90,7 +90,9 @@ function polygonPath(rings: number[][]): string {
   const parts: string[] = [];
   for (const ring of rings) {
     for (let i = 0; i < ring.length; i += 2) {
-      parts.push(`${i === 0 ? 'M' : 'L'}${(ring[i] + 180).toFixed(2)} ${(90 - ring[i + 1]).toFixed(2)}`);
+      // Arredondar para 0,1° reduz ~20% do texto do path sem diferença visível
+      // no mundo inteiro (1° ≈ 4 px na tela cheia).
+      parts.push(`${i === 0 ? 'M' : 'L'}${(ring[i] + 180).toFixed(1)} ${(90 - ring[i + 1]).toFixed(1)}`);
     }
     parts.push('Z');
   }
@@ -237,13 +239,13 @@ function FactionPatterns() {
         <pattern
           key={faction.id}
           id={`atlas-hatch-${faction.id}`}
-          width={2.6}
-          height={2.6}
+          width={3.6}
+          height={3.6}
           patternUnits="userSpaceOnUse"
           /* Cada Casa tem inclinação própria: a soberania continua legível sem cor. */
           patternTransform={`rotate(${FACTION_HATCH_ANGLE[faction.id] ?? 38})`}
         >
-          <path d="M0 0v2.6" stroke={faction.color} strokeWidth={0.42} opacity={0.55} />
+          <path d="M0 0v3.6" stroke={faction.color} strokeWidth={0.3} opacity={0.42} />
         </pattern>
       ))}
       <pattern id="atlas-claim" width={2.2} height={2.2} patternUnits="userSpaceOnUse" patternTransform="rotate(-32)">
@@ -430,14 +432,10 @@ function SeaTraffic({ animate, k }: { animate: boolean; k: number }) {
 // ── Rótulos, rosa dos ventos e cartela ─────────────────────────────────────
 
 const SEA_LABELS: Array<{ name: string; lon: number; lat: number; rotate: number; size: number }> = [
-  { name: 'Oceano Atlântico', lon: -31, lat: -6, rotate: -7, size: 3.6 },
-  { name: 'Oceano Atlântico', lon: -38, lat: 47, rotate: -8, size: 2.8 },
-  { name: 'Oceano Pacífico', lon: -143, lat: 16, rotate: -7, size: 3.8 },
-  { name: 'Oceano Pacífico', lon: -154, lat: -28, rotate: -4, size: 3.2 },
-  { name: 'Oceano Índico', lon: 84, lat: -28, rotate: 4, size: 3.4 },
-  { name: 'Mar Mediterrâneo', lon: 17, lat: 34.2, rotate: 2, size: 2.2 },
-  { name: 'Mar do Norte', lon: 3, lat: 57, rotate: 0, size: 1.9 },
-  { name: 'Golfo do México', lon: -90, lat: 23.6, rotate: -5, size: 2.1 },
+  { name: 'Oceano Atlântico', lon: -32, lat: -8, rotate: -7, size: 3.4 },
+  { name: 'Oceano Pacífico', lon: -146, lat: 12, rotate: -7, size: 3.6 },
+  { name: 'Oceano Índico', lon: 82, lat: -26, rotate: 4, size: 3.2 },
+  { name: 'Mar Mediterrâneo', lon: 17, lat: 34.4, rotate: 2, size: 2.0 },
 ];
 
 function CompassRose() {
@@ -584,6 +582,7 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
   const dragRef = useRef<{ x: number; y: number; viewX: number; viewY: number; width: number; height: number; moved: boolean } | null>(null);
   const suppress = useRef(false);
   const commitTimer = useRef<number | null>(null);
+  const frame = useRef(0);
 
   /** Geometria do viewBox para uma câmera — sempre dentro dos limites da carta. */
   const boxOf = (next: ViewBoxState) => {
@@ -603,25 +602,33 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
   const paint = useCallback((next: ViewBoxState, immediate = false) => {
     const box = boxOf(next);
     live.current = { x: box.x, y: box.y, k: box.k };
-    svgRef.current?.setAttribute('viewBox', `${box.x} ${box.y} ${box.width} ${box.height}`);
+    // Um único write por quadro: vários eventos de roda no mesmo frame viram um.
+    if (frame.current) cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      svgRef.current?.setAttribute('viewBox', `${box.x} ${box.y} ${box.width} ${box.height}`);
+    });
     if (immediate) {
       if (commitTimer.current !== null) {
         window.clearTimeout(commitTimer.current);
         commitTimer.current = null;
       }
+      wrapRef.current?.classList.remove('is-zooming', 'is-panning');
       bump();
       return;
     }
-    if (commitTimer.current === null) {
-      commitTimer.current = window.setTimeout(() => {
-        commitTimer.current = null;
-        bump();
-      }, 110);
-    }
+    // Só re-renderiza quando o gesto assenta: durante o zoom o React não entra.
+    if (commitTimer.current !== null) window.clearTimeout(commitTimer.current);
+    commitTimer.current = window.setTimeout(() => {
+      commitTimer.current = null;
+      wrapRef.current?.classList.remove('is-zooming');
+      bump();
+    }, 240);
   }, []);
 
   useEffect(() => () => {
     if (commitTimer.current !== null) window.clearTimeout(commitTimer.current);
+    if (frame.current) cancelAnimationFrame(frame.current);
   }, []);
 
   const paths = useMemo(() => pathsFor(shapes), [shapes]);
@@ -751,6 +758,7 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
       const px = Math.min(1, Math.max(0, (event.clientX - rect.left) / Math.max(1, rect.width)));
       const py = Math.min(1, Math.max(0, (event.clientY - rect.top) / Math.max(1, rect.height)));
       const current = live.current;
+      wrapRef.current?.classList.add('is-zooming');
       // Passo contínuo: trackpads manda deltas pequenos e não sofrem saltos.
       const factor = Math.exp(-event.deltaY * 0.0018);
       const nextK = Math.max(1, Math.min(11, current.k * Math.max(0.72, Math.min(1.38, factor))));
@@ -804,16 +812,18 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
       if (x < minLon || x > maxLon || y < minLat || y > maxLat) return false;
       // No mundo inteiro só entram capitais grandes e metrópoles; aproximando,
       // todas as cidades do país focado aparecem.
-      if (view.k < 1.6 && !focusCountryId) return Boolean(city.capital) && city.pop > 2_600_000;
+      // No mundo inteiro só as capitais realmente grandes; o resto aparece
+      // quando se aproxima. Menos pinos = carta mais legível.
+      if (view.k < 1.7 && !focusCountryId) return Boolean(city.capital) && city.pop > 6_500_000;
       return true;
     });
-    if (view.k > 1.9) return visible.slice(0, 160);
+    if (view.k > 1.9) return visible.slice(0, 120);
     // Despoluição: no mundo inteiro só um marcador a cada ~5 unidades.
     const thin: typeof visible = [];
     for (const city of visible) {
-      if (thin.some((other) => Math.abs(other.lon - city.lon) < 5.2 && Math.abs(other.lat - city.lat) < 3.4)) continue;
+      if (thin.some((other) => Math.abs(other.lon - city.lon) < 7.5 && Math.abs(other.lat - city.lat) < 4.6)) continue;
       thin.push(city);
-      if (thin.length >= 62) break;
+      if (thin.length >= 34) break;
     }
     return thin;
   }, [focusCountryId, showCities, view.x, view.y, view.k, width, height]);
@@ -850,7 +860,11 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
   // Rótulos sem colisão: varre do mais importante para o menos, descartando o
   // que cairia perto de um rótulo já aceito. Evita a "sopa de nomes".
   const labelCities = useMemo(() => {
-    const pool = cities.filter((city) => (city.capital && city.pop > 4_200_000) || (view.k > 2.2 && city.pop > 6_000_000));
+    // No mundo inteiro, só as maiores capitais nomeadas — o resto é ruído.
+    if (view.k < 1.7 && !focusCountryId) {
+      return cities.filter((city) => city.capital && city.pop > 9_000_000).slice(0, 7);
+    }
+    const pool = cities.filter((city) => city.capital || (view.k > 2.4 && city.pop > 4_000_000));
     const placed: Array<{ lon: number; lat: number }> = [];
     const spacing = 12.5 / Math.max(0.6, view.k * 0.75);
     const accepted: typeof pool = [];
@@ -892,19 +906,16 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
         {/* Mar: papel texturizado em CSS. Este retângulo é só a área clicável. */}
         <rect x={-400} y={-320} width={1300} height={900} fill="transparent" onClick={onClear} />
 
-        {/* Graduação fixa: cobre qualquer enquadramento sem ser refeita no pan. */}
+        {/* Graduação discreta: só os meridianos e paralelos de 30°. Fixa, para
+            não ter de ser refeita a cada arrasto. */}
         <g className="atlas-graticule" pointerEvents="none">
-          {Array.from({ length: 21 }).map((_, index) => {
-            const x = -120 + index * 30;
-            return <line key={`v${index}`} x1={x} x2={x} y1={-90} y2={280} stroke="#5f8b83" strokeOpacity={0.3} strokeWidth={0.4} strokeDasharray="1 3" />;
+          {Array.from({ length: 13 }).map((_, index) => {
+            const x = index * 30;
+            return <line key={`v${index}`} x1={x} x2={x} y1={-20} y2={200} />;
           })}
-          {Array.from({ length: 19 }).map((_, index) => {
-            const y = -90 + index * 20;
-            return <line key={`h${index}`} x1={-120} x2={500} y1={y} y2={y} stroke="#5f8b83" strokeOpacity={0.3} strokeWidth={0.4} strokeDasharray="1 3" />;
-          })}
-          {[0, 1, 2, 3].map((index) => {
-            const x = 60 + index * 90;
-            return <line key={`rh${index}`} x1={x} y1={-90} x2={x + 130} y2={280} className="atlas-rhumb" stroke="#4f7b74" strokeOpacity={0.16} strokeWidth={0.5} />;
+          {Array.from({ length: 7 }).map((_, index) => {
+            const y = 90 - (index - 3) * 30;
+            return <line key={`h${index}`} x1={-20} x2={380} y1={y} y2={y} />;
           })}
         </g>
 
@@ -925,29 +936,24 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
           ))}
         </g>
 
-        {/* Terra achatada em poucos caminhos: sombra de papel, orla, terrenos. */}
+        {/* Orla de areia: um único traço por baixo da terra. */}
         {land.borders && (
-          <>
-            <g className="atlas-papercut" pointerEvents="none" transform={`translate(${(0.1 * unit).toFixed(3)} ${(0.24 * unit).toFixed(3)})`}>
-              <path d={land.borders} fill="#3a2c1c" fillOpacity={0.26} fillRule="evenodd" />
-            </g>
-            <path
-              className="atlas-shore"
-              d={land.borders}
-              fill="none"
-              stroke="#e8d6ae"
-              strokeOpacity={0.9}
-              strokeWidth={7}
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              pointerEvents="none"
-            />
-          </>
+          <path
+            className="atlas-shore"
+            d={land.borders}
+            fill="none"
+            stroke="#e6d3ab"
+            strokeOpacity={0.95}
+            strokeWidth={6}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
         )}
 
         <g className="atlas-land" pointerEvents="none">
           {land.terrain.map((entry) => (
-            <path key={entry.key} d={entry.d} fill={`url(#atlas-terrain-${entry.key})`} fillRule="evenodd" />
+            <path key={entry.key} data-terrain={entry.key} d={entry.d} fill={`url(#atlas-terrain-${entry.key})`} fillRule="evenodd" />
           ))}
           {land.tint.map((entry) => (
             <path key={`tint-${entry.id}`} d={entry.d} fill={entry.color} fillOpacity={entry.own ? 0.4 : 0.26} fillRule="evenodd" />
@@ -955,10 +961,11 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
           {land.tint.map((entry) => (
             <path
               key={`hatch-${entry.id}`}
+              className="atlas-hatch"
               d={entry.d}
               fill={`url(#atlas-hatch-${entry.id})`}
               fillRule="evenodd"
-              opacity={entry.own ? 0.82 : 0.44}
+              opacity={entry.own ? 0.7 : 0.32}
             />
           ))}
           {land.claim && (
@@ -1041,35 +1048,6 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
           </g>
         )}
 
-        {/* Motivos de terreno nas províncias em foco */}
-        {provinces.length > 0 && (
-          <g className="atlas-motifs" pointerEvents="none">
-            {provinces.map((province) => {
-              const terrain = tiles[province.countryId]?.terrain ?? 'planicie';
-              const x = province.lon + 180;
-              const y = 90 - province.lat;
-              const scale = unit * (1.5 + hash(province.id) * 0.8);
-              return (
-                <g key={province.id} transform={`translate(${x} ${y}) scale(${scale})`} opacity={0.85}>
-                  {terrain === 'montanha' ? (
-                    <path d="M-6 2 -2-4 1 1 3-2 6 2Z" fill={LAND.montanha.motif} stroke={INK} strokeWidth={0.5} strokeLinejoin="round" />
-                  ) : terrain === 'floresta' ? (
-                    <g fill={LAND.floresta.motif} stroke={INK} strokeWidth={0.4}>
-                      <path d="M-4 2 -2.6-1.6-1.2 2Z" />
-                      <path d="M0 2 1.4-2 2.8 2Z" />
-                      <path d="M3.6 2 4.8-0.6 6 2Z" />
-                    </g>
-                  ) : terrain === 'deserto' ? (
-                    <path d="M-6 1.6c2.6-1.8 5.4-1.8 8 0M-1 3.4c2-1 3.8-1 5.6 0" fill="none" stroke={LAND.deserto.motif} strokeWidth={0.7} strokeLinecap="round" />
-                  ) : (
-                    <path d="M-4 2v-1.4M-2 2v-2.4M0 2v-1.2M2 2v-2M4 2v-1.6" stroke={LAND.colina.motif} strokeWidth={0.6} strokeLinecap="round" />
-                  )}
-                </g>
-              );
-            })}
-          </g>
-        )}
-
         {/* Cidades: pinos quando afastado, conjuntos ilustrados quando perto. */}
         <g className="atlas-cities">
           {cities.map((city) => {
@@ -1081,8 +1059,7 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
             if (!showClusters) {
               return (
                 <g key={city.id} className={cx('atlas-pin', city.capital && 'is-capital', selected && 'is-selected')} onClick={(event) => { event.stopPropagation(); onSelectCity(city.id); }}>
-                  <circle cx={x} cy={y} r={(city.capital ? 1.35 : 0.95) * unit} fill={city.capital ? '#b4553c' : '#4a3f30'} stroke="#f6ecd4" strokeWidth={0.5 * unit} />
-                  {city.capital && <circle cx={x} cy={y} r={2.4 * unit} fill="none" stroke="#f6ecd4" strokeWidth={0.35 * unit} opacity={0.6} />}
+                  <circle cx={x} cy={y} r={(city.capital ? 1.1 : 0.8) * unit} fill={city.capital ? '#b4553c' : '#4a3f30'} stroke="#f6ecd4" strokeWidth={0.4 * unit} />
                   <title>{cityLabel(city.name)}</title>
                 </g>
               );
@@ -1157,14 +1134,6 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
       </svg>
       <div className="atlas-paper" aria-hidden="true" />
       <CompassRose />
-      <div className="atlas-plate" aria-hidden="true">
-        <span>Atlas de Téssera</span>
-        <small>levantado sobre a Partilha</small>
-      </div>
-      <div className="atlas-scalebar" aria-hidden="true">
-        <span>1 000 km</span>
-        <i />
-      </div>
     </div>
   );
 });
