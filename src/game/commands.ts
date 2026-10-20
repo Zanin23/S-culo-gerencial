@@ -22,6 +22,7 @@ import {
 } from './economy';
 import { applyTradeImpact, buyUnitPrice, sellUnitPrice } from './market';
 import { getRelation, offerLabel, proposeCost, relationKey, relationRequirement } from './diplomacy';
+import { CITY_BY_ID, COUNTRY_BY_ID } from './atlas';
 import { neighborsOf, tilesOfFaction } from './map';
 import { logEntry } from './state';
 import type {
@@ -32,6 +33,7 @@ import type {
   MarketKey,
   Project,
   ResourceKey,
+  CityDistrict,
   TechId,
   Tile,
 } from './types';
@@ -626,4 +628,50 @@ export function nationCapitals(state: GameState): Record<FactionId, string> {
   const out = {} as Record<FactionId, string>;
   for (const id of Object.keys(state.factions) as FactionId[]) out[id] = state.factions[id].capitalId;
   return out;
+}
+
+/** Funda (ou muda) a sede do jogador numa cidade real e num lote do plano 3D. */
+export function foundSeat(
+  state: GameState,
+  cityId: string,
+  plotId: string,
+  district: CityDistrict,
+): CommandResult {
+  return withState(state, (next) => {
+    const city = CITY_BY_ID[cityId];
+    if (!city) fail('Cidade desconhecida no atlas.');
+    const host = next.tiles[city.countryId];
+    if (!host) fail('O país da cidade não faz parte do tabuleiro.');
+    const player = next.factions[next.playerFactionId];
+    if (host.owner && host.owner !== player.id) fail('A cidade está em território de outra Casa.');
+    if (!host.owner) {
+      // Fundar a sede anexa o país anfitrião (é a primeira decisão do jogador).
+      const own = tilesOfFaction(next.tiles, player.id).length;
+      const capacity = adminCapacityOfState(next, player.id);
+      if (own > 0 && own >= capacity) fail('Capacidade administrativa esgotada para anexar o país-sede.');
+      host.owner = player.id;
+      host.unrest = Math.max(host.unrest, 8);
+    }
+    const previous = next.tiles[player.capitalId];
+    if (previous && previous.id !== host.id) previous.isCapital = false;
+    host.isCapital = true;
+    player.capitalId = host.id;
+    next.city = {
+      cityId: city.id,
+      cityName: city.name,
+      countryId: city.countryId,
+      plotId,
+      district,
+      lat: city.lat,
+      lon: city.lon,
+      foundedCycle: next.cycle,
+    };
+    logEntry(
+      next,
+      'sistema',
+      `${FACTIONS[player.id].short} fundou a sede em ${city.name} (${COUNTRY_BY_ID[city.countryId]?.name ?? city.countryId}), distrito ${district}.`,
+      player.id,
+    );
+    return `Sede fundada em ${city.name}.`;
+  });
 }

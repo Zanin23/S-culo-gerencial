@@ -9,7 +9,7 @@ import { ProgressBar } from './primitives';
 export function StartScreen({ onHelp }: { onHelp: () => void }) {
   const saved = useGameStore((s) => s.savedGame);
   const loadError = useGameStore((s) => s.loadError);
-  const startNewGame = useGameStore((s) => s.startNewGame);
+  const openSeat = useGameStore((s) => s.openSeat);
   const continueGame = useGameStore((s) => s.continueGame);
   const requestConfirm = useGameStore((s) => s.requestConfirm);
 
@@ -24,10 +24,10 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
         body: 'A campanha salva será substituída por um novo Terra. Exporte o save atual nas configurações se quiser preservá-lo.',
         confirmLabel: 'Iniciar nova campanha',
         tone: 'danger',
-        onConfirm: () => startNewGame(),
+        onConfirm: openSeat,
       });
     } else {
-      startNewGame();
+      openSeat();
     }
   };
 
@@ -53,7 +53,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
             </div>
           </div>
           <p className="start-hero__lede">
-            Quatro Casas disputam um continente partido entre jazidas, rotas e antigas capitais.
+            Quatro Casas disputam a Terra. Escolha uma cidade real, erga a sede no lote que quiser e governe ruas, prédios e rotas até a hegemonia.
             Construa uma economia, negocie com rivais e transforme um porto pequeno na potência que
             dita a ordem do mundo.
           </p>
@@ -71,7 +71,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
               </button>
             ) : null}
             <button className={saved ? 'button button--ghost button--large' : 'button button--primary button--large'} onClick={newCampaign} type="button">
-              <Icon name="Hexagon" size={17} />
+              <Icon name="Landmark" size={17} />
               {saved ? 'Nova campanha' : 'Fundar Concórdia'}
             </button>
             <button className="button button--quiet button--large" onClick={onHelp} type="button">
@@ -88,6 +88,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
           ) : null}
 
           <div className="start-meta">
+            <span><Icon name="Building2" size={13} /> Cidade-sede em 3D</span>
             <span><Icon name="Save" size={13} /> Salvamento local no navegador</span>
             <span><Icon name="ScrollText" size={13} /> Campanha por ciclos</span>
             <span><Icon name="Swords" size={13} /> IA estratégica, sem trapaças</span>

@@ -4,6 +4,8 @@ Jogo de estratégia territorial e gestão econômica para navegador. Quatro Casa
 
 O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e 1.203 cidades a partir de dados geográficos do Natural Earth.
 
+Antes de começar, você **funda a sede**: escolhe uma cidade real, vê a maquete 3D do terreno e das ruas e marca o lote onde a primeira construção será erguida. O distrito do lote altera permanentemente comércio, indústria ou defesa da capital — e dá para orbitar a cidade, girar em torno do prédio e entrar nele.
+
 > MVP funcional e jogável. Todos os números da interface vêm do mesmo motor determinístico que move as Casas rivais. Não há telas simuladas nem jogadores fictícios.
 >
 > O globo exige WebGL. Sem ele — ou a pedido — o mesmo estado é exibido na **carta plana 2D**, com a mesma seleção de países, províncias e cidades.
@@ -32,6 +34,9 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 ## Como jogar
 
 1. **Fundar Concórdia** no menu (ou retomar uma campanha salva no navegador).
+   - Escolha a **cidade-sede** entre as cidades de Portugal e Espanha (Lisboa, Madrid, Barcelona, Sevilha, Valência, Bilbao, Vigo, Córdoba, Funchal, Ponta Delgada, Las Palmas).
+   - A maquete mostra o terreno real (costa, rios, lagoas) e a malha de ruas gerada. Clique num dos lotes dourados.
+   - Confirme em **Fundar a sede**. O país da cidade é anexado à Casa e passa a ser a capital.
 2. Leia o tutorial de seis passos. Ele explica o ciclo, a economia, obras, expansão, diplomacia e a condição de vitória.
 3. O relógio do ciclo roda a cada 14 segundos quando você está no mapa. Você pode pausar, avançar manualmente ou simplesmente tomar decisões.
 4. Gire o globo até o país desejado e clique nele para abrir o painel do território. Aproxime para revelar **províncias/estados** e **cidades**; duplo clique foca o país e carrega a malha interna.
@@ -41,6 +46,10 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 
 | Ação | Como |
 | --- | --- |
+| Escolher cidade-sede | Menu → Fundar Concórdia → lista de cidades |
+| Escolher lote | Clique num lote dourado na maquete |
+| Orbitar/zoom da cidade | Arrastar / roda do mouse; botão direito ou Shift para panorâmica |
+| Entrar no prédio | Aba Cidade → Interior (ou duplo clique na fachada) |
 | Girar o globo | Arrastar |
 | Aproximar/afastar | Roda do mouse, pinça ou botões `+` / `−` |
 | Selecionar país | Clique no país; duplo clique foca e carrega províncias |
@@ -59,6 +68,14 @@ Telas: `1` Mapa · `2` Economia · `3` Obras · `4` Ciência · `5` Expansão ·
 ---
 
 ## O que está implementado
+
+### Cidade 3D e fundação da sede
+- **Maquete tridimensional** de 5,2 × 5,2 km em torno do centro real da cidade: relevo, água, quadras, ruas, parques, cerca de 3 mil edificações, árvores, sombra e atmosfera.
+- **Terreno real**: a linha de costa, os rios e os lagos vêm do recorte do Natural Earth 10m (Lisboa mostra o Tejo; Sevilha e Córdoba, o Guadalquivir; Funchal e Las Palmas, a orla).
+- **Ruas e quarteirões gerados** a partir dessa base: avenidas radiais a partir do centro, anéis viários, malha ortogonal por distrito e centros de bairro — sempre recortados pela água.
+- **Escolha do lote**: 16 lotes livres por cidade; o distrito (Centro / Expansão / Periferia) define o bônus permanente da capital (+10% comércio, +8% indústria/extração ou +14% defesa).
+- **Câmera**: órbita, zoom, panorâmica com botão direito/Shift; modos **Cidade**, **Sede** (fachada) e **Interior** (sala de comando com vista real para os prédios vizinhos pelas janelas).
+- **Minimapa** e planta 2D determinística como fallback sem WebGL — o jogo continua jogável.
 
 ### Mapa-múndi em 3D
 - Globo em WebGL (three.js) com países extrudados sobre a esfera, atmosfera, campo de estrelas e grade lat/lon.
@@ -109,6 +126,9 @@ src/
     rng.ts         RNG determinístico (mulberry32 + fluxo LCG do mundo)
     atlas.ts       carregador do atlas (países, províncias, cidades, adjacência, detalhe lazy)
     atlas/         world.json (231 países), outline.json e geo/{ISO}.json gerados por scripts/build-atlas.py
+    city/geo.json  recorte geográfico real de cada cidade-sede (costa, rios, lagos) — build-city-geo.py
+    cityPlan.ts    gerador urbano determinístico: relevo, ruas, quadras, parques, lotes e prédios
+    hq.ts          efeito do distrito da sede sobre comércio, produção e defesa
     map.ts         tabuleiro-múndi: assentos iniciais, terreno, população de jogo, vizinhos e reivindicáveis
     state.ts       criação do mundo, save/load versionado, validação, log
     economy.ts     produção, consumo, manutenção, capacidade, população e desordem
@@ -125,6 +145,9 @@ src/
     globe/globe.ts globo three.js imperativo (geometria esférica, raycast, câmera, rótulos)
     FlatAtlas.tsx  carta plana 2D com a mesma seleção e dados
     MapView.tsx    orquestra globo/carta, detalhe por país, tooltip, controles e drill-down
+    SeatScreen.tsx escolha da cidade-sede, do lote e fundação
+    CityView.tsx   gestão da cidade + modos de câmera
+    city3d/        CityScene.ts (three.js: maquete e interior) e CityStage.tsx (palco + 2D)
   App.tsx          shell, roteamento de telas, modais, toasts e atalhos
 ```
 
@@ -158,6 +181,7 @@ npm test
 
 - `src/game/engine.test.ts` — criação coerente do mundo, economia inicial sã, simulação de 60 ciclos com jogador conduzido pela IA, validação de comandos inválidos, eventos e integridade de estoques/população.
 - `src/ui/globe/globe.test.ts` — valida o atlas (referências de país/província/cidade e adjacência), o tabuleiro completo, a tesselação de todos os contornos em triângulos na esfera, o caso do antimeridiano (Fiji, Nova Zelândia, Rússia) e as cores de soberania.
+- `src/game/cityPlan.test.ts` — determinismo do gerador urbano, aderência à geografia real (água/orla/terra), ruas fora da água, lotes livres e relevo coerente em todas as cidades-sede.
 - `src/ui/FlatAtlas.test.tsx` — desenha a carta plana com todos os países, divisões internas e cidades, encaminha cliques de país/província/cidade, duplo clique e os controles de zoom/recentragem.
 - `src/ui/smoke.test.tsx` — renderiza o app em jsdom (sem WebGL, exercitando a carta plana), inicia campanha, percorre todas as telas, seleciona país/província/cidade, avança ciclos, executa obra, pesquisa, comércio, presente, expansão e resolve um evento pelo modal.
 
@@ -170,6 +194,7 @@ O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carreg
 - Uma única Casa jogável (Concórdia); a seleção de Casa e cenários alternativos são expansões naturais.
 - Sem áudio, sem animações de batalha quadro a quadro e sem campanha narrativa roteirizada.
 - Sem servidor, contas ou partidas assíncronas — apenas a arquitetura preparada descrita acima.
+- **Ruas e edifícios são sintetizados**, não copiados do OpenStreetMap: o ambiente de build não tem acesso à API do Overpass. A costa, os rios e o centro de cada cidade são reais; o tecido urbano é gerado de forma determinística a partir deles (padrão radial/ortogonal, densidade e gabarito).
 - Microestados e ilhas muito pequenas recebem um contorno mínimo gerado no build para continuarem visíveis e clicáveis; não há modelagem de relevo ou elevação real.
 - A malha provincial é carregada por país sob demanda; em conexões lentas o primeiro foco pode exibir o aviso de carregamento.
 - 13 das 4.502 províncias (ilhas e enclaves minúsculos na Espanha, Reino Unido e Irlanda) não têm polígono após a simplificação: continuam listadas no localizador e selecionáveis, mas não são desenhadas no globo.

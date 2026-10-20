@@ -9,3 +9,6 @@ coverage/
 
 # build scripts cache (Natural Earth downloads)
 scripts/.cache/
+
+# prévias locais de renderização
+.preview-*.png

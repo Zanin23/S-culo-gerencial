@@ -2,6 +2,9 @@ import {
   AlertTriangle,
   Anchor,
   ArrowDownRight,
+  Building2,
+  DoorOpen,
+  Trees,
   ArrowUpRight,
   Award,
   Bell,
@@ -80,12 +83,12 @@ import {
 } from 'lucide-react';
 
 const ICONS: Record<string, LucideIcon> = {
-  AlertTriangle, Anchor, ArrowDownRight, ArrowUpRight, Award, Bell, Blocks, Bot, Check,
+  AlertTriangle, Anchor, ArrowDownRight, ArrowUpRight, Award, Bell, Blocks, Bot, Building2, Check,
   ChevronLeft, ChevronRight, Circle, Coins, Compass, Crown, Download, Eye, Factory,
   FlaskConical, Flame, Gem, Globe2, Hammer, Handshake, HelpCircle, Hexagon, Info,
   Landmark, Layers, Leaf, Lightbulb, Lock, Map, Menu, Minus, Moon, MousePointer2,
   Network, Package, Pause, Pickaxe, Play, Plus, RotateCcw, Route, Save, Scale, ScrollText,
-  Activity, Database, Fingerprint, Search, Sparkles, Trash2, BookOpen, Keyboard, FileJson, RefreshCcw, ShieldCheck,
+  Activity, Database, DoorOpen, Fingerprint, Search, Sparkles, Trash2, Trees, BookOpen, Keyboard, FileJson, RefreshCcw, ShieldCheck,
   Settings, Shield, Ship, SkipForward, Store, Sun, Swords, Target, TrainFront, TrendingDown,
   TrendingUp, Truck, Upload, Users, Wheat, Wrench, X, Zap,
 };

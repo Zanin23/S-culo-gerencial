@@ -28,7 +28,7 @@ function text() {
   return container.textContent ?? '';
 }
 
-it('boots the menu and starts a campaign', async () => {
+it('boots the menu, chooses a city and founds the seat on a plot', async () => {
   await act(async () => {
     root = createRoot(container);
     root.render(<App />);
@@ -39,7 +39,40 @@ it('boots the menu and starts a campaign', async () => {
   await act(async () => {
     start?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
-  expect(useGameStore.getState().game).toBeTruthy();
+  // Passo 1: escolha da cidade real.
+  expect(useGameStore.getState().screen).toBe('seat');
+  expect(text()).toContain('Funde a sua sede');
+  expect(text()).toContain('Lisboa');
+  expect(container.querySelector('.city-plan2d')).toBeTruthy();
+
+  // Passo 2: escolha do lote pela planta (sem WebGL no jsdom).
+  const plots = Array.from(container.querySelectorAll('.city-plan2d__plot'));
+  expect(plots.length).toBeGreaterThan(4);
+  await act(async () => {
+    plots[3].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  const draft = useGameStore.getState().seatDraft;
+  expect(draft.plotId).toBeTruthy();
+  expect(draft.district).toBeTruthy();
+
+  // Passo 3: fundar.
+  const found = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Fundar a sede')) as HTMLButtonElement | undefined;
+  expect(found).toBeTruthy();
+  expect(found?.disabled).toBe(false);
+  await act(async () => {
+    found?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  const state = useGameStore.getState();
+  expect(state.game).toBeTruthy();
+  expect(state.game!.city?.cityName).toBeTruthy();
+  expect(state.game!.city?.plotId).toBe(draft.plotId);
+  expect(state.view).toBe('city');
+  expect(container.querySelector('.city-stage')).toBeTruthy();
+  expect(text()).toContain('Sede da Casa');
+
+  await act(async () => {
+    useGameStore.getState().setView('map');
+  });
   expect(container.querySelector('.map-svg')).toBeTruthy();
   expect(container.querySelector('.context-panel')).toBeTruthy();
 });

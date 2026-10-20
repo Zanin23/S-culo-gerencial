@@ -31,7 +31,7 @@ export function ObjectivesPanel() {
 
   return (
     <ViewShell
-      eyebrow="Campanha da Partilha"
+      eyebrow="Painel de metas"
       title="Objetivos e hegemonia"
       subtitle={`A campanha termina quando uma Casa alcança ${VICTORY_TARGET} de hegemonia. Territórios, desenvolvimento, tecnologia e acordos constroem sua pontuação — não apenas exércitos.`}
       icon="Award"

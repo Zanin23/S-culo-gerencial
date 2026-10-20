@@ -7,6 +7,7 @@ import {
   STARTING_MILITARY,
   STARTING_STOCKS,
 } from './constants';
+import { CITY_BY_ID, COUNTRY_BY_ID } from './atlas';
 import { EMPTY_RELATION, RELATION_SEED, relationKey } from './diplomacy';
 import { createTiles, START_SEATS } from './map';
 import { Rng } from './rng';
@@ -84,7 +85,23 @@ export function snapshot(state: GameState): CycleSnapshot {
   };
 }
 
-export function createInitialState(seed = Date.now() % 1000000, now = Date.now()): GameState {
+/** Cidades onde a Casa Concórdia pode fundar a sede (Portugal e Espanha). */
+export const SEAT_CITIES = ['c1044', 'c1146', 'c1039', 'c746', 'c830', 'c225', 'c224', 'c205', 'c65', 'c223', 'c669'];
+
+export interface SeatChoice {
+  cityId: string;
+  plotId: string;
+  district: 'Centro' | 'Expansão' | 'Periferia';
+}
+
+export function seatCitiesIn(countryIds: string[]): string[] {
+  return SEAT_CITIES.filter((id) => {
+    const city = CITY_BY_ID[id];
+    return city ? countryIds.includes(city.countryId) : false;
+  });
+}
+
+export function createInitialState(seed = Date.now() % 1000000, now = Date.now(), seat?: SeatChoice): GameState {
   const rng = new Rng(seed);
   const tiles = createTiles(rng);
 
@@ -129,11 +146,38 @@ export function createInitialState(seed = Date.now() % 1000000, now = Date.now()
     victoryCycle: null,
     tutorial: { seenIntro: false, step: 0, done: false },
     settings: { showDigest: true },
+    city: null,
     nextId: 1,
   };
 
+  if (seat) {
+    const city = CITY_BY_ID[seat.cityId];
+    if (city) {
+      state.city = {
+        cityId: city.id,
+        cityName: city.name,
+        countryId: city.countryId,
+        plotId: seat.plotId,
+        district: seat.district,
+        lat: city.lat,
+        lon: city.lon,
+        foundedCycle: 1,
+      };
+      const host = state.tiles[city.countryId];
+      if (host && !host.isCapital) {
+        // A capital passa a ser o país que hospeda a sede escolhida.
+        const previous = state.tiles[state.factions.concordia.capitalId];
+        if (previous) previous.isCapital = false;
+        host.isCapital = true;
+        state.factions.concordia.capitalId = host.id;
+        if (host.owner === null) host.owner = 'concordia';
+      }
+    }
+  }
+
   state.history.push(snapshot(state));
-  logEntry(state, 'sistema', 'O Conselho de Concórdia assume o governo de Lisboa.');
+  const seatLabel = state.city ? `${state.city.cityName} (${COUNTRY_BY_ID[state.city.countryId]?.name ?? state.city.countryId})` : 'Lisboa';
+  logEntry(state, 'sistema', `O Conselho de Concórdia assume o governo de ${seatLabel}.`);
   logEntry(state, 'sistema', 'Quatro Casas disputam a Terra. A Partilha começa.');
   logEntry(state, 'economia', 'Ciclo 1: o tesouro inicial financia as primeiras decisões.');
   return state;

@@ -5,6 +5,7 @@ import { rankOf, scoreParts, VICTORY_TARGET } from './game/progress';
 import type { CycleReport, ResourceKey } from './game/types';
 import { CYCLE_SECONDS, useGameStore } from './store/gameStore';
 import { ChroniclePanel } from './ui/ChroniclePanel';
+import { CityView } from './ui/CityView';
 import { ConstructionPanel } from './ui/ConstructionPanel';
 import { DiplomacyPanel } from './ui/DiplomacyPanel';
 import { EconomyPanel } from './ui/EconomyPanel';
@@ -16,6 +17,7 @@ import { NavRail } from './ui/NavRail';
 import { ObjectivesPanel } from './ui/ObjectivesPanel';
 import { OverviewPanel } from './ui/OverviewPanel';
 import { Badge, cx, Modal, ProgressBar } from './ui/primitives';
+import { SeatScreen } from './ui/SeatScreen';
 import { SettingsPanel } from './ui/SettingsPanel';
 import { StartScreen } from './ui/StartScreen';
 import { TechPanel } from './ui/TechPanel';
@@ -24,6 +26,7 @@ import { TopBar } from './ui/TopBar';
 
 const VIEWS = {
   map: MapView,
+  city: CityView,
   economy: EconomyPanel,
   construction: ConstructionPanel,
   tech: TechPanel,
@@ -34,13 +37,20 @@ const VIEWS = {
   settings: SettingsPanel,
 } as const;
 
-const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'economy' | 'construction' | 'tech' | 'diplomacy' | 'objectives'; hint: string }> = [
+const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'city' | 'economy' | 'construction' | 'tech' | 'diplomacy' | 'objectives'; hint: string }> = [
   {
     title: 'Sua Casa, seu mundo',
-    body: 'Você governa a Casa Concórdia, dona de Portugal e Espanha no coração da Terra. Cada país tem solo, depósito natural, população e estruturas próprias — clique para ler a ficha antes de decidir. Aproxime para explorar províncias e cidades.',
+    body: 'Você governa a Casa Concórdia, dona de Portugal e Espanha. A campanha começa na escolha da cidade-sede: terreno real, ruas geradas e o lote onde a primeira construção será erguida.',
     icon: 'Globe2',
-    view: 'map',
-    hint: 'Arraste para girar o globo, use a roda ou os botões para aproximar e clique em países, províncias e cidades. Duplo clique foca o país.',
+    view: 'city',
+    hint: 'Na aba Cidade você alterna entre a maquete, a fachada da sede e o interior do prédio.',
+  },
+  {
+    title: 'Gestão, não aventura',
+    body: 'Cada decisão é econômica: o ciclo fecha produção, consumo e manutenção; obras elevam o desenvolvimento; a expansão compra países inteiros com créditos, materiais e influência. O distrito da sede já entra no cálculo.',
+    icon: 'Building2',
+    view: 'economy',
+    hint: 'Use Economia para ver saldo e tendências, Obras para construir e Expansão para reivindicar países.',
   },
   {
     title: 'O ciclo move o mundo',
@@ -75,7 +85,7 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
     body: `Vença alcançando ${VICTORY_TARGET} pontos ou cumprindo a meta de desenvolvimento do capital. Você perde se perder o capital ou ficar sem territórios. As quatro Casas adversárias perseguem doutrinas diferentes e não recebem vantagens ocultas.`,
     icon: 'Award',
     view: 'objectives',
-    hint: 'A aba Campanha lista objetivos, ranking e a composição exata da sua pontuação.',
+    hint: 'A aba Metas lista objetivos, ranking e a composição exata da sua pontuação.',
   },
 ];
 
@@ -139,6 +149,10 @@ export function App() {
         <div className="boot-screen__bar"><span /></div>
       </div>
     );
+  }
+
+  if (screen === 'seat') {
+    return <SeatScreen />;
   }
 
   if (screen === 'menu') {

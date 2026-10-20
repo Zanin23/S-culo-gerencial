@@ -60,7 +60,7 @@ export function ChroniclePanel() {
 
   const download = () => {
     const lines = [
-      'TESSERA — Crônicas da campanha',
+      'TESSERA — registro da campanha',
       `Seed ${game.seed} · ciclo atual ${game.cycle}`,
       '',
       ...[...game.log].reverse().map((entry) => `[c${String(entry.cycle).padStart(2, '0')}] ${KIND_META[entry.kind].label.toUpperCase()} — ${entry.factionId ? `${FACTIONS[entry.factionId].short}: ` : ''}${entry.text}`),
@@ -72,13 +72,13 @@ export function ChroniclePanel() {
     anchor.download = `tessera-cronicas-seed-${game.seed}.txt`;
     anchor.click();
     URL.revokeObjectURL(url);
-    toast('success', 'Crônicas exportadas', 'O registro completo foi salvo como arquivo de texto.');
+    toast('success', 'Registro exportado', 'O registro completo foi salvo como arquivo de texto.');
   };
 
   return (
     <ViewShell
       eyebrow="Arquivo da campanha"
-      title="Crônicas da Partilha"
+      title="Registro da Partilha"
       subtitle="Cada decisão relevante fica registrada aqui — o mesmo log que um servidor autoritativo usaria para auditar a partida."
       icon="ScrollText"
       actions={<button className="button button--ghost button--small" onClick={download} type="button"><Icon name="Download" size={14} /> Exportar .txt</button>}

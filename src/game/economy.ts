@@ -14,6 +14,7 @@ import type {
 } from './types';
 import { EMPTY_FLOW, EMPTY_STOCKS } from './constants';
 import { clamp, round1 } from './rng';
+import { hqCommerceMult, hqDefenseMult, hqProductionMult } from './hq';
 
 export const POP_FOOD = 0.22;
 export const POP_ENERGY = 0.08;
@@ -194,7 +195,8 @@ export function defenseOf(state: GameState, tile: Tile): number {
   const defenseLevels = tile.buildings.defesa;
   const terrainBonus = tile.terrain === 'montanha' ? 25 : tile.terrain === 'colina' ? 14 : 0;
   const base = defenseLevels * 18 + terrainBonus + (tile.isCapital ? 20 : 0);
-  return Math.round(base * (1 + (owner ? techEffects(owner).defenseMult : 0)));
+  const district = hqDefenseMult(state, tile.id);
+  return Math.round(base * (1 + (owner ? techEffects(owner).defenseMult : 0)) * district);
 }
 
 const PRODUCTIVE: BuildingKey[] = ['fazenda', 'extratora', 'usina', 'industria', 'entreposto', 'pesquisa'];
@@ -259,7 +261,12 @@ export function territoryProduction(state: GameState, tile: Tile, faction: Facti
       const prod = (def.production[r] ?? 0) * level * local * laborRatio * unrestFactor * devFactor;
       if (prod <= 0) continue;
       const resMult = 1 + tech.production[r] + tech.globalProduction;
-      const adjusted = prod * resMult * terrainBonusMult(def, tile);
+      const district = key === 'entreposto'
+        ? hqCommerceMult(state, tile.id)
+        : key === 'industria' || key === 'extratora'
+          ? hqProductionMult(state, tile.id)
+          : 1;
+      const adjusted = prod * resMult * terrainBonusMult(def, tile) * district;
       if (key === 'entreposto' && r === 'creditos') {
         commerceBase += adjusted;
       } else {

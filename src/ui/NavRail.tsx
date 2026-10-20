@@ -5,14 +5,15 @@ import { Icon } from './Icon';
 import { cx, Tooltip } from './primitives';
 
 const ITEMS: Array<{ view: ViewKey; label: string; icon: string }> = [
-  { view: 'map', label: 'Mapa', icon: 'Map' },
+  { view: 'map', label: 'Mundo', icon: 'Map' },
+  { view: 'city', label: 'Cidade', icon: 'Building2' },
   { view: 'economy', label: 'Economia', icon: 'Coins' },
   { view: 'construction', label: 'Obras', icon: 'Hammer' },
   { view: 'tech', label: 'Ciência', icon: 'FlaskConical' },
   { view: 'expansion', label: 'Expansão', icon: 'Target' },
   { view: 'diplomacy', label: 'Diplomacia', icon: 'Handshake' },
-  { view: 'objectives', label: 'Campanha', icon: 'Award' },
-  { view: 'chronicle', label: 'Crônicas', icon: 'ScrollText' },
+  { view: 'objectives', label: 'Metas', icon: 'Award' },
+  { view: 'chronicle', label: 'Registro', icon: 'ScrollText' },
 ];
 
 export function NavRail({ onHelp }: { onHelp: () => void }) {
