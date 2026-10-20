@@ -787,7 +787,7 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
                   />
                 )}
                 {claim && (
-                  <path d={paths[iso]} fill="url(#atlas-claim)" fillRule="evenodd" pointerEvents="none" opacity={0.5} />
+                  <path className="atlas-claim" d={paths[iso]} fill="url(#atlas-claim)" fillRule="evenodd" pointerEvents="none" opacity={0.5} />
                 )}
                 {/* Contorno de tinta; quem tem dono ganha traço na cor da Casa. */}
                 <path
