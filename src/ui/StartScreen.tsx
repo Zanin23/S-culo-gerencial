@@ -1,7 +1,7 @@
 import { FACTIONS, GAME } from '../game/constants';
 import { scoreOf, VICTORY_TARGET } from '../game/progress';
 import { useGameStore } from '../store/gameStore';
-import { fmt } from './format';
+import { fmt, money } from './format';
 import { WaxSeal } from './art/Glyph';
 import { Icon } from './Icon';
 import { ProgressBar } from './primitives';
@@ -57,13 +57,14 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
             <div>
               <div className="eyebrow">Gestão de companhias · {GAME.world}</div>
               <h1>{GAME.name}</h1>
-              <p className="start-hero__subtitle">Crônicas do mercado</p>
+              <p className="start-hero__subtitle">{GAME.subtitle}</p>
             </div>
           </div>
           <p className="start-hero__lede">
-            Quatro companhias disputam o mundo. Escolha uma cidade real, erga a sede no lote que quiser e administre filiais, obras e rotas até a hegemonia.
-            Construa uma economia, negocie com rivais e transforme um porto pequeno no grupo que
-            dita a ordem do mercado.
+            Quatro companhias disputam o mundo. Escolha uma cidade real, erga a sede no lote que quiser
+            e abra unidades de negócio até a liderança do mercado. Compre mais unidades na mesma praça,
+            diversifique em portos, indústrias, fábricas e fazendas, e transforme uma operação pequena
+            no grupo que dita a ordem do mercado.
           </p>
           <div className="start-hero__tagline">
             <span className="rule" />
@@ -121,14 +122,14 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
                   <small>{FACTIONS[saved.playerFactionId].epithet}</small>
                 </div>
                 <div className="briefing__score">
-                  <span className="eyebrow">Hegemonia</span>
+                  <span className="eyebrow">Relevância</span>
                   <strong>{fmt(score)}<small> / {VICTORY_TARGET}</small></strong>
                 </div>
               </div>
               <ProgressBar value={score} max={VICTORY_TARGET} tone="gold" />
               <div className="briefing__stats">
                 <span><b>{cycle}</b> ciclo</span>
-                <span><b>{fmt(player.stocks.creditos)}</b> créditos</span>
+                <span><b>{money(player.stocks.creditos)}</b> em caixa</span>
                 <span><b>{Object.values(saved.tiles).filter((t) => t.owner === saved.playerFactionId).length}</b> países</span>
                 <span><b>{player.techs.length}</b> tecnologias</span>
               </div>
@@ -137,10 +138,10 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
             <div className="briefing__campaign briefing__campaign--intro">
               <p>
                 Você dirige o <strong>Grupo Concórdia</strong>: Portugal e Espanha, a rota do Atlântico e uma dívida de
-                confiança com as outras companhias. O caminho até a hegemonia passa por decisões de gestão — não por uma única jogada.
+                confiança com as outras companhias. O caminho até a liderança passa por decisões de gestão — não por uma única jogada.
               </p>
               <div className="briefing__pills">
-                <span><Icon name="Target" size={13} /> 360 de hegemonia</span>
+                <span><Icon name="Target" size={13} /> {VICTORY_TARGET} de relevância</span>
                 <span><Icon name="Handshake" size={13} /> 3 rivais com doutrinas próprias</span>
                 <span><Icon name="FlaskConical" size={13} /> 16 tecnologias</span>
               </div>

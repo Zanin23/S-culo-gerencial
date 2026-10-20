@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import { App } from '../App';
 import { CITIES, PROVINCES, citiesOf } from '../game/atlas';
 import { eventById } from '../game/events';
+import { computeEconomy } from '../game/economy';
 import { useGameStore } from '../store/gameStore';
 
 let container: HTMLDivElement;
@@ -155,7 +156,8 @@ it('runs the core actions and resolves an event through the modal', async () => 
     await advanceOne();
   }
   expect(useGameStore.getState().game!.tiles[capital.id].buildings.pesquisa).toBe(1);
-  expect(useGameStore.getState().game!.factions.concordia.stocks.conhecimento).toBeGreaterThan(10);
+  const finance = computeEconomy(useGameStore.getState().game!, 'concordia').finance;
+  expect(finance.revenue.some((line) => line.key === 'infraestrutura')).toBe(true);
 
   await act(async () => {
     expect(useGameStore.getState().research('ec1')).toBe(true);
@@ -166,14 +168,12 @@ it('runs the core actions and resolves an event through the modal', async () => 
   expect(useGameStore.getState().game!.factions.concordia.techs).toContain('ec1');
 
   await act(async () => {
-    expect(useGameStore.getState().trade('alimentos', 10, 'sell')).toBe(true);
-  });
-  await act(async () => {
     useGameStore.getState().setView('economy');
   });
-  expect(text()).toContain('Mercado Global');
+  expect(text()).toContain('Finanças da companhia');
 
   await act(async () => {
+    useGameStore.getState().game!.factions.concordia.stocks.creditos += 300;
     expect(useGameStore.getState().gift('aurelia')).toBe(true);
   });
 
@@ -225,15 +225,8 @@ it('clicking the primary UI actions mutates the world', async () => {
   await act(async () => {
     useGameStore.getState().setView('economy');
   });
-  const sellButton = Array.from(document.querySelectorAll('.market-card button')).find(
-    (button) => /Vender/.test(button.textContent ?? '') && !(button as HTMLButtonElement).disabled,
-  ) as HTMLButtonElement | undefined;
-  expect(sellButton).toBeTruthy();
-  const creditsBefore = useGameStore.getState().game!.factions.concordia.stocks.creditos;
-  await act(async () => {
-    sellButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-  });
-  expect(useGameStore.getState().game!.factions.concordia.stocks.creditos).toBeGreaterThan(creditsBefore);
+  expect(container.querySelector('.summary-card--gold')).toBeTruthy();
+  expect(text()).toContain('Resultado do ciclo');
 
   await act(async () => {
     useGameStore.getState().setView('diplomacy');
@@ -247,11 +240,13 @@ it('clicking the primary UI actions mutates the world', async () => {
   });
   expect(useGameStore.getState().game!.factions.concordia.lastGiftCycle).toBe(useGameStore.getState().game!.cycle);
 
+  // Licença de praça é paga em caixa; o teste abastece a companhia antes de abrir.
   await act(async () => {
+    useGameStore.getState().game!.factions.concordia.stocks.creditos += 900;
     useGameStore.getState().setView('expansion');
   });
   const expandButton = Array.from(document.querySelectorAll('.claim-card button')).find(
-    (button) => /Preparar expedição/.test(button.textContent ?? '') && !(button as HTMLButtonElement).disabled,
+    (button) => /Abrir licença de praça/.test(button.textContent ?? '') && !(button as HTMLButtonElement).disabled,
   ) as HTMLButtonElement | undefined;
   expect(expandButton).toBeTruthy();
   await act(async () => {
@@ -282,12 +277,12 @@ it('opens a filial and manages the company network', async () => {
   expect(opened).toBe(true);
   const operation = useGameStore.getState().game!.operations.find((op) => op.cityId === city.id)!;
   expect(operation.factionId).toBe(playerId);
-  expect(operation.level).toBe(1);
+  expect(operation.units).toBe(1);
 
   await act(async () => {
     useGameStore.getState().setView('companies');
   });
-  expect(text()).toContain('Empresas e operações');
+  expect(text()).toContain('Sua companhia');
   expect(text()).toContain(city.name);
   expect(container.querySelectorAll('.ops-row').length).toBe(1);
   expect(container.querySelector('.ops-sectors')).toBeTruthy();
@@ -301,7 +296,7 @@ it('opens a filial and manages the company network', async () => {
   await act(async () => {
     expect(useGameStore.getState().upgradeOperation(operation.id)).toBe(true);
   });
-  expect(useGameStore.getState().game!.operations.find((op) => op.id === operation.id)!.level).toBe(2);
+  expect(useGameStore.getState().game!.operations.find((op) => op.id === operation.id)!.units).toBe(2);
 
   await act(async () => {
     expect(useGameStore.getState().closeOperation(operation.id)).toBe(true);

@@ -5,15 +5,13 @@ import { chooseEvent } from '../game/events';
 import { FACTIONS } from '../game/constants';
 import { CITY_BY_ID, PROVINCE_BY_ID, cityById } from '../game/atlas';
 import { scoreOf } from '../game/progress';
-import type { CommandResult, CycleReport, FactionId, GameState, MarketKey, ResourceKey, SectorKey, TechId, BuildingKey } from '../game/types';
+import type { CommandResult, CycleReport, FactionId, GameState, ResourceKey, SectorKey, TechId, BuildingKey } from '../game/types';
 import {
-  buyResource,
   closeOperation,
   expandOperation,
   openOperation,
   proposeTreaty,
   respondToOffer,
-  sellResource,
   sendGift,
   startConstruction,
   startExpansion,
@@ -116,7 +114,6 @@ interface GameStore {
   openOperation: (cityId: string, sector: SectorKey) => boolean;
   upgradeOperation: (operationId: string) => boolean;
   closeOperation: (operationId: string) => boolean;
-  trade: (resource: MarketKey, amount: number, side: 'buy' | 'sell') => boolean;
   gift: (target: FactionId) => boolean;
   treaty: (target: FactionId, kind: 'trade' | 'nonAggression' | 'alliance') => boolean;
   answerOffer: (offerId: string, accept: boolean) => boolean;
@@ -418,12 +415,6 @@ export const useGameStore = create<GameStore>()((set, get) => {
       run((state) => expandOperation(state, state.playerFactionId, operationId)),
     closeOperation: (operationId) =>
       run((state) => closeOperation(state, state.playerFactionId, operationId)),
-    trade: (resource, amount, side) =>
-      run((state) =>
-        side === 'sell'
-          ? sellResource(state, state.playerFactionId, resource, amount)
-          : buyResource(state, state.playerFactionId, resource, amount),
-      ),
     gift: (target) => run((state) => sendGift(state, state.playerFactionId, target)),
     treaty: (target, kind) => run((state) => proposeTreaty(state, state.playerFactionId, target, kind)),
     answerOffer: (offerId, accept) => run((state) => respondToOffer(state, state.playerFactionId, offerId, accept)),

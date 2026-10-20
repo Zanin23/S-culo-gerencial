@@ -208,7 +208,7 @@ export function MapView() {
         subtitle: `${info.continent} · ${capitalLabel(info.capital)}`,
         accent: tile.owner ? FACTIONS[tile.owner].color : '#6a7883',
         meta: `${fmt(tile.pop)} hab · ${info.provinces} províncias`,
-        text: tile.owner ? FACTIONS[tile.owner].name : claimable.has(hover.id) ? 'Elegível para expansão' : 'Território neutro',
+        text: tile.owner ? FACTIONS[tile.owner].name : claimable.has(hover.id) ? 'Licença disponível' : 'Praça neutra',
         foot: `${TERRAIN[tile.terrain].name} · valor estratégico ${tile.strategic}/3`,
         terrain: tile.terrain,
         claim: claimable.has(hover.id),
@@ -531,9 +531,9 @@ export function MapView() {
           <div className="map-drill__stats">
             <span><b>{fmt(drill.pop)}</b> habitantes</span>
             {provinceInfo ? (
-              <span><b>{provinceInfo.cities}</b> cidades {provinceInfo.capital ? '· capital nacional' : ''}</span>
+              <span><b>{provinceInfo.cities}</b> cidades {provinceInfo.capital ? '· praça principal' : ''}</span>
             ) : (
-              <span>{cityInfo!.capital ? 'Capital nacional' : `Raio de influência ${cityInfo!.rank}`}</span>
+              <span>{cityInfo!.capital ? 'Praça principal' : `Raio de mercado ${cityInfo!.rank}`}</span>
             )}
           </div>
           <button
@@ -573,7 +573,7 @@ export function MapView() {
           <div className="map-tooltip__row">{tooltip.text}</div>
           <div className="map-tooltip__row">{tooltip.foot}</div>
           {tooltip.claim && (
-            <div className="map-tooltip__claim"><Icon name="Sparkles" size={12} /> Pode ser reivindicado pelo painel de expansão</div>
+            <div className="map-tooltip__claim"><Icon name="Sparkles" size={12} /> Licença de praça disponível</div>
           )}
         </div>
       )}
@@ -583,13 +583,13 @@ export function MapView() {
         {mode === '3d' && active
           ? 'Arraste para girar · roda ou pinça para aproximar · clique no país, na província ou na cidade · duplo clique foca'
           : mode === 'atlas'
-            ? 'Arraste o atlas · roda para aproximar · clique no território, na província ou na cidade · duplo clique foca o país'
+            ? 'Arraste o atlas · roda para aproximar · clique na praça, na província ou na cidade · duplo clique foca o país'
             : 'Arraste para navegar · roda do mouse para aproximar · clique no país, na província ou na cidade'}
       </div>
 
       <div className="map-owner-badge">
         <span className="map-owner-badge__dot" style={{ background: owner ? FACTIONS[owner].color : '#6a7883' }} />
-        {owner ? FACTIONS[owner].name : selectedTileId ? 'Neutro' : `${ownCount} países sob sua soberania`}
+        {owner ? FACTIONS[owner].name : selectedTileId ? 'Neutro' : `${ownCount} praças licenciadas`}
         <span className="map-owner-badge__sep">·</span>
         <span>{GLOBAL_CITIES.length} cidades marcadas no atlas</span>
       </div>

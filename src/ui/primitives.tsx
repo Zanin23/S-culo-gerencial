@@ -1,9 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { RESOURCES } from '../game/constants';
+import { moneyOf } from '../game/economy';
 import type { Flow, ResourceKey, Stocks } from '../game/types';
-import { costEntries, fmt, fmtRate, trendClass } from './format';
-import { ResourceGlyph } from './art/Glyph';
+import { fmt, fmtRate, money, trendClass } from './format';
 import { Icon } from './Icon';
 
 export function cx(...values: Array<string | false | null | undefined>): string {
@@ -27,19 +27,15 @@ export function Cost({
   stocks?: Stocks;
   compact?: boolean;
 }) {
-  const entries = costEntries(cost);
-  if (!entries.length) return <span className="muted tiny">sem custo</span>;
+  const total = moneyOf(cost);
+  if (total < 0.5) return <span className="muted tiny">sem custo</span>;
+  const missing = stocks ? stocks.creditos + 1e-9 < total : false;
   return (
     <span className={cx('cost-row', compact && 'cost-row--compact')}>
-      {entries.map(({ key, value }) => {
-        const missing = stocks ? (stocks[key] ?? 0) + 1e-9 < value : false;
-        return (
-          <span key={key} className={cx('cost-chip', missing && 'is-missing')} title={RESOURCES[key].label}>
-            <ResourceGlyph resource={key} size={14} />
-            <span>{fmt(value)}</span>
-          </span>
-        );
-      })}
+      <span className={cx('cost-chip', missing && 'is-missing')} title="Dinheiro em caixa">
+        <Icon name="Coins" size={13} />
+        <span>{money(total)}</span>
+      </span>
     </span>
   );
 }

@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { chooseEvent, eventById } from './events';
 import { runAITurn } from './ai';
 import { advanceCycle, resolveInsolvency } from './cycle';
-import { computeEconomy, defenseOf, developmentOf, techEffects, territoryProduction } from './economy';
+import { computeEconomy, defenseOf, territoryProduction } from './economy';
 import { neighborsOf, tilesOfFaction } from './map';
 import { createInitialState, exportSave, importSave, validateState } from './state';
-import { buildingCost, foundSeat, startConstruction, startResearch, startExpansion, sellResource } from './commands';
-import { objectivesOf, scoreOf } from './progress';
-import { FACTIONS } from './constants';
+import { buildingCost, foundSeat, openOperation, startConstruction, startResearch, startExpansion } from './commands';
+import { objectivesOf } from './progress';
+import { citiesOf } from './atlas';
 import type { FactionId, GameState } from './types';
 
 function resolvePending(state: GameState): GameState {
@@ -32,7 +32,7 @@ describe('MANAGEMENT CENTURY engine', () => {
       cityId: 'c1',
       countryId: tileId,
       sector: 'varejo',
-      level: 1,
+      units: 1,
       openedCycle: 1,
     });
     faction.deficitCycles = 6;
@@ -42,6 +42,29 @@ describe('MANAGEMENT CENTURY engine', () => {
     expect(state.operations).toHaveLength(0);
     expect(tilesOfFaction(state.tiles, 'concordia')).toHaveLength(0);
     expect(state.tiles[tileId].owner).toBeNull();
+  });
+
+  it('pays research in cash even after the cycle zeroes legacy stocks', () => {
+    const state = createInitialState(777, 1);
+    const player = state.factions.concordia;
+    player.stocks.conhecimento = 0;
+    player.stocks.creditos = 600;
+    const result = startResearch(state, 'concordia', 'ec1');
+    expect(result.ok).toBe(true);
+    expect(result.state.factions.concordia.stocks.creditos).toBeLessThan(600);
+  });
+
+  it('routes operation revenue into the company cash flow', () => {
+    const state = createInitialState(4242, 1);
+    const countryId = state.factions.concordia.capitalId;
+    const city = citiesOf(countryId)[0];
+    expect(city).toBeTruthy();
+    state.factions.concordia.stocks.creditos = 5000;
+    const result = openOperation(state, 'concordia', city.id, 'varejo');
+    expect(result.ok).toBe(true);
+    const eco = computeEconomy(result.state, 'concordia');
+    const line = eco.finance.revenue.find((entry) => entry.key === 'unidades');
+    expect(line?.value ?? 0).toBeGreaterThan(0);
   });
 
   it('creates a coherent world', () => {
@@ -57,12 +80,6 @@ describe('MANAGEMENT CENTURY engine', () => {
     expect(eco.net.creditos).toBeGreaterThan(0);
     expect(Number.isFinite(eco.production.creditos)).toBe(true);
     expect(objectivesOf(state).filter((objective) => objective.done)).toHaveLength(0);
-    console.log('start eco', {
-      prod: Object.fromEntries(Object.entries(eco.production).map(([k, v]) => [k, Math.round(v * 10) / 10])),
-      demand: Object.fromEntries(Object.entries(eco.demand).map(([k, v]) => [k, Math.round(v * 10) / 10])),
-      admin: eco.adminCapacity,
-      dev: developmentOf(state.tiles[state.factions.concordia.capitalId]),
-    });
   });
 
   it('runs a 60-cycle simulation with an AI-driven player', () => {
@@ -73,25 +90,9 @@ describe('MANAGEMENT CENTURY engine', () => {
       state = resolvePending(state);
       runAITurn(state, state.playerFactionId);
       const result = advanceCycle(state);
-      if (!result.ok) {
-        console.log('advance failed', result.message);
-        break;
-      }
+      if (!result.ok) break;
       state = result.state;
       if (state.phase !== 'playing') break;
-      if (state.cycle % 10 === 0) {
-        const player = state.factions.concordia;
-        console.log(`cycle ${state.cycle}`, {
-          tiles: tilesOfFaction(state.tiles, 'concordia').length,
-          credits: Math.round(player.stocks.creditos),
-          food: Math.round(player.stocks.alimentos),
-          energy: Math.round(player.stocks.energia),
-          techs: player.techs.length,
-          operations: state.operations.filter((op) => op.factionId === 'concordia').length,
-          score: scoreOf(state, 'concordia'),
-          phase: state.phase,
-        });
-      }
     }
     const player = state.factions.concordia;
     for (const key of Object.keys(player.stocks) as Array<keyof typeof player.stocks>) {
@@ -104,18 +105,6 @@ describe('MANAGEMENT CENTURY engine', () => {
       expect(tile.unrest).toBeGreaterThanOrEqual(0);
       expect(tile.unrest).toBeLessThanOrEqual(100);
     }
-    console.log('final', {
-      cycle: state.cycle,
-      phase: state.phase,
-      events: [...eventsSeen],
-      leaderboard: (Object.keys(state.factions) as FactionId[]).map((id) => ({
-        id,
-        name: FACTIONS[id].short,
-        score: scoreOf(state, id),
-        tiles: tilesOfFaction(state.tiles, id).length,
-        techs: state.factions[id].techs.length,
-      })),
-    });
     expect(eventsSeen.size).toBeGreaterThan(0);
   });
 
@@ -149,8 +138,8 @@ describe('MANAGEMENT CENTURY engine', () => {
     expect(expansion.ok).toBe(true);
     const ownedExpansion = startExpansion(state, 'concordia', capital.id);
     expect(ownedExpansion.ok).toBe(false);
-    const sell = sellResource(state, 'concordia', 'alimentos', 9999);
-    expect(sell.ok).toBe(false);
+    const offline = startConstruction(state, 'concordia', neutralTile.id, 'fazenda');
+    expect(offline.ok).toBe(false);
     const invalid = validateState({ version: 1, cycle: 0 });
     expect(invalid.state).toBeNull();
   });

@@ -23,9 +23,9 @@ import type {
 } from './types';
 
 
-export const SAVE_KEY = 'management-century.save.v3';
+export const SAVE_KEY = 'management-century.save.v4';
 /** Chaves de versões anteriores do jogo: lidas uma vez e migradas. */
-export const LEGACY_SAVE_KEYS = ['management-century.save.v2', 'tessera.save.v2'];
+export const LEGACY_SAVE_KEYS = ['management-century.save.v3', 'management-century.save.v2', 'tessera.save.v2'];
 export const SAVE_VERSION = GAME.saveVersion;
 
 const AI_START: Stocks = {
@@ -201,9 +201,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** Structural validation. A save is only trusted when the essentials are present
  *  and coherent; anything else is rejected rather than silently repaired. */
 /**
- * Atualiza saves antigos para o formato atual. A v3 substituiu o exército e a
- * guerra por operações urbanas: campos militares são descartados e as relações
- * perdem a bandeira de guerra. Nenhum território, obra ou tecnologia se perde.
+ * Atualiza saves antigos para o formato atual. A v4 transforma a economia em
+ * caixa único (o dinheiro paga insumos), troca filiais por unidades de negócio
+ * e aposenta os recursos de Estado. Nenhum território, obra ou tecnologia se perde.
  */
 export function migrateSave(input: unknown): unknown {
   if (!isRecord(input)) return input;
@@ -212,6 +212,21 @@ export function migrateSave(input: unknown): unknown {
   const next = JSON.parse(JSON.stringify(input)) as Record<string, unknown>;
   next.version = SAVE_VERSION;
   if (!Array.isArray(next.operations)) next.operations = [];
+  next.operations = (next.operations as unknown[]).filter(isRecord).map((op) => {
+    const units = typeof op.units === 'number' ? op.units : typeof op.level === 'number' ? op.level : 1;
+    const sector = op.sector === 'logistica' ? 'porto' : op.sector;
+    return { ...op, sector, units: Math.max(1, Math.min(3, Math.round(units))), level: undefined };
+  });
+  if (isRecord(next.factions)) {
+    for (const faction of Object.values(next.factions)) {
+      if (!isRecord(faction)) continue;
+      if (isRecord(faction.stocks)) {
+        for (const key of Object.keys(faction.stocks)) {
+          if (key !== 'creditos') faction.stocks[key] = 0;
+        }
+      }
+    }
+  }
   if (isRecord(next.factions)) {
     for (const faction of Object.values(next.factions)) {
       if (!isRecord(faction)) continue;
@@ -251,7 +266,7 @@ export function validateState(input: unknown): LoadResult {
     return { state: null, error: 'O ciclo registrado é inválido.' };
   }
   if (!isRecord(raw.factions) || !isRecord(raw.tiles)) {
-    return { state: null, error: 'Facções ou territórios ausentes.' };
+    return { state: null, error: 'Companhias ou praças ausentes.' };
   }
   const playerId = raw.playerFactionId;
   if (typeof playerId !== 'string' || !(playerId in raw.factions)) {
@@ -274,7 +289,7 @@ export function validateState(input: unknown): LoadResult {
   const owned = Object.values(tiles).filter((t) => t.owner);
   for (const tile of owned) {
     if (typeof tile.owner !== 'string' || !(tile.owner in raw.factions)) {
-      return { state: null, error: 'Há territórios com proprietário desconhecido.' };
+      return { state: null, error: 'Há praças com proprietário desconhecido.' };
     }
   }
   if (!isRecord(raw.diplomacy) || !isRecord(raw.market) || !Array.isArray(raw.projects)) {

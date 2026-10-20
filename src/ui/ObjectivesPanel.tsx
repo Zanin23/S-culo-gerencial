@@ -5,7 +5,7 @@ import { hasActivePact } from '../game/diplomacy';
 import { leaderboard, objectivesOf, rankOf, scoreParts, VICTORY_TARGET, victoryInfo } from '../game/progress';
 import { tilesOfFaction } from '../game/map';
 import { useGameStore } from '../store/gameStore';
-import { fmt } from './format';
+import { fmt, money } from './format';
 import { Icon } from './Icon';
 import { Badge, ProgressBar, Ring, SectionHeader } from './primitives';
 import { ViewShell } from './ViewShell';
@@ -28,15 +28,16 @@ export function ObjectivesPanel() {
   const pacts = Object.keys(game.diplomacy).filter((key) => key.includes(playerId) && hasActivePact(game.diplomacy[key])).length;
   const playerOperations = game.operations.filter((op) => op.factionId === playerId).length;
   const rivalOperations = game.operations.filter((op) => op.factionId !== playerId).length;
+  const playerUnits = game.operations.filter((op) => op.factionId === playerId).reduce((sum, op) => sum + op.units, 0);
   const leaderGap = victory.leader.isPlayer ? 0 : Math.max(0, victory.leader.score - victory.playerScore);
 
   return (
     <ViewShell
       eyebrow="Painel de metas"
-      title="Objetivos e hegemonia"
-      subtitle={`A campanha termina quando uma companhia alcança ${VICTORY_TARGET} de hegemonia. Mercados, filiais, desenvolvimento, tecnologia e acordos constroem sua pontuação.`}
+      title="Objetivos e relevância"
+      subtitle={`A campanha termina quando uma companhia alcança ${VICTORY_TARGET} de relevância. Praças, unidades, desenvolvimento, tecnologia e acordos constroem sua pontuação.`}
       icon="Award"
-      actions={<Badge tone="gold" icon="Crown">{fmt(victory.playerScore)} de hegemonia</Badge>}
+      actions={<Badge tone="gold" icon="Crown">{fmt(victory.playerScore)} de relevância</Badge>}
     >
       <div className={`victory-hero ${victory.isLeader ? 'is-leading' : ''}`}>
         <div className="victory-hero__crest">
@@ -51,17 +52,17 @@ export function ObjectivesPanel() {
           <p>{rank.note} {victory.rivalClose ? 'A liderança rival está próxima do objetivo — cada ciclo conta.' : 'Use os próximos ciclos para consolidar desenvolvimento, tecnologia e alianças.'}</p>
           <div className="victory-hero__score">
             <strong>{fmt(victory.playerScore)}</strong>
-            <span>/ {VICTORY_TARGET} de hegemonia</span>
+            <span>/ {VICTORY_TARGET} de relevância</span>
             {!victory.isLeader ? <Badge tone="red" icon="Target">−{fmt(leaderGap)} para a liderança</Badge> : <Badge tone="teal" icon="Award">1º lugar</Badge>}
           </div>
           <ProgressBar value={victory.playerScore} max={VICTORY_TARGET} tone="gold" />
           <div className="victory-hero__meta">
-            <span><Icon name="Map" size={13} /> {tiles.length} territórios</span>
+            <span><Icon name="Map" size={13} /> {tiles.length} praças licenciadas</span>
             <span><Icon name="Landmark" size={13} /> {totalDev} desenvolvimento</span>
             <span><Icon name="FlaskConical" size={13} /> {player.techs.length} tecnologias</span>
             <span><Icon name="Handshake" size={13} /> {pacts} acordos</span>
-            <span><Icon name="Store" size={13} /> {playerOperations} filiais</span>
-            {rivalOperations ? <span className="tone-gold"><Icon name="Store" size={13} /> {rivalOperations} rivais no mercado</span> : null}
+            <span><Icon name="Store" size={13} /> {playerUnits} unidades</span>
+            {rivalOperations ? <span className="tone-gold"><Icon name="Store" size={13} /> {rivalOperations} unidades rivais</span> : null}
           </div>
         </div>
       </div>
@@ -77,13 +78,13 @@ export function ObjectivesPanel() {
           <span className="summary-card__label"><Icon name="Award" size={14} /> Sua posição</span>
           <strong>{victory.playerRank}º</strong>
           <span className="summary-card__delta">de {board.length} companhias</span>
-          <small>O ranking soma todas as fontes de hegemonia.</small>
+          <small>O ranking soma todas as fontes de relevância.</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Coins" size={14} /> Saldo econômico</span>
-          <strong>{fmt(eco.income)} <small>/ {fmt(eco.expenses)}</small></strong>
-          <span className="summary-card__delta">receita / manutenção</span>
-          <small>{fmt(eco.net.creditos)} de saldo projetado por ciclo.</small>
+          <strong>{money(eco.finance.income)} <small>/ {money(eco.finance.expenses)}</small></strong>
+          <span className="summary-card__delta">receita / despesa</span>
+          <small>{money(eco.finance.net, true)} de resultado por ciclo.</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="SkipForward" size={14} /> Ciclo atual</span>
@@ -119,7 +120,7 @@ export function ObjectivesPanel() {
           <SectionHeader eyebrow="Corrida continental" title="Ranking das companhias" icon="Crown" />
           <div className="ranking-table">
             <div className="ranking-table__head">
-              <span>#</span><span>Companhia</span><span>Hegemonia</span><span>Mercados</span><span>Tecnologias</span><span>Filiais</span>
+              <span>#</span><span>Companhia</span><span>Relevância</span><span>Praças</span><span>Tecnologias</span><span>Unidades</span>
             </div>
             {board.map((row, index) => (
               <div className={`ranking-row ${row.isPlayer ? 'is-player' : ''}`} key={row.id}>
@@ -131,13 +132,13 @@ export function ObjectivesPanel() {
                 </span>
                 <span>{row.territories}</span>
                 <span>{row.techs}</span>
-                <span>{row.operations}</span>
+                <span>{row.units}</span>
               </div>
             ))}
           </div>
           <div className="ranking-note">
             <Icon name="Info" size={13} />
-            A IA joga com as mesmas regras de custo, produção e expansão. Nenhuma companhia recebe recursos ou ações fora das regras.
+            A IA joga com as mesmas regras de caixa, receita e expansão. Nenhuma companhia recebe dinheiro ou ações fora das regras.
           </div>
         </section>
 
@@ -155,7 +156,7 @@ export function ObjectivesPanel() {
             <span>Total</span>
             <strong>{fmt(victory.playerScore)}</strong>
           </div>
-          <p className="table-note">A pontuação é recalculada a cada ciclo. Estoques de créditos e relações institucionais têm teto de contribuição para evitar inatividade lucrativa.</p>
+          <p className="table-note">A pontuação é recalculada a cada ciclo. O caixa tem teto de contribuição para evitar inatividade lucrativa.</p>
         </aside>
       </div>
 
@@ -165,7 +166,7 @@ export function ObjectivesPanel() {
           <div className="endgame-rules">
             <div className="endgame-rule is-victory">
               <span><Icon name="Award" size={18} /></span>
-              <div><strong>Vitória de Concórdia</strong><p>Alcance {VICTORY_TARGET} de hegemonia antes das rivais.</p></div>
+              <div><strong>Vitória de Concórdia</strong><p>Alcance {VICTORY_TARGET} de relevância antes das rivais.</p></div>
             </div>
             <div className="endgame-rule is-defeat">
               <span><Icon name="AlertTriangle" size={18} /></span>
@@ -173,7 +174,7 @@ export function ObjectivesPanel() {
             </div>
             <div className="endgame-rule">
               <span><Icon name="Store" size={18} /></span>
-              <div><strong>Colapso fiscal</strong><p>Caixa negativo por vários ciclos força a companhia a fechar filiais; sem mercados, ela sai do jogo.</p></div>
+              <div><strong>Colapso fiscal</strong><p>Caixa negativo por vários ciclos força a companhia a fechar unidades; sem praças, ela sai do jogo.</p></div>
             </div>
             <div className="endgame-rule">
               <span><Icon name="ScrollText" size={18} /></span>
@@ -185,11 +186,11 @@ export function ObjectivesPanel() {
         <aside className="view-card">
           <SectionHeader eyebrow="Ações rápidas" title="Próximos passos" icon="Compass" />
           <div className="quick-links">
-            <button className="quick-link" onClick={() => setView('construction')} type="button"><Icon name="Hammer" size={16} /><span>Desenvolver territórios</span><Icon name="ChevronRight" size={14} /></button>
+            <button className="quick-link" onClick={() => setView('construction')} type="button"><Icon name="Hammer" size={16} /><span>Desenvolver praças</span><Icon name="ChevronRight" size={14} /></button>
             <button className="quick-link" onClick={() => setView('tech')} type="button"><Icon name="FlaskConical" size={16} /><span>Pesquisar tecnologias</span><Icon name="ChevronRight" size={14} /></button>
-            <button className="quick-link" onClick={() => setView('expansion')} type="button"><Icon name="Target" size={16} /><span>Reivindicar fronteiras</span><Icon name="ChevronRight" size={14} /></button>
+            <button className="quick-link" onClick={() => setView('expansion')} type="button"><Icon name="Target" size={16} /><span>Licenciar novas praças</span><Icon name="ChevronRight" size={14} /></button>
             <button className="quick-link" onClick={() => setView('diplomacy')} type="button"><Icon name="Handshake" size={16} /><span>Negociar acordos</span><Icon name="ChevronRight" size={14} /></button>
-            <button className="quick-link" onClick={() => setView('economy')} type="button"><Icon name="Coins" size={16} /><span>Vender excedentes</span><Icon name="ChevronRight" size={14} /></button>
+            <button className="quick-link" onClick={() => setView('economy')} type="button"><Icon name="Coins" size={16} /><span>Ver finanças</span><Icon name="ChevronRight" size={14} /></button>
           </div>
           <div className="seed-note">
             <Icon name="Globe2" size={13} /> {GAME.world} · build {GAME.version}.0

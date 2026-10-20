@@ -3,8 +3,6 @@ import {
   BUILDINGS,
   BUILDING_ORDER,
   FACTIONS,
-  MARKET_BASE,
-  MARKET_KEYS,
   TECHS,
   TECH_ORDER,
 } from './constants';
@@ -12,6 +10,7 @@ import {
   adminCapacityOfState,
   computeEconomy,
   developmentOf,
+  moneyOf,
   projectSlotsOf,
   researchDiscountFor,
   slotsOf,
@@ -22,20 +21,20 @@ import { getRelation, relationKey } from './diplomacy';
 import { neighborsOf, tilesOfFaction } from './map';
 import { nextRandom } from './rng';
 import {
-  buyResource,
   canBuild,
   expandOperation,
   expansionCost,
   openOperation,
   proposeTreaty,
   requiredDevelopment,
-  sellResource,
   sendGift,
   startConstruction,
   startExpansion,
   startResearch,
 } from './commands';
 import { citiesOf, cityById } from './atlas';
+import { SECTORS } from './constants';
+import { scoreOf } from './progress';
 import type { AtlasCity } from './atlas';
 import { operationCost } from './operations';
 import type { SectorKey } from './types';
@@ -216,14 +215,12 @@ function tryBuildAny(state: GameState, id: FactionId, exclude: BuildingKey[] = [
 function essentialBuilding(state: GameState, id: FactionId): BuildingKey | null {
   const eco = computeEconomy(state, id);
   const tiles = ownedTiles(state, id);
-  const usinaLevels = tiles.reduce((sum, t) => sum + t.buildings.usina, 0);
-  if (usinaLevels === 0 && (eco.net.energia < 0 || state.factions[id].stocks.energia < 20)) return 'usina';
-  const farmLevels = tiles.reduce((sum, t) => sum + t.buildings.fazenda, 0);
+  const distribution = tiles.reduce((sum, t) => sum + t.buildings.usina, 0);
+  if (distribution === 0) return 'usina';
   const expansions = state.projects.filter((p) => p.factionId === id && p.kind === 'expansao').length;
   if (tiles.length + expansions >= adminCapacityOfState(state, id)) return 'administrativo';
-  if (farmLevels === 0 && eco.net.alimentos < 2) return 'fazenda';
-  if (eco.net.energia < -2) return 'usina';
-  if (eco.net.alimentos < -1) return 'fazenda';
+  const farms = tiles.reduce((sum, t) => sum + t.buildings.fazenda, 0);
+  if (farms === 0 && eco.finance.net < 30) return 'fazenda';
   return null;
 }
 
@@ -242,8 +239,8 @@ export function candidateTechs(state: GameState, id: FactionId): TechId[] {
     if (faction.techs.includes(techId)) return false;
     if (state.projects.some((p) => p.factionId === id && p.techId === techId)) return false;
     if (!def.requires.every((req) => faction.techs.includes(req))) return false;
-    const cost = def.cost.conhecimento * (1 - discount);
-    return faction.stocks.conhecimento >= cost && faction.stocks.creditos >= def.cost.creditos * (1 - discount);
+    const total = moneyOf({ conhecimento: def.cost.conhecimento, creditos: def.cost.creditos }) * (1 - discount);
+    return faction.stocks.creditos >= total;
   }).sort((a, b) => {
     const ta = TECHS[a];
     const tb = TECHS[b];
@@ -275,10 +272,7 @@ export function candidateExpansions(state: GameState, id: FactionId): Tile[] {
       const anchor = tile;
       if (developmentOf(anchor) < requiredDevelopment(neighbor)) continue;
       const cost = expansionCost(state, id, neighbor);
-      const affordable =
-        faction.stocks.creditos >= cost.creditos &&
-        faction.stocks.materias >= cost.materias &&
-        faction.stocks.influencia >= cost.influencia;
+      const affordable = faction.stocks.creditos >= cost.creditos;
       if (!affordable) continue;
       options.push(neighbor);
     }
@@ -316,7 +310,7 @@ function tryExpand(state: GameState, id: FactionId): boolean {
 const SECTOR_BY_PERSONALITY: Record<string, SectorKey> = {
   mercantil: 'varejo',
   industrial: 'industria',
-  expansionista: 'logistica',
+  expansionista: 'porto',
   tecnocrata: 'financas',
 };
 
@@ -335,19 +329,19 @@ function openableCities(state: GameState, id: FactionId): AtlasCity[] {
   return out;
 }
 
-/** Custo de uma filial comparado ao caixa, deixando reserva para as obras. */
-function branchAffordable(state: GameState, id: FactionId, city: AtlasCity, sector: SectorKey, targetLevel = 1, reserve = 0): boolean {
+/** Custo de uma unidade comparado ao caixa e à relevância da companhia. */
+function branchAffordable(state: GameState, id: FactionId, city: AtlasCity, sector: SectorKey, targetUnits = 1, reserve = 0): boolean {
   const faction = state.factions[id];
-  const cost = operationCost(city, sector, targetLevel);
-  return faction.stocks.creditos - cost.creditos >= reserve
-    && faction.stocks.materias >= cost.materias
-    && faction.stocks.influencia >= cost.influencia;
+  if (scoreOf(state, id) + 1e-9 < SECTORS[sector].relevance) return false;
+  if (sector === 'fabrica' && !state.operations.some((op) => op.factionId === id && op.countryId === city.countryId && op.sector === 'industria')) return false;
+  const cost = operationCost(city, sector, targetUnits);
+  return faction.stocks.creditos - cost.creditos >= reserve;
 }
 
 /** A companhia abre filiais quando o caixa permite; prioriza as maiores cidades. */
 function tryOpenOperation(state: GameState, id: FactionId): boolean {
   const preferred = SECTOR_BY_PERSONALITY[FACTIONS[id].personality] ?? 'varejo';
-  const sectors: SectorKey[] = [preferred, 'varejo', 'logistica', 'financas', 'industria'];
+  const sectors: SectorKey[] = [preferred, 'fazenda', 'varejo', 'porto', 'industria', 'financas', 'fabrica'];
   const cities = openableCities(state, id).sort((a, b) => b.pop - a.pop);
   // A justa de caixa pode trocar a linha de negócio pela mais barata.
   for (const city of cities.slice(0, 8)) {
@@ -362,10 +356,10 @@ function tryOpenOperation(state: GameState, id: FactionId): boolean {
 /** Ampliar a filial existente rende mais que abrir outra em cidade pequena. */
 function tryUpgradeOperation(state: GameState, id: FactionId): boolean {
   const candidates = state.operations
-    .filter((op) => op.factionId === id && op.level < 3)
+    .filter((op) => op.factionId === id && op.units < 3)
     .filter((op) => {
       const city = cityById(op.cityId);
-      return city ? branchAffordable(state, id, city, op.sector, op.level + 1, 30) : false;
+      return city ? branchAffordable(state, id, city, op.sector, op.units + 1, 30) : false;
     });
   if (!candidates.length) return false;
   if (nextRandom(state) > 0.45) return false;
@@ -402,45 +396,6 @@ function tryAIDiplomacy(state: GameState, id: FactionId): void {
   }
 }
 
-function tryMarket(state: GameState, id: FactionId): void {
-  const faction = state.factions[id];
-  const poor = faction.stocks.creditos < 90;
-  if (nextRandom(state) > (poor ? 0.85 : 0.4)) return;
-  const eco = computeEconomy(state, id);
-
-  const surplus = MARKET_KEYS
-    .map((resource) => ({
-      resource,
-      stock: faction.stocks[resource],
-      threshold: resource === 'bens' ? 10 : resource === 'energia' ? 45 : 55,
-      price: state.market.prices[resource] / MARKET_BASE[resource],
-    }))
-    .filter((row) => row.stock > row.threshold && row.price > 0.82)
-    .sort((a, b) => b.stock * b.price - a.stock * a.price);
-
-  // A cash-strapped nation sells its surplus — especially raw materials.
-  if (poor || faction.stocks.creditos < 40) {
-    if (surplus.length) {
-      const row = surplus[0];
-      applyResult(state, sellResource(state, id, row.resource, row.resource === 'bens' ? 8 : 18));
-      return;
-    }
-  }
-
-  if (eco.shortages.length && faction.stocks.creditos > 130) {
-    const resource = eco.shortages.find((r) => MARKET_KEYS.includes(r as MarketKey)) as MarketKey | undefined;
-    if (resource) {
-      applyResult(state, buyResource(state, id, resource, resource === 'energia' ? 15 : 18));
-      return;
-    }
-  }
-
-  if (surplus.length) {
-    const row = surplus[0];
-    applyResult(state, sellResource(state, id, row.resource, row.resource === 'bens' ? 8 : 15));
-  }
-}
-
 export function runAITurn(state: GameState, id: FactionId): void {
   const faction = state.factions[id];
   if (faction.eliminated) return;
@@ -472,7 +427,6 @@ export function runAITurn(state: GameState, id: FactionId): void {
   }
 
   // 4. Camada de mercado e acordos.
-  if (!eco.overCapacity || eco.shortages.length) tryMarket(state, id);
   tryAIDiplomacy(state, id);
 }
 

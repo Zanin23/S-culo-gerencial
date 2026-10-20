@@ -1,15 +1,15 @@
 import { useMemo } from 'react';
-import { AI_FACTIONS, FACTIONS, RESOURCES, RESOURCE_KEYS } from '../game/constants';
+import { AI_FACTIONS, FACTIONS } from '../game/constants';
 import { adminCapacityOfState, computeEconomy, developmentOf, projectSlotsOf } from '../game/economy';
+import { operationsOf } from '../game/operations';
 import { leaderboard, objectivesOf, rankOf, scoreParts, VICTORY_TARGET } from '../game/progress';
 import { tilesOfFaction } from '../game/map';
 import type { LogKind } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 import { cityLabel } from '../game/names';
-import { fmt, fmtRate, trendClass } from './format';
-import { ResourceGlyph } from './art/Glyph';
+import { fmt, money, trendClass } from './format';
 import { Icon } from './Icon';
-import { Badge, ProgressBar, Ring, SectionHeader } from './primitives';
+import { Badge, ProgressBar, Ring, SectionHeader, cx } from './primitives';
 
 const LOG_ICON: Record<LogKind, string> = {
   economia: 'Coins',
@@ -29,11 +29,13 @@ export function OverviewPanel() {
   const playerId = game.playerFactionId;
   const player = game.factions[playerId];
   const faction = FACTIONS[playerId];
-  const capital = game.tiles[player.capitalId];
+  const seat = game.tiles[player.capitalId];
   const tiles = tilesOfFaction(game.tiles, playerId);
   const board = useMemo(() => leaderboard(game), [game]);
   const objectives = useMemo(() => objectivesOf(game), [game]);
   const eco = useMemo(() => computeEconomy(game, playerId), [game, playerId]);
+  const operations = useMemo(() => operationsOf(game, playerId), [game, playerId]);
+  const units = operations.reduce((sum, op) => sum + op.units, 0);
   const score = board.find((row) => row.isPlayer)?.score ?? 0;
   const rank = rankOf(score);
   const leader = board[0];
@@ -43,12 +45,14 @@ export function OverviewPanel() {
   const capacity = adminCapacityOfState(game, playerId);
   const totalDev = tiles.reduce((sum, tile) => sum + developmentOf(tile), 0);
   const scoreRows = scoreParts(game, playerId);
+  const finance = eco.finance;
+  const sectors = new Set(operations.map((op) => op.sector)).size;
 
   return (
     <div className="context-panel">
       <header className="context-head">
         <div className="context-head__main">
-          <div className="eyebrow">Painel da nação</div>
+          <div className="eyebrow">Painel da companhia</div>
           <h2>{faction.name}</h2>
           <p>{faction.epithet} · {rank.name}</p>
         </div>
@@ -63,7 +67,7 @@ export function OverviewPanel() {
             <Ring percent={(score / VICTORY_TARGET) * 100} size={74} stroke={5} color="var(--gold)" />
             <div className="hero-card__score-text">
               <strong>{fmt(score)}</strong>
-              <span>de {VICTORY_TARGET} para hegemonia</span>
+              <span>de {VICTORY_TARGET} de relevância</span>
             </div>
           </div>
           <ProgressBar value={score} max={VICTORY_TARGET} tone="gold" />
@@ -71,7 +75,7 @@ export function OverviewPanel() {
             <span><Icon name="Award" size={13} /> {rank.name}</span>
             <span className={leader.isPlayer ? 'tone-teal' : 'tone-gold'}>
               <Icon name={leader.isPlayer ? 'TrendingUp' : 'Target'} size={13} />
-              {leader.isPlayer ? 'Você lidera o mundo' : `${leader.name} lidera com ${fmt(leader.score)}`}
+              {leader.isPlayer ? 'Sua companhia lidera o mercado' : `${leader.name} lidera com ${fmt(leader.score)}`}
             </span>
           </div>
         </section>
@@ -80,8 +84,8 @@ export function OverviewPanel() {
           <button className="callout callout--gold" onClick={() => setView('diplomacy')} type="button">
             <Icon name="Handshake" size={18} />
             <span>
-              <strong>{offers.length} proposta{offers.length > 1 ? 's' : ''} diplomática{offers.length > 1 ? 's' : ''}</strong>
-              <small>Uma resposta pode mudar as relações do mundo.</small>
+              <strong>{offers.length} proposta{offers.length > 1 ? 's' : ''} de parceria</strong>
+              <small>Um acordo comercial pode abrir novos mercados.</small>
             </span>
             <Icon name="ChevronRight" size={15} />
           </button>
@@ -92,63 +96,77 @@ export function OverviewPanel() {
             <Icon name="Building2" size={18} />
             <span>
               <strong>Sede em {cityLabel(game.city.cityName)}</strong>
-              <small>Distrito {game.city.district} · lote {game.city.plotId} · abrir a cidade 3D</small>
+              <small>Distrito {game.city.district} · lote {game.city.plotId} · abrir a sede em 3D</small>
             </span>
             <Icon name="ChevronRight" size={15} />
           </button>
         ) : null}
 
         <section className="quick-stats">
-          <button className="quick-stat" onClick={() => selectTile(player.capitalId)} type="button">
-            <span className="quick-stat__icon"><Icon name="Landmark" size={16} /></span>
-            <div>
-              <span>Capital</span>
-              <strong>{capital.name}</strong>
-              <small>{developmentOf(capital)} de desenvolvimento</small>
-            </div>
-          </button>
-          <div className="quick-stat">
-            <span className="quick-stat__icon"><Icon name="Map" size={16} /></span>
-            <div>
-              <span>Territórios</span>
-              <strong>{tiles.length} <small>/ {capacity} adm.</small></strong>
-              <small>{totalDev} de desenvolvimento total</small>
-            </div>
-          </div>
-          <div className="quick-stat">
+          <button className="quick-stat" onClick={() => setView('economy')} type="button">
             <span className="quick-stat__icon"><Icon name="Coins" size={16} /></span>
             <div>
-              <span>Saldo de créditos</span>
-              <strong className={trendClass(eco.net.creditos)}>{fmtRate(eco.net.creditos)}</strong>
-              <small>{fmt(player.stocks.creditos)} em tesouro</small>
+              <span>Caixa</span>
+              <strong>{money(player.stocks.creditos)}</strong>
+              <small className={trendClass(finance.net)}>{money(finance.net, true)} por ciclo</small>
             </div>
-          </div>
-          <div className="quick-stat">
-            <span className="quick-stat__icon"><Icon name="Users" size={16} /></span>
+          </button>
+          <button className="quick-stat" onClick={() => setView('companies')} type="button">
+            <span className="quick-stat__icon"><Icon name="Store" size={16} /></span>
             <div>
-              <span>População</span>
-              <strong>{fmt(eco.pop)}</strong>
-              <small>{fmt(eco.jobs)} empregos produtivos</small>
+              <span>Unidades</span>
+              <strong>{units}</strong>
+              <small>{operations.length} operações em {sectors} ramo{sectors === 1 ? '' : 's'}</small>
             </div>
-          </div>
+          </button>
+          <button className="quick-stat" onClick={() => setView('economy')} type="button">
+            <span className="quick-stat__icon"><Icon name="TrendingUp" size={16} /></span>
+            <div>
+              <span>Receita</span>
+              <strong>{money(finance.income)}</strong>
+              <small>{money(finance.expenses)} de despesas por ciclo</small>
+            </div>
+          </button>
+          <button className="quick-stat" onClick={() => selectTile(player.capitalId)} type="button">
+            <span className="quick-stat__icon"><Icon name="Map" size={16} /></span>
+            <div>
+              <span>Praças licenciadas</span>
+              <strong>{tiles.length} <small>/ {capacity}</small></strong>
+              <small>{totalDev} de desenvolvimento somado</small>
+            </div>
+          </button>
         </section>
 
         <section className="card">
           <SectionHeader
-            eyebrow="Fluxo nacional"
-            title="Balanço de recursos"
+            eyebrow="Resultado do ciclo"
+            title="Receitas e despesas"
             icon="TrendingUp"
-            action={<button className="text-button" onClick={() => setView('economy')} type="button">Abrir economia <Icon name="ChevronRight" size={13} /></button>}
+            action={<button className="text-button" onClick={() => setView('economy')} type="button">Abrir finanças <Icon name="ChevronRight" size={13} /></button>}
           />
           <div className="mini-flow">
-            {RESOURCE_KEYS.map((key) => (
-              <div className="mini-flow__row" key={key}>
-                <span className="mini-flow__icon" style={{ color: RESOURCES[key].color }}><ResourceGlyph resource={key} size={17} /></span>
-                <span className="mini-flow__name">{RESOURCES[key].label}</span>
-                <strong>{fmt(player.stocks[key])}</strong>
-                <span className={`mini-flow__net ${trendClass(eco.net[key])}`}>{fmtRate(eco.net[key])}</span>
+            {finance.revenue.map((line) => (
+              <div className="mini-flow__row" key={line.key}>
+                <span className="mini-flow__icon" style={{ color: 'var(--gold)' }}><Icon name="ArrowUpRight" size={17} /></span>
+                <span className="mini-flow__name">{line.label}</span>
+                <strong>{money(line.value)}</strong>
+                <span className="mini-flow__net tone-teal">entrada</span>
               </div>
             ))}
+          </div>
+          <div className="mini-flow">
+            {finance.costs.map((line) => (
+              <div className="mini-flow__row" key={line.key}>
+                <span className="mini-flow__icon" style={{ color: '#e39a80' }}><Icon name="ArrowDownRight" size={17} /></span>
+                <span className="mini-flow__name">{line.label}</span>
+                <strong>−{money(line.value)}</strong>
+                <span className="mini-flow__net tone-red">saída</span>
+              </div>
+            ))}
+          </div>
+          <div className="credit-result">
+            <span>Resultado do ciclo</span>
+            <strong className={trendClass(finance.net)}>{money(finance.net, true)}</strong>
           </div>
         </section>
 
@@ -180,14 +198,14 @@ export function OverviewPanel() {
 
         <section className="card">
           <SectionHeader
-            eyebrow="Corrida pela hegemonia"
-            title="Companhias da Partilha"
+            eyebrow="Corrida pela relevância"
+            title="Companhias do mercado"
             icon="Crown"
             action={<button className="text-button" onClick={() => setView('objectives')} type="button">Ranking <Icon name="ChevronRight" size={13} /></button>}
           />
           <div className="leader-list">
             {board.map((row, index) => (
-              <div className={`leader-row ${row.isPlayer ? 'is-player' : ''}`} key={row.id}>
+              <div className={cx('leader-row', row.isPlayer && 'is-player')} key={row.id}>
                 <span className="leader-row__rank">{index + 1}</span>
                 <span className="leader-row__dot" style={{ background: row.color }} />
                 <div className="leader-row__body">
@@ -196,7 +214,7 @@ export function OverviewPanel() {
                     <span>{fmt(row.score)}</span>
                   </div>
                   <ProgressBar value={row.score} max={VICTORY_TARGET} tone={row.isPlayer ? 'teal' : 'neutral'} thin />
-                  <small>{row.territories} territórios · {row.techs} tecnologias</small>
+                  <small>{row.units ?? row.operations} unidades · {row.territories} praças · {row.techs} tecnologias</small>
                 </div>
               </div>
             ))}
@@ -228,7 +246,7 @@ export function OverviewPanel() {
               })}
             </div>
           ) : (
-            <p className="muted small">Use o painel de obras, ciência ou expansão para iniciar um projeto. Você pode manter {projectSlotsOf(player)} projetos simultâneos com as tecnologias atuais.</p>
+            <p className="muted small">Use o painel de obras, ciência ou expansão para iniciar um projeto. Sua companhia mantém {projectSlotsOf(player)} projetos simultâneos com as tecnologias atuais.</p>
           )}
         </section>
 
@@ -248,7 +266,7 @@ export function OverviewPanel() {
         </section>
 
         <section className="card">
-          <SectionHeader eyebrow="Composição da hegemonia" title="De onde vem sua pontuação" icon="Award" />
+          <SectionHeader eyebrow="Composição da relevância" title="De onde vem sua pontuação" icon="Award" />
           <div className="score-breakdown">
             {scoreRows.map((row) => (
               <div key={row.label}>
@@ -263,13 +281,13 @@ export function OverviewPanel() {
         <div className="panel-actions">
           <button className="button button--ghost" onClick={() => setView('construction')} type="button"><Icon name="Hammer" size={15} /> Obras</button>
           <button className="button button--ghost" onClick={() => setView('tech')} type="button"><Icon name="FlaskConical" size={15} /> Ciência</button>
-          <button className="button button--ghost" onClick={() => setView('diplomacy')} type="button"><Icon name="Handshake" size={15} /> Diplomacia</button>
-          <button className="button button--primary" onClick={() => selectTile(player.capitalId)} type="button"><Icon name="Landmark" size={15} /> Capital</button>
+          <button className="button button--ghost" onClick={() => setView('diplomacy')} type="button"><Icon name="Handshake" size={15} /> Parcerias</button>
+          <button className="button button--primary" onClick={() => setView('companies')} type="button"><Icon name="Store" size={15} /> Empresas</button>
         </div>
 
         <div className="ai-houses-note">
           <Badge tone="neutral" icon="Globe2">Rivais ativos</Badge>
-          <p>{AI_FACTIONS.map((id) => FACTIONS[id].short).join(' · ')} jogam sob as mesmas regras econômicas e militares.</p>
+          <p>{AI_FACTIONS.map((id) => FACTIONS[id].short).join(' · ')} disputam as mesmas praças e mercados sob as mesmas regras econômicas.</p>
         </div>
       </div>
     </div>

@@ -1,12 +1,12 @@
-# MANAGEMENT CENTURY — Crônicas do mercado
+# MANAGEMENT CENTURY — Estratégia empresarial
 
-Jogo de **gestão de companhias e economia** para navegador. Quatro grupos disputam mercados no **mundo partilhado**; você dirige o **Grupo Concórdia** a partir de Lisboa e precisa transformar Portugal e Espanha em uma potência global — com filiais, obras, P&D e acordos, não com exércitos.
+Jogo de **gestão de companhias e economia** para navegador. Quatro companhias disputam mercados no **mundo todo**; você dirige o **Grupo Concórdia** a partir de Lisboa e precisa transformar a operação ibérica em um grupo global — abrindo unidades, obras, P&D e acordos.
 
-O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e **5.759 cidades** a partir de dados geográficos do Natural Earth. As 1.203 principais viajam no pacote; as outras 4.556 chegam sob demanda quando você aproxima o mapa, sem pesar no carregamento.
+O tabuleiro é o **mapa-múndi real em 3D**: cada país é uma praça licenciável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e **5.759 cidades** a partir de dados geográficos do Natural Earth. As 1.203 principais viajam no pacote; as outras 4.556 chegam sob demanda quando você aproxima o mapa, sem pesar no carregamento.
 
 Antes de começar, você **funda a sede**: escolhe uma cidade real, vê a maquete 3D do terreno e das ruas e marca o lote onde a primeira construção será erguida. O distrito do lote altera permanentemente comércio, indústria ou defesa da capital — e dá para orbitar a cidade, abrir o **corte da sede** como uma casa de bonecas e entrar nela.
 
-> MVP funcional e jogável. Todos os números da interface vêm do mesmo motor determinístico que move as Casas rivais. Não há telas simuladas nem jogadores fictícios.
+> MVP funcional e jogável. Todos os números da interface vêm do mesmo motor determinístico que move as companhias rivais. Não há telas simuladas nem jogadores fictícios.
 >
 > O globo exige WebGL. Sem ele — ou a pedido — o mesmo estado é exibido na **carta plana 2D**, com a mesma seleção de países, províncias e cidades.
 
@@ -36,11 +36,11 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 1. **Fundar o grupo** no menu (ou retomar uma campanha salva no navegador).
    - Escolha a **cidade-sede** entre as cidades de Portugal e Espanha (Lisboa, Madrid, Barcelona, Sevilha, Valência, Bilbao, Vigo, Córdoba, Funchal, Ponta Delgada, Las Palmas).
    - A maquete mostra o terreno real (costa, rios, lagoas) e a malha de ruas gerada. Clique num dos lotes dourados.
-   - Confirme em **Fundar a sede**. O país da cidade é anexado à Casa e passa a ser a capital.
+   - Confirme em **Fundar a sede**. A sede instala a matriz no país escolhido, que passa a ser a base da companhia.
 2. Leia o tutorial de sete passos. Ele explica o ciclo, a economia, obras, P&D, filiais, acordos e a condição de vitória.
 3. O relógio do ciclo roda a cada 14 segundos quando você está no mapa. Você pode pausar, avançar manualmente ou simplesmente tomar decisões.
 4. No **atlas de papel** (leitura padrão do mapa), arraste para percorrer o mundo, use a roda para aproximar e clique num país para abrir a ficha do território. Aproxime para revelar **províncias/estados** e **cidades**; duplo clique foca o país e carrega a malha interna. Os botões **Atlas / Globo / Carta** trocam a leitura sem perder seleção.
-5. Vença alcançando **360 de hegemonia** antes de uma companhia rival. Hegemonia soma mercados, desenvolvimento, tecnologias, receita das filiais, relações institucionais, acordos e uma fração limitada do caixa. Seis ciclos seguidos com caixa zerado e resultado negativo levam à **insolvência**: as filiais fecham, os mercados ficam livres e a companhia sai do jogo.
+5. Vença alcançando **360 pontos de relevância** antes de uma companhia rival. A relevância soma praças, unidades de negócio, receita operacional, estrutura construída, tecnologia, caixa e acordos. Seis ciclos seguidos com caixa zerado e resultado negativo levam à **insolvência**: as unidades fecham, as praças ficam livres e a companhia sai do jogo.
 
 ### Controles
 
@@ -60,7 +60,7 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 | Selecionar cidade | Clique no marcador de cidade (camada “Mostrar cidades”) |
 | Trocar atlas / globo / carta | Botões **Atlas · Globo · Carta** no canto superior direito |
 | Localizar país, província ou cidade | Seletores no canto superior esquerdo (também acessíveis por teclado) |
-| Painel da nação | Clique no fundo do mapa / botão “Painel da nação” |
+| Painel da companhia | Clique no fundo do mapa / botão “Painel da companhia” |
 | Trocar de tela | Barra lateral; teclas `1`–`9` (telas principais) e `0` (relatório) |
 | Encerrar ciclo | Botão “Avançar” ou `Espaço` |
 | Voltar ao mapa | `Esc` |
@@ -86,8 +86,8 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6
 - **Identidade**: MANAGEMENT CENTURY é jogado sobre uma **carta ilustrada de papel** pousada numa mesa de couro. Nada de painéis translúcidos, brilhos ou gradientes futuristas — a interface imita **gravura, nanquim e latão**.
 - **Tipografia**: títulos em **Fraunces Variable** (serifa editorial, eixos SOFT/WONK), dados e rótulos em **Inter Variable** com algarismos tabulares. Toda a hierarquia vem dos tokens `--display`, `--serif`, `--sans`.
 - **Paleta**: papel `#efe2c4` / `#f6ecd4`, tinta `#3b3226`, mar `#9dbfb4`, terra em cinco lavagens naturais (planície, floresta, colina, montanha, deserto), latão `#a97b3f`, verdete `#4c7f6f` e selo `#b4553c`. Fundos neutros escuros (couro) para o papel respirar.
-- **Glifos desenhados no projeto** (`src/ui/art/Glyph.tsx`): um conjunto único de 32×32 para os sete recursos, os seis terrenos e as nove construções, além do selo de cera da Casa — sem emojis nem bibliotecas misturadas.
-- **Soberania legível sem cor**: cada Casa tem **inclinação de hachura própria** (24°, 68°, 112°, 156°) sobre a tinta de facção, então territórios continuam distinguíveis por padrão em daltonismo; a legenda repete o mesmo ângulo.
+- **Glifos desenhados no projeto** (`src/ui/art/Glyph.tsx`): um conjunto único de 32×32 para terrenos, estruturas e linhas de negócio, além do selo de cera da companhia — sem emojis nem bibliotecas misturadas.
+- **Presença legível sem cor**: cada companhia tem **inclinação de hachura própria** (24°, 68°, 112°, 156°) sobre a tinta de facção, então praças continuam distinguíveis por padrão em daltonismo; a legenda repete o mesmo ângulo.
 - **Superfícies**: `.paper-card`, fichas de indicador com canto cortado, janelas com moldura dupla, plaquetas de latão para botões e estados explícitos (`state-tag--ready/locked/busy/done/event`).
 - **Movimento discreto**: fumaça nas capitais, bandeiras, navios em rotas marítimas, anel de seleção e transições de 180 ms — tudo respeitando `prefers-reduced-motion`.
 
@@ -95,20 +95,20 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6
 - **Leitura principal**: atlas ilustrado em SVG (equirretangular, 360×180 unidades) com lavagem de terreno hachurada, orla de areia, sombra de papel recortado, graticula, rosácea dos ventos e escala. Pan por arrasto, zoom por roda (1×–11×), foco automático no país e seleção de país, província e cidade.
 - **Detalhe sob demanda**: com um país em foco, as províncias reais são desenhadas e clicáveis; as cidades viram conjuntos urbanos ilustrados a partir de 1,35× e viram pinos discretos no mundo inteiro.
 - **Globo WebGL** (three.js) com países extrudados, atmosfera e estrelas, e **carta plana 2D** como alternativa acessível — os três modos compartilham o mesmo estado, a mesma seleção e o mesmo painel contextual.
-- **Arrasto e zoom sem re-render**: a câmera é escrita direto no `viewBox` (um write por quadro) e a terra é "assada" em ~20 caminhos (um por terreno, um por Casa) em vez de ~1.200. Durante o gesto o CSS troca os padrões de terreno por lavagem lisa e esconde hachuras e rótulos; o React só re-renderiza 240 ms depois que o gesto assenta.
+- **Arrasto e zoom sem re-render**: a câmera é escrita direto no `viewBox` (um write por quadro) e a terra é "assada" em ~20 caminhos (um por terreno, um por companhia) em vez de ~1.200. Durante o gesto o CSS troca os padrões de terreno por lavagem lisa e esconde hachuras e rótulos; o React só re-renderiza 240 ms depois que o gesto assenta.
 - **Tela limpa**: no mundo inteiro só aparecem as maiores capitais nomeadas, sem rótulos de cidade, sem linhas de rumo e com graduação de 30° em 30°. Aproximando, os detalhes entram em camadas.
-- **231 países** como territórios; **4.502 províncias/estados** e **1.203 cidades** como camadas selecionáveis. A geometria do país é carregada sob demanda (`public/atlas/geo/{ISO}.json`), então a seleção nacional nunca depende de um único arquivo gigante.
+- **231 países** como praças; **4.502 províncias/estados** e **5.759 cidades** como camadas selecionáveis. As 1.203 principais viajam no pacote; as demais chegam em `public/atlas/cities-detail.json` quando o mapa aproxima ou a lista de cidades é aberta. A geometria do país é carregada sob demanda (`public/atlas/geo/{ISO}.json`).
 - Localizador com três seletores (país → província → cidade) resolve o problema de clicar em países minúsculos e serve de caminho acessível por teclado.
 - Tooltip com terreno ilustrado, dono, população, terreno e valor estratégico.
-- Cada território possui terreno, nó de recurso, população, desordem, valor estratégico, espaços construíveis, estruturas (níveis 0–3), defesa, produção e consumo locais.
-- Painel de território com abas **Resumo / Estruturas / Ações**: produção local, obras, expansão para territórios livres, filiais do país e acordos.
+- Cada praça possui terreno, vocação natural, população, desordem, valor estratégico, espaços construíveis e estruturas (níveis 0–3).
+- Painel da praça com abas **Resumo / Estruturas / Ações**: resultado local, obras, licença de operação, unidades do país e acordos.
 
 ### Economia
-- Sete recursos com estoque, produção, demanda, saldo e histórico: créditos, alimentos, energia, matérias-primas, bens, **relações** (chave `influencia`) e **P&D** (chave `conhecimento`).
-- Cadeias reais: energia e matérias-primas limitam indústria e pesquisa; alimentos sustentam população; bens valorizam comércio; influência financia expansão e tratados.
-- Mercado volátil com preços que reagem ao volume negociado, corretagem de 6% na compra, tendências e bônus tecnológico de venda.
-- Gráfico de evolução por recurso, detalhamento de fontes e destinos, projeção de 1/3/5 ciclos, receitas/despesas da companhia e custo das filiais.
-- Capacidade administrativa limita territórios; excedente reduz produção e aumenta desordem.
+- A companhia opera em **caixa**: receita, despesas, resultado e caixa final por ciclo. Insumos, pessoal e manutenção entram convertidos em dinheiro — não há estoques de Estado.
+- Receitas: unidades de negócio, edifícios comerciais, acordos e portos. Despesas: pessoal, manutenção, insumos industriais e serviço da dívida.
+- Preços de insumos reagem ao volume negociado e afetam a margem industrial; eventos e modificadores alteram custos por alguns ciclos.
+- Painel de economia com receitas/despesas detalhadas, tendência, projeção do próximo ciclo e custo das unidades.
+- Capacidade administrativa limita praças e operações; desordem alta derruba a receita local.
 
 ### Obras e tecnologia
 - Nove tipos de estrutura: fazenda, extração, usina, indústria, centro de pesquisa, entreposto, administração, logística e defesa.
@@ -118,15 +118,15 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6
 
 ### Filiais, expansão e acordos
 - **Insolvência** substitui a eliminação militar: caixa zerado com resultado negativo por seis ciclos encerra a companhia, fecha as filiais e devolve os territórios ao mapa. O painel de Economia avisa a partir do primeiro ciclo no vermelho.
-- **Empresas e operações**: cada filial ocupa uma cidade real de um país administrado, em uma de quatro linhas — varejo, indústria, logística e finanças. Receita cresce com a população da cidade, o nível da filial e a participação de mercado; filiais rivais na mesma cidade diluem a participação de todos.
-- Custos de abertura e expansão em créditos, matérias e relações; manutenção por ciclo; insumos industriais cobrados da produção do país.
-- Expansão para territórios neutros adjacentes: custo em créditos, matérias e relações; exige desenvolvimento mínimo na base, vaga de projeto e capacidade administrativa. A soberania chega em 2 ciclos.
+- **Empresas e operações**: cada unidade ocupa uma cidade real de um país licenciado, em uma de seis linhas — fazenda, varejo, porto, indústria, fábrica de automóveis e finanças. Receita cresce com a população da cidade, o número de unidades e a participação de mercado; rivais na mesma cidade diluem a participação de todos.
+- Custos de abertura e de compra de novas unidades pagos em caixa; manutenção e insumos cobrados por ciclo; portos aumentam o escoamento das demais unidades no país.
+- Licença para praças neutras adjacentes: custo em caixa, desenvolvimento mínimo na base, vaga de projeto e capacidade administrativa. A licença chega em 2 ciclos.
 - Três companhias rivais com doutrinas próprias (varejo, indústria, logística, finanças) abrem e ampliam filiais dentro do próprio caixa.
 - Relações de −100 a +100, presentes, acordo comercial, não concorrência e parceria estratégica. Propostas das rivais chegam ao longo dos ciclos.
 - Eventos dinâmicos com escolhas e efeitos consistentes (colheita, seca, greve, leilão de concessões, cargas desviadas, inovação, dívida, entre outros).
 
 ### Interface e persistência
-- Barra superior em livro-razão com glifos ilustrados de recurso, saldo, ciclo, hegemonia e alertas; navegação lateral em plaquetas; painel contextual em papel; notificações; crônicas completas.
+- Barra superior em livro-razão com caixa, receita, despesas, unidades, praças e relevância; navegação lateral em plaquetas; painel contextual em papel; notificações; relatório completo.
 - Tutorial de onboarding, manual, confirmações para ações destrutivas, estados vazios, erros de validação e feedback por toast.
 - Layout responsivo (desktop, tablet e celular); atlas ilustrado, globo WebGL e carta plana SVG sob o mesmo tema de atelier (Fraunces + Inter).
 - Nomes de capitais e grandes cidades em português (`names.ts`) sobre os nomes originais do Natural Earth.
@@ -155,9 +155,9 @@ src/
     commands.ts    comandos validados (construir, pesquisar, expandir, recrutar, guerrear, negociar)
     cycle.ts       avanço de ciclo, conclusão de projetos, vitória/derrota
     operations.ts  mercado das cidades, participação, receita e custo das filiais
-    ai.ts          turnos das Casas, ofertas diplomáticas e doutrinas
+    ai.ts          turnos das companhias rivais, ofertas e doutrinas
     events.ts      catálogo de eventos, escolhas e efeitos
-    progress.ts    hegemonia, objetivos, ranking e condições de fim
+    progress.ts    relevância, objetivos, ranking e condições de fim
   store/
     gameStore.ts   Zustand: estado da sessão, comandos, toasts, saves, tutorial
   ui/              componentes React de apresentação
@@ -211,7 +211,7 @@ O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carreg
 
 ## Limites conhecidos e próximos passos
 
-- Uma única Casa jogável (Concórdia); a seleção de Casa e cenários alternativos são expansões naturais.
+- Uma única companhia jogável (Concórdia); a seleção de companhia e cenários alternativos são expansões naturais.
 - Sem áudio, sem animações de combate e sem campanha narrativa roteirizada.
 - Sem servidor, contas ou partidas assíncronas — apenas a arquitetura preparada descrita acima.
 - **Ruas e edifícios são sintetizados**, não copiados do OpenStreetMap: o ambiente de build não tem acesso à API do Overpass. A costa, os rios e o centro de cada cidade são reais; o tecido urbano é gerado de forma determinística a partir deles (padrão radial/ortogonal, densidade e gabarito). A **variedade de prédios** segue um catálogo de tipologias com pesos por zona, não dados reais de lote.

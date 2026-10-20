@@ -21,18 +21,25 @@ export function scoreParts(state: GameState, factionId: FactionId): ScorePart[] 
     (key) => key.includes(factionId) && hasActivePact(state.diplomacy[key]),
   ).length;
   const eco = computeEconomy(state, factionId);
+  const units = state.operations
+    .filter((op) => op.factionId === factionId)
+    .reduce((sum, op) => sum + op.units, 0);
+  const share = eco.operationCount
+    ? state.operations
+        .filter((op) => op.factionId === factionId)
+        .reduce((sum, op) => {
+          const capacity = state.operations.filter((peer) => peer.cityId === op.cityId).reduce((n, peer) => n + peer.units, 0) + 2;
+          return sum + op.units / capacity;
+        }, 0) / eco.operationCount
+    : 0;
   return [
-    { label: 'Mercados', value: tiles.length * 6, detail: `${tiles.length} países × 6` },
-    { label: 'Desenvolvimento', value: Math.round(devSum * 0.55), detail: `${devSum} de dev. total` },
-    { label: 'Tecnologia', value: faction.techs.length * 12, detail: `${faction.techs.length} × 12` },
-    {
-      label: 'Operações',
-      value: Math.round(eco.operationRevenue * 2.2) + eco.operationCount * 3,
-      detail: `${eco.operationCount} filiais · ${Math.round(eco.operationRevenue)} cr./ciclo`,
-    },
-    { label: 'Caixa', value: Math.min(15, Math.round(faction.stocks.creditos * 0.005)), detail: `${Math.round(faction.stocks.creditos)} créditos (máx. 15)` },
-    { label: 'Relações', value: Math.min(30, Math.round(faction.stocks.influencia * 0.2)), detail: `${Math.round(faction.stocks.influencia)} de relações (máx. 30)` },
-    { label: 'Parcerias', value: pacts * 8, detail: `${pacts} acordos ativos` },
+    { label: 'Praças', value: Math.round(tiles.length * 2.5), detail: `${tiles.length} praças licenciadas` },
+    { label: 'Unidades', value: units * 3 + Math.round(share * 20), detail: `${units} unidades · ${Math.round(share * 100)}% de participação` },
+    { label: 'Receita', value: Math.round(eco.operationRevenue * 0.28), detail: `R$ ${Math.round(eco.operationRevenue)}/ciclo em unidades` },
+    { label: 'Estrutura', value: Math.round(devSum * 0.22), detail: `${devSum} de desenvolvimento` },
+    { label: 'Tecnologia', value: faction.techs.length * 8, detail: `${faction.techs.length} × 8` },
+    { label: 'Caixa', value: Math.min(10, Math.round(faction.stocks.creditos * 0.004)), detail: `R$ ${Math.round(faction.stocks.creditos)} (máx. 10)` },
+    { label: 'Parcerias', value: pacts * 6, detail: `${pacts} acordos ativos` },
   ];
 }
 
@@ -54,6 +61,7 @@ export interface LeaderRow {
   territories: number;
   techs: number;
   operations: number;
+  units: number;
   revenue: number;
   isPlayer: boolean;
 }
@@ -70,7 +78,8 @@ export function leaderboard(state: GameState): LeaderRow[] {
         territories: tilesOfFaction(state.tiles, id).length,
         techs: faction.techs.length,
         operations: state.operations.filter((op) => op.factionId === id).length,
-        revenue: computeEconomy(state, id).operationRevenue,
+        units: state.operations.filter((op) => op.factionId === id).reduce((sum, op) => sum + op.units, 0),
+        revenue: computeEconomy(state, id).finance.income,
         isPlayer: id === state.playerFactionId,
       };
     })
@@ -83,19 +92,19 @@ export function objectivesOf(state: GameState): ObjectiveState[] {
   const tiles = tilesOfFaction(state.tiles, playerId);
   const capital = state.tiles[faction.capitalId];
   const capitalDev = capital ? developmentOf(capital) : 0;
-  const bens = faction.lastProduction?.bens ?? 0;
   const pacts = Object.keys(state.diplomacy).filter(
     (key) => key.includes(playerId) && hasActivePact(state.diplomacy[key]),
   ).length;
 
   const operationCount = state.operations.filter((op) => op.factionId === playerId).length;
+  const eco = computeEconomy(state, playerId);
   const values: Record<string, number> = {
     capital: capitalDev,
     operacoes: operationCount,
     territorios: tiles.length,
-    industria: Math.round(bens * 10) / 10,
+    receita: Math.round(eco.finance.income),
     tecnologia: faction.techs.length,
-    influencia: Math.round(faction.stocks.influencia),
+    relevancia: scoreOf(state, playerId),
     acordos: pacts,
   };
 

@@ -23,9 +23,9 @@ describe('save com o novo nome do jogo', () => {
   it('grava na chave de MANAGEMENT CENTURY', () => {
     const storage = memoryStorage();
     expect(saveState(state(), storage)).toBe(true);
-    expect(storage.getItem('management-century.save.v3')).toBeTruthy();
+    expect(storage.getItem('management-century.save.v4')).toBeTruthy();
     expect(storage.getItem('tessera.save.v2')).toBeNull();
-    expect(SAVE_KEY).toBe('management-century.save.v3');
+    expect(SAVE_KEY).toBe('management-century.save.v4');
   });
 
   it('migra a campanha salva como TESSERA e libera a chave antiga', () => {
@@ -40,6 +40,29 @@ describe('save com o novo nome do jogo', () => {
     // Uma vez lida, a campanha passa a viver na chave nova e já no formato v3.
     expect(storage.getItem(SAVE_KEY)).toBeTruthy();
     expect(storage.getItem(LEGACY_SAVE_KEYS[LEGACY_SAVE_KEYS.length - 1])).toBeNull();
+  });
+
+  it('converte filiais com nível em unidades e renomeia o setor logístico', () => {
+    const legacy = JSON.parse(JSON.stringify(state())) as Record<string, unknown>;
+    legacy.version = 3;
+    legacy.operations = [
+      { id: 'op1', factionId: 'concordia', cityId: 'c1', countryId: 'PRT', sector: 'logistica', level: 3, openedCycle: 1 },
+    ];
+    (legacy.factions as Record<string, Record<string, unknown>>).concordia.stocks = {
+      ...((legacy.factions as Record<string, Record<string, Record<string, number>>>).concordia.stocks),
+      alimentos: 400,
+    };
+    const storage = memoryStorage();
+    storage.setItem('management-century.save.v3', JSON.stringify(legacy));
+    const result = loadState(storage);
+    expect(result.error).toBeNull();
+    const migrated = result.state!;
+    expect(migrated.version).toBe(4);
+    expect(migrated.operations[0].units).toBe(3);
+    expect(migrated.operations[0].sector).toBe('porto');
+    expect((migrated.operations[0] as unknown as Record<string, unknown>).level).toBeUndefined();
+    expect(migrated.factions.concordia.stocks.alimentos).toBe(0);
+    expect(migrated.factions.concordia.stocks.creditos).toBeGreaterThan(0);
   });
 
   it('prefere a chave nova quando as duas existem', () => {
@@ -82,7 +105,7 @@ describe('save com o novo nome do jogo', () => {
     const result = loadState(storage);
     expect(result.error).toBeNull();
     const migrated = result.state!;
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(migrated.operations).toEqual([]);
     expect(migrated.factions.concordia.deficitCycles).toBe(0);
     expect((migrated.factions.concordia as unknown as Record<string, unknown>).military).toBeUndefined();
