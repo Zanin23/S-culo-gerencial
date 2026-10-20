@@ -21,7 +21,7 @@ function resolvePending(state: GameState): GameState {
   return chooseEvent(state, 'concordia', choice.id).state;
 }
 
-describe('TESSERA engine', () => {
+describe('MANAGEMENT CENTURY engine', () => {
   it('creates a coherent world', () => {
     const state = createInitialState(123456, 1);
     expect(Object.keys(state.tiles).length).toBeGreaterThan(200);

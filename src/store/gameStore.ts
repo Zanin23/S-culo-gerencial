@@ -486,7 +486,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `tessera-ciclo-${game.cycle}.json`;
+      anchor.download = `management-century-ciclo-${game.cycle}.json`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

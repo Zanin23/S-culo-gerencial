@@ -1,9 +1,9 @@
 {
-  "name": "tessera",
+  "name": "management-century",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "TESSERA — estratégia territorial no mapa-múndi 3D e expansão econômica",
+  "description": "MANAGEMENT CENTURY — estratégia territorial no atlas ilustrado e expansão econômica",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",

@@ -53,7 +53,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
       <div className="start-screen__content">
         <section className="start-hero">
           <div className="start-hero__brand">
-            <WaxSeal size={78} letter="T" />
+            <WaxSeal size={78} letter="M" />
             <div>
               <div className="eyebrow">Estratégia territorial · {GAME.world}</div>
               <h1>{GAME.name}</h1>

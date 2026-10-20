@@ -33,7 +33,7 @@ it('boots the menu, chooses a city and founds the seat on a plot', async () => {
     root = createRoot(container);
     root.render(<App />);
   });
-  expect(text()).toContain('TESSERA');
+  expect(text()).toContain('MANAGEMENT CENTURY');
   const start = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Fundar Concórdia'));
   expect(start).toBeTruthy();
   await act(async () => {

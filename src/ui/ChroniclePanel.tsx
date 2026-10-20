@@ -60,7 +60,7 @@ export function ChroniclePanel() {
 
   const download = () => {
     const lines = [
-      'TESSERA — registro da campanha',
+      'MANAGEMENT CENTURY — registro da campanha',
       `Seed ${game.seed} · ciclo atual ${game.cycle}`,
       '',
       ...[...game.log].reverse().map((entry) => `[c${String(entry.cycle).padStart(2, '0')}] ${KIND_META[entry.kind].label.toUpperCase()} — ${entry.factionId ? `${FACTIONS[entry.factionId].short}: ` : ''}${entry.text}`),
@@ -69,7 +69,7 @@ export function ChroniclePanel() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `tessera-cronicas-seed-${game.seed}.txt`;
+    anchor.download = `management-century-cronicas-seed-${game.seed}.txt`;
     anchor.click();
     URL.revokeObjectURL(url);
     toast('success', 'Registro exportado', 'O registro completo foi salvo como arquivo de texto.');

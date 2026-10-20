@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TESSERA — Crônicas da Partilha
+   MANAGEMENT CENTURY — Crônicas da Partilha
    Atlas escuro: jade institucional, ouro cartográfico, papel de linho.
    ========================================================================== */
 
@@ -5751,10 +5751,10 @@ button.quick-stat:hover {
 
 .start-hero__brand h1 {
   font-family: var(--serif);
-  font-size: clamp(46px, 7vw, 86px);
+  font-size: clamp(30px, 4vw, 56px);
   font-weight: 500;
-  letter-spacing: 0.16em;
-  line-height: 0.95;
+  letter-spacing: 0.06em;
+  line-height: 1.02;
   background: linear-gradient(180deg, #f3f8f5 10%, #b9cfc9 85%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -6239,10 +6239,6 @@ button.quick-stat:hover {
     padding-right: 0;
   }
 
-  .brand__name {
-    font-size: 18px;
-  }
-
   .brand__world {
     display: none;
   }
@@ -6605,7 +6601,8 @@ button.quick-stat:hover {
   }
 
   .start-hero__brand h1 {
-    font-size: 44px;
+    font-size: clamp(26px, 7vw, 38px);
+    letter-spacing: 0.04em;
   }
 
   .start-actions .button {
@@ -7168,9 +7165,6 @@ button.quick-stat:hover {
     min-width: 118px;
   }
 
-  .brand__name {
-    font-size: 18px;
-  }
 }
 
 .game-main {
