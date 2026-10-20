@@ -1,12 +1,20 @@
 import { useMemo, useState } from 'react';
 import { BUILDINGS, TECH_BRANCHES, TECHS, TECH_ORDER, type TechBranch, type TechDef } from '../game/constants';
-import { computeEconomy, projectSlotsOf, researchDiscountFor } from '../game/economy';
+import { computeEconomy, moneyOf, projectSlotsOf, researchDiscountFor } from '../game/economy';
 import type { TechId } from '../game/types';
 import { useGameStore } from '../store/gameStore';
-import { fmt, fmtRate } from './format';
+import { fmt, money } from './format';
 import { Icon } from './Icon';
 import { Badge, Cost, cx, Modal, ProgressBar, SectionHeader } from './primitives';
 import { ViewShell } from './ViewShell';
+
+/** Pesquisa é paga em caixa: conhecimento e créditos entram convertidos. */
+function cashCost(conhecimento: number, creditos: number, discount: number): number {
+  return Math.round(moneyOf({
+    conhecimento: Math.max(1, Math.round(conhecimento * (1 - discount))),
+    creditos: Math.max(1, Math.round(creditos * (1 - discount))),
+  }));
+}
 
 const BRANCH_ORDER: TechBranch[] = ['economia', 'industria', 'logistica', 'estado'];
 
@@ -28,11 +36,8 @@ function TechCard({
   const project = game.projects.find((p) => p.factionId === playerId && p.techId === tech.id);
   const missingPrereqs = tech.requires.filter((req) => !faction.techs.includes(req));
   const discount = researchDiscountFor(game, playerId);
-  const cost = {
-    conhecimento: Math.max(1, Math.round(tech.cost.conhecimento * (1 - discount))),
-    creditos: Math.max(1, Math.round(tech.cost.creditos * (1 - discount))),
-  };
-  const affordable = faction.stocks.conhecimento >= cost.conhecimento && faction.stocks.creditos >= cost.creditos;
+  const cost = { creditos: cashCost(tech.cost.conhecimento, tech.cost.creditos, discount) };
+  const affordable = faction.stocks.creditos >= cost.creditos;
   const hasSlot = game.projects.filter((p) => p.factionId === playerId).length < projectSlotsOf(faction);
   const status = done ? 'done' : project ? 'researching' : missingPrereqs.length ? 'locked' : 'available';
   const branch = TECH_BRANCHES[tech.branch];
@@ -104,7 +109,7 @@ export function TechPanel() {
     <ViewShell
       eyebrow="Conselho de ciência"
       title="Árvore tecnológica"
-      subtitle="Cada ramo abre caminhos diferentes. Pesquisas ocupam vagas de projeto e exigem P&D e créditos."
+      subtitle="Cada ramo abre caminhos diferentes. Pesquisas ocupam vagas de projeto e são pagas em caixa, com desconto dos centros de P&D."
       icon="FlaskConical"
       actions={<Badge tone="blue" icon="Lock">{completed}/{TECH_ORDER.length} concluídas</Badge>}
     >
@@ -112,8 +117,8 @@ export function TechPanel() {
         <div className="callout callout--gold">
           <Icon name="FlaskConical" size={17} />
           <span>
-            <strong>Sua companhia ainda não gera P&D</strong>
-            <small>Construa um Centro de Pesquisa em um território seu. Sem laboratórios, a árvore tecnológica permanece inacessível.</small>
+            <strong>Sua companhia ainda não tem centro de P&D</strong>
+            <small>Pesquisas são pagas em caixa, mas cada Centro de P&D também converte pesquisa em receita e reduz o custo dos projetos.</small>
           </span>
           <button className="button button--tiny button--gold" onClick={() => setView('construction')} type="button">Ir às obras</button>
         </div>
@@ -121,10 +126,10 @@ export function TechPanel() {
 
       <div className="summary-grid summary-grid--4">
         <div className="summary-card summary-card--blue">
-          <span className="summary-card__label"><Icon name="FlaskConical" size={14} /> P&amp;D</span>
-          <strong>{fmt(faction.stocks.conhecimento)}</strong>
-          <span className="summary-card__delta">{fmtRate(eco.net.conhecimento)}/ciclo</span>
-          <small>Gerado por centros de pesquisa e territórios estratégicos</small>
+          <span className="summary-card__label"><Icon name="Coins" size={14} /> Caixa para pesquisa</span>
+          <strong>{money(faction.stocks.creditos)}</strong>
+          <span className="summary-card__delta">{money(eco.finance.income)}/ciclo</span>
+          <small>Centros de P&amp;D entram na receita e reduzem o custo dos projetos</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Hammer" size={14} /> Vagas de projeto</span>
@@ -142,7 +147,7 @@ export function TechPanel() {
           <span className="summary-card__label"><Icon name="Shield" size={14} /> Poder científico</span>
           <strong>{faction.techs.length}</strong>
           <span className="summary-card__delta">tecnologias ativas</span>
-          <small>Bônus militares e econômicos combinados</small>
+          <small>Bônus de gestão e de mercado combinados</small>
         </div>
       </div>
 
@@ -213,7 +218,7 @@ export function TechPanel() {
 
       <div className="panel-note">
         <Icon name="Info" size={14} />
-        <p>Pré-requisitos são obrigatórios. Pesquisar não exige que a tecnologia anterior esteja no mesmo território. Os pontos de P&amp;D acumulam entre ciclos e não é gasto por manutenção.</p>
+        <p>Pré-requisitos são obrigatórios. Pesquisar não exige que a tecnologia anterior esteja na mesma praça. Os pontos de P&amp;D acumulam entre ciclos e não é gasto por manutenção.</p>
       </div>
 
       <Modal
@@ -235,7 +240,7 @@ export function TechPanel() {
               ) : (
                 <button
                   className="button button--primary"
-                  disabled={selectedTech.requires.some((req) => !faction.techs.includes(req)) || faction.stocks.conhecimento < Math.round(selectedTech.cost.conhecimento * (1 - discount)) || faction.stocks.creditos < Math.round(selectedTech.cost.creditos * (1 - discount)) || game.projects.filter((p) => p.factionId === playerId).length >= slots}
+                  disabled={selectedTech.requires.some((req) => !faction.techs.includes(req)) || faction.stocks.creditos < cashCost(selectedTech.cost.conhecimento, selectedTech.cost.creditos, discount) || game.projects.filter((p) => p.factionId === playerId).length >= slots}
                   onClick={() => { if (research(selectedTech.id)) setSelected(null); }}
                   type="button"
                 >
@@ -252,7 +257,7 @@ export function TechPanel() {
               <Badge tone={faction.techs.includes(selectedTech.id) ? 'teal' : 'blue'}>
                 {faction.techs.includes(selectedTech.id) ? 'Pesquisada' : selectedTech.requires.length ? 'Requer pré-requisitos' : 'Disponível'}
               </Badge>
-              <span className="muted small">Custo base: {selectedTech.cost.conhecimento} de P&amp;D · {selectedTech.cost.creditos} créditos</span>
+              <span className="muted small">Custo base: {money(selectedTech.cost.creditos + moneyOf({ conhecimento: selectedTech.cost.conhecimento }))}</span>
             </div>
             <div className="tech-detail__grid">
               <div>
@@ -285,7 +290,7 @@ export function TechPanel() {
             </div>
             <div className="tech-detail__cost">
               <span>Custo com desconto atual ({Math.round(discount * 100)}%)</span>
-              <Cost cost={{ conhecimento: Math.round(selectedTech.cost.conhecimento * (1 - discount)), creditos: Math.round(selectedTech.cost.creditos * (1 - discount)) }} stocks={faction.stocks} />
+              <Cost cost={{ creditos: cashCost(selectedTech.cost.conhecimento, selectedTech.cost.creditos, discount) }} stocks={faction.stocks} />
             </div>
             <p className="table-note">O custo é pago na abertura do projeto. A conclusão leva {selectedTech.tier >= 3 ? 3 : 2} ciclos e não pode ser acelerada por dinheiro.</p>
           </div>

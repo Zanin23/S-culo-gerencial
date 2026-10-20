@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FACTIONS, GAME, RESOURCES, RESOURCE_KEYS } from './game/constants';
+import { FACTIONS, GAME, RESOURCES } from './game/constants';
 import { eventById, type EventEffect } from './game/events';
 import { rankOf, scoreParts, VICTORY_TARGET } from './game/progress';
 import type { CycleReport, ResourceKey } from './game/types';
@@ -11,7 +11,7 @@ import { ConstructionPanel } from './ui/ConstructionPanel';
 import { DiplomacyPanel } from './ui/DiplomacyPanel';
 import { EconomyPanel } from './ui/EconomyPanel';
 import { ExpansionPanel } from './ui/ExpansionPanel';
-import { fmt, fmtRate, trendClass } from './ui/format';
+import { fmt, fmtRate, money, trendClass } from './ui/format';
 import { Icon } from './ui/Icon';
 import { MapView } from './ui/MapView';
 import { NavRail } from './ui/NavRail';
@@ -52,42 +52,42 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
   },
   {
     title: 'Gestão, não aventura',
-    body: 'Cada decisão é econômica: o ciclo fecha produção, consumo e manutenção; obras elevam o desenvolvimento; a expansão compra licenças para operar em novos países com créditos, materiais e relações. O distrito da sede já entra no cálculo.',
+    body: 'Cada decisão é econômica: o ciclo fecha receita e despesa em caixa; obras elevam o desenvolvimento; a expansão compra licenças para operar em novas praças. O distrito da sede já entra no cálculo.',
     icon: 'Building2',
     view: 'economy',
-    hint: 'Use Economia para ver saldo e tendências, Obras para construir e Expansão para entrar em novos mercados.',
+    hint: 'Use Economia para ver caixa e resultado, Obras para construir e Expansão para licenciar novas praças.',
   },
   {
     title: 'O ciclo move o mundo',
-    body: `A cada ${CYCLE_SECONDS} segundos um ciclo fecha: produção entra, consumo sai, projetos avançam, as rivais agem e eventos podem surgir. Use Avançar para controlar o ritmo ou deixe o autoplay ligado — nada acontece fora do ciclo.`,
+    body: `A cada ${CYCLE_SECONDS} segundos um ciclo fecha: a receita entra, as despesas saem, projetos avançam, as rivais agem e eventos podem surgir. Use Avançar para controlar o ritmo ou deixe o autoplay ligado — nada acontece fora do ciclo.`,
     icon: 'Play',
     view: 'map',
     hint: 'Espaço avança um ciclo. O autoplay pausa automaticamente ao abrir modais.',
   },
   {
     title: 'Construir é crescer',
-    body: 'Obras elevam o desenvolvimento local, desbloqueiam produção e sustentam mercados maiores. A sede é a âncora: quanto mais desenvolvida, mais longe a companhia pode operar — e o objetivo da sede exige exatamente isso.',
+    body: 'Obras elevam o desenvolvimento local, aumentam a receita da praça e sustentam mercados maiores. A sede é a âncora: quanto mais desenvolvida, mais longe a companhia pode licenciar novas praças.',
     icon: 'Hammer',
     view: 'construction',
-    hint: 'Cada território tem vagas limitadas. Obras ocupam uma vaga de projeto até concluir.',
+    hint: 'Cada praça tem vagas limitadas. Obras ocupam uma vaga de projeto até concluir.',
   },
   {
     title: 'P&D com trade-offs',
-    body: 'A árvore tem quatro ramos e nenhuma trilha obrigatória. Mercados aceleram a receita, Logística reduz o custo de expansão, Indústria melhora produtos e Gestão amplia administração e segurança. Toda tecnologia custa conhecimento e créditos.',
+    body: 'A árvore tem quatro ramos e nenhuma trilha obrigatória. Mercados aceleram a receita, Logística reduz o custo de expansão, Indústria melhora produtos e Gestão amplia administração e segurança. Toda tecnologia é paga em caixa, com desconto dos centros de P&D.',
     icon: 'FlaskConical',
     view: 'tech',
     hint: 'Pré-requisitos aparecem em cinza. O desconto de pesquisa é global e ajuda a alcançar tiers altos.',
   },
   {
-    title: 'Filiais disputam o mercado',
-    body: 'Cada cidade tem um mercado próprio, do tamanho da sua população. Abra filiais de Varejo, Indústria, Logística ou Finanças nos países que administra: quanto maior a sua capacidade na cidade, maior a sua participação — e a das rivais dilui a sua.',
+    title: 'Unidades disputam o mercado',
+    body: 'Cada cidade é um mercado, do tamanho da sua população. Abra fazendas, varejo, portos, indústrias, fábricas de automóveis e finanças nas praças licenciadas: até três unidades por cidade, mais participação e mais concorrência das rivais.',
     icon: 'Store',
     view: 'companies',
-    hint: 'A aba Empresas mostra receita, margem e participação de cada filial. Cidades grandes sustentam mercados maiores.',
+    hint: 'A aba Empresas mostra receita, margem e participação de cada unidade, além do custo da próxima unidade.',
   },
   {
     title: 'O objetivo é a liderança',
-    body: `Vença alcançando ${VICTORY_TARGET} pontos ou cumprindo a meta de desenvolvimento da sede. Você perde se perder a sede ou ficar sem mercados. As três companhias rivais perseguem doutrinas diferentes e não recebem vantagens ocultas.`,
+    body: `Vença alcançando ${VICTORY_TARGET} pontos de relevância. Você perde se perder a sede, ficar sem praças ou entrar em insolvência. As três companhias rivais perseguem doutrinas diferentes e não recebem vantagens ocultas.`,
     icon: 'Award',
     view: 'objectives',
     hint: 'A aba Metas lista objetivos, ranking e a composição exata da sua pontuação.',
@@ -95,12 +95,12 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
 ];
 
 const HELP_CARDS = [
-  { icon: 'Map', title: 'Leia o território', body: 'Solo, depósito, população, estruturas e valor estratégico determinam o que cada país pode render. Clique para abrir a ficha completa.' },
+  { icon: 'Map', title: 'Leia a praça', body: 'Solo, depósito, população, estruturas e valor estratégico determinam o que cada mercado pode render. Clique para abrir a ficha completa.' },
   { icon: 'Play', title: 'Decida no ciclo', body: 'Produção, consumo, manutenção e projetos só mudam quando um ciclo fecha. Avance manualmente ou deixe o autoplay correr.' },
-  { icon: 'Store', title: 'Abra filiais', body: 'Cidades grandes sustentam mercados maiores. Cada filial disputa participação com as rivais: expandir a capacidade local aumenta a sua fatia.' },
-  { icon: 'Handshake', title: 'Negocie acordos', body: 'Acordos comerciais, não concorrência e parcerias estratégicas geram receita e estabilidade. Relações boas abrem portas que o caixa sozinho não abre.' },
+  { icon: 'Store', title: 'Abra unidades', body: 'Cidades grandes sustentam mercados maiores. Cada unidade disputa participação com as rivais: comprar mais unidades na mesma cidade aumenta a sua fatia.' },
+  { icon: 'Handshake', title: 'Negocie acordos', body: 'Acordos comerciais, tréguas de concorrência e parcerias estratégicas geram receita e estabilidade. Presentes e propostas custam caixa e melhoram a relação.' },
   { icon: 'FlaskConical', title: 'Escolha um caminho', body: 'São quatro ramos de pesquisa com pré-requisitos claros. Nenhuma tecnologia é obrigatória; cada uma troca custo por uma vantagem concreta.' },
-  { icon: 'Award', title: 'Lidere o mercado', body: `${VICTORY_TARGET} pontos ou a meta de desenvolvimento da sede encerram a partida. Perder a sede ou ficar sem mercados é derrota.` },
+  { icon: 'Award', title: 'Lidere o mercado', body: `${VICTORY_TARGET} pontos de relevância encerram a partida. Perder a sede, ficar sem praças ou entrar em insolvência é derrota.` },
 ];
 
 export function App() {
@@ -149,7 +149,7 @@ export function App() {
     return (
       <div className="boot-screen">
         <h1>{GAME.name}</h1>
-        <p className="eyebrow">Crônicas do mundo</p>
+        <p className="eyebrow">Registro da companhia</p>
         <div className="boot-screen__bar"><span /></div>
       </div>
     );
@@ -204,7 +204,7 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Como governar o mundo"
+      title="Como gerir a companhia"
       eyebrow="Manual de campo"
       icon="BookOpen"
       subtitle="Tudo o que o MVP oferece, sem letras miúdas."
@@ -221,12 +221,12 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
       </div>
       <div className="help-footer">
         <div>
-          <strong>Recursos e atalhos</strong>
-          <p>{RESOURCE_KEYS.map((key: ResourceKey) => RESOURCES[key].label).join(' · ')}. Teclas 1–9 trocam de tela, espaço avança um ciclo, Esc fecha modais e ? abre este manual.</p>
+          <strong>Indicadores e atalhos</strong>
+          <p>Caixa, receita, despesas, unidades e praças. Teclas 1–9 trocam de tela, espaço avança um ciclo, Esc fecha modais e ? abre este manual.</p>
         </div>
         <div>
           <strong>Sem jogadores fictícios</strong>
-          <p>As quatro Casas adversárias são IA declaradas, com doutrinas visíveis. O motor separa estado, comandos e ciclo para receber um servidor autoritativo em uma versão futura.</p>
+          <p>As três companhias rivais são IA declaradas, com doutrinas visíveis. O motor separa estado, comandos e ciclo para receber um servidor autoritativo em uma versão futura.</p>
         </div>
       </div>
     </Modal>
@@ -275,7 +275,7 @@ function EventModal() {
       title={event.title}
       eyebrow={`Evento · ${event.category}`}
       icon={event.icon}
-      subtitle={`Ciclo ${game.cycle}. A decisão entra em vigor imediatamente e fica registrada nas crônicas.`}
+      subtitle={`Ciclo ${game.cycle}. A decisão entra em vigor imediatamente e fica registrada no histórico da companhia.`}
       size="md"
     >
       <div className="event-prose">
@@ -353,14 +353,27 @@ function DigestBody({ report }: { report: CycleReport }) {
     <div>
       <div className="digest-grid">
         <div className="digest-panel">
-          <h4><Icon name="Activity" size={12} /> Fluxos do ciclo</h4>
-          {RESOURCE_KEYS.map((key) => (
-            <div className="digest-row" key={key}>
-              <span><Icon name={RESOURCES[key].icon} size={12} /> {RESOURCES[key].short}</span>
-              <strong className={trendClass(report.deltas[key])}>{fmtRate(report.deltas[key])}</strong>
-              <span>{fmt(report.production[key])} / {fmt(report.consumption[key])}</span>
-            </div>
-          ))}
+          <h4><Icon name="Activity" size={12} /> Resultado do ciclo</h4>
+          <div className="digest-row">
+            <span><Icon name="TrendingUp" size={12} /> Receita</span>
+            <strong className="tone-teal">{money(report.income ?? 0)}</strong>
+            <span>entradas em caixa</span>
+          </div>
+          <div className="digest-row">
+            <span><Icon name="TrendingDown" size={12} /> Despesas</span>
+            <strong className="tone-red">{money(report.expenses ?? 0)}</strong>
+            <span>custos e manutenção</span>
+          </div>
+          <div className="digest-row">
+            <span><Icon name="Coins" size={12} /> Resultado</span>
+            <strong className={trendClass(report.deltas.creditos)}>{fmtRate(report.deltas.creditos)}</strong>
+            <span>saldo do ciclo</span>
+          </div>
+          <div className="digest-row">
+            <span><Icon name="Coins" size={12} /> Caixa</span>
+            <strong>{money(report.cash ?? 0)}</strong>
+            <span>disponível</span>
+          </div>
         </div>
         <div>
           <div className="digest-panel">
@@ -372,7 +385,7 @@ function DigestBody({ report }: { report: CycleReport }) {
           <div className="digest-panel" style={{ marginTop: 10 }}>
             <h4><Icon name="Target" size={12} /> Próximo ciclo</h4>
             <p className="muted small">
-              Saldo de créditos projetado: <strong className={trendClass(report.deltas.creditos)}>{fmtRate(report.deltas.creditos)}</strong>
+              Resultado projetado: <strong className={trendClass(report.deltas.creditos)}>{fmtRate(report.deltas.creditos)}</strong>
             </p>
           </div>
         </div>
@@ -419,7 +432,7 @@ function TutorialOverlay() {
           <div>
             <button className="button button--ghost" onClick={() => setView(data.view)} type="button"><Icon name="Eye" size={13} /> Ver tela</button>
             <button className="button button--primary" onClick={() => { if (last) finish(); else setStep(step + 1); }} type="button">
-              {last ? 'Começar a governar' : 'Próximo'}
+              {last ? 'Começar a operar' : 'Próximo'}
             </button>
           </div>
         </div>
@@ -441,7 +454,7 @@ function EndGameModal() {
   return (
     <Modal
       open
-      title={victory ? 'O mundo reconhece sua hegemonia' : 'A Casa perdeu o mundo'}
+      title={victory ? 'O mercado reconhece a nova líder' : 'A companhia encerrou as atividades'}
       eyebrow={victory ? 'Campanha vencida' : 'Campanha encerrada'}
       icon={victory ? 'Crown' : 'Flame'}
       size="md"
@@ -456,17 +469,17 @@ function EndGameModal() {
       <div className="endgame-card">
         <span className="endgame-card__icon" style={{ color: playerDef.color }}><Icon name={victory ? 'Crown' : 'Flame'} size={38} /></span>
         <div className="eyebrow">{playerDef.name} · ciclo {game.cycle}</div>
-        <h3>{victory ? 'Hegemonia consolidada' : 'Fim da linhagem'}</h3>
+        <h3>{victory ? 'Liderança consolidada' : 'Fim da companhia'}</h3>
         <p>
           {victory
-            ? `O conselho encerra a disputa com ${score} pontos. As Casas restantes reconhecem a nova ordem do mundo.`
+            ? `O conselho encerra a disputa com ${score} pontos. As rivais reconhecem a nova líder do setor.`
             : 'O capital caiu e a campanha termina aqui. Um novo mundo pode ser fundado nas configurações ou na tela inicial.'}
         </p>
       </div>
       <div className="endgame-stats">
         <div><span>Pontuação</span><strong>{score}</strong></div>
         <div><span>Posição</span><strong>{rank.name}</strong></div>
-        <div><span>Territórios</span><strong>{game.tiles ? Object.values(game.tiles).filter((tile) => tile.owner === game.playerFactionId).length : 0}</strong></div>
+        <div><span>Praças</span><strong>{game.tiles ? Object.values(game.tiles).filter((tile) => tile.owner === game.playerFactionId).length : 0}</strong></div>
         <div><span>Ciclos</span><strong>{game.cycle}</strong></div>
       </div>
       <div className="endgame-rules">
@@ -479,7 +492,7 @@ function EndGameModal() {
       </div>
       <div className="endgame-progress">
         <ProgressBar value={score} max={VICTORY_TARGET} tone={victory ? 'teal' : 'gold'} />
-        <small>{score} de {VICTORY_TARGET} pontos para a vitória por hegemonia</small>
+        <small>{score} de {VICTORY_TARGET} pontos de relevância para a vitória</small>
       </div>
     </Modal>
   );

@@ -60,7 +60,7 @@ export type TechId =
 export type MarketKey = 'alimentos' | 'energia' | 'materias' | 'bens';
 
 /** Linhas de negócio das operações urbanas. */
-export type SectorKey = 'varejo' | 'industria' | 'logistica' | 'financas';
+export type SectorKey = 'fazenda' | 'varejo' | 'porto' | 'industria' | 'fabrica' | 'financas';
 
 export type GamePhase = 'playing' | 'victory' | 'defeat';
 
@@ -116,7 +116,8 @@ export interface Operation {
   cityId: string;
   countryId: string;
   sector: SectorKey;
-  level: number;
+  /** Quantidade de unidades operando na cidade (1 a 3). */
+  units: number;
   openedCycle: number;
 }
 
@@ -212,6 +213,12 @@ export interface CycleReport {
   deltas: Flow;
   production: Flow;
   consumption: Flow;
+  /** Receita operacional do ciclo, em caixa. Opcional para saves antigos. */
+  income?: number;
+  /** Despesas do ciclo, em caixa. */
+  expenses?: number;
+  /** Caixa ao fim do ciclo. */
+  cash?: number;
   completed: string[];
   events: string[];
   shortages: ResourceKey[];

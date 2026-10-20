@@ -1,14 +1,13 @@
 import { useMemo, useState } from 'react';
 import { COUNTRY_BY_ID, cityById } from '../game/atlas';
 import { getCityPlan } from '../game/cityPlan';
-import { FACTIONS, RESOURCES, RESOURCE_KEYS } from '../game/constants';
-import { developmentOf, territoryProduction } from '../game/economy';
+import { FACTIONS } from '../game/constants';
+import { developmentOf, moneyOf, SALARY_PER_POP, TAX_PER_POP, territoryProduction } from '../game/economy';
 import { HQ_DISTRICTS } from '../game/hq';
 import { cityLabel } from '../game/names';
 import { useGameStore } from '../store/gameStore';
 import { CityStage } from './city3d/CityStage';
-import { fmt, fmtRate, trendClass } from './format';
-import { ResourceGlyph } from './art/Glyph';
+import { fmt, money, trendClass } from './format';
 import { Icon } from './Icon';
 import { Badge, cx, ProgressBar, SectionHeader } from './primitives';
 
@@ -64,14 +63,12 @@ export function CityView() {
   const dev = capital ? developmentOf(capital) : 0;
   const district = HQ_DISTRICTS[seat.district];
   const flow = production
-    ? RESOURCE_KEYS.map((key) => ({
-      key,
-      value:
-        (production.base[key] ?? 0) +
-        (production.nodes[key] ?? 0) +
-        (production.buildings[key] ?? 0) +
-        (key === 'creditos' ? production.commerceBase : 0),
-    })).sort((a, b) => b.value - a.value).slice(0, 4)
+    ? [
+      { key: 'receita', label: 'Operação e edifícios', value: moneyOf(production.base) + moneyOf(production.nodes) + moneyOf(production.buildings), tone: 'teal' },
+      { key: 'comercio', label: 'Rede comercial', value: production.commerceBase, tone: 'teal' },
+      { key: 'vendas', label: 'Vendas urbanas', value: (capital?.pop ?? 0) * TAX_PER_POP, tone: 'teal' },
+      { key: 'custos', label: 'Pessoal e manutenção', value: -(capital?.pop ?? 0) * SALARY_PER_POP - production.upkeep, tone: 'red' },
+    ]
     : [];
 
   return (
@@ -220,11 +217,11 @@ export function CityView() {
                   <div className="city-flow">
                     {flow.map((entry) => (
                       <div className="city-flow__row" key={entry.key}>
-                        <span className="city-flow__icon" style={{ color: RESOURCES[entry.key].color }}>
-                          <ResourceGlyph resource={entry.key} size={16} />
+                        <span className="city-flow__icon" style={{ color: entry.tone === 'red' ? '#e39a80' : 'var(--gold)' }}>
+                          <Icon name={entry.tone === 'red' ? 'ArrowDownRight' : 'ArrowUpRight'} size={16} />
                         </span>
-                        <span>{RESOURCES[entry.key].label}</span>
-                        <b className={trendClass(entry.value)}>{fmtRate(entry.value)}</b>
+                        <span>{entry.label}</span>
+                        <b className={trendClass(entry.value)}>{money(entry.value, true)}</b>
                       </div>
                     ))}
                     {!flow.length && <p className="city-side__muted">Sem produção registrada neste ciclo.</p>}

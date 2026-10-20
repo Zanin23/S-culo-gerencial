@@ -246,7 +246,7 @@ function FactionPatterns() {
           width={3.6}
           height={3.6}
           patternUnits="userSpaceOnUse"
-          /* Cada Casa tem inclinação própria: a soberania continua legível sem cor. */
+          /* Cada Casa tem inclinação própria: a presença continua legível sem cor. */
           patternTransform={`rotate(${FACTION_HATCH_ANGLE[faction.id] ?? 38})`}
         >
           <path d="M0 0v3.6" stroke={faction.color} strokeWidth={0.3} opacity={0.42} />

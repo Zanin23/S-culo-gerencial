@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
-import { FACTIONS, GAME, RESOURCES, RESOURCE_KEYS } from '../game/constants';
+import { FACTIONS, GAME } from '../game/constants';
 import { computeEconomy } from '../game/economy';
 import { scoreOf, VICTORY_TARGET } from '../game/progress';
 import { CYCLE_SECONDS, useGameStore } from '../store/gameStore';
-import { fmt, fmtRate, trendClass } from './format';
-import { ResourceGlyph } from './art/Glyph';
+import { fmt, fmtRate, money, trendClass } from './format';
+
 import { Icon } from './Icon';
 import { cx, Ring, Tooltip } from './primitives';
+import { averageOperationShare } from '../game/operations';
 
 export function TopBar({ onHelp }: { onHelp: () => void }) {
   const game = useGameStore((s) => s.game)!;
@@ -27,6 +28,11 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
   const timerPercent = (secondsLeft / CYCLE_SECONDS) * 100;
   const victoryPercent = Math.min(100, (score / VICTORY_TARGET) * 100);
   const paused = !autoPlay || view !== 'map';
+  const operations = game.operations.filter((op) => op.factionId === player.id);
+  const units = operations.reduce((sum, op) => sum + op.units, 0);
+  const markets = Object.values(game.tiles).filter((tile) => tile.owner === player.id).length;
+  const share = averageOperationShare(game, player.id);
+  const profit = eco.finance.net;
 
   return (
     <header className="topbar">
@@ -78,36 +84,63 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
         </div>
       </div>
 
-      <div className="res-strip" role="list" aria-label="Recursos nacionais">
-        {RESOURCE_KEYS.map((key) => {
-          const net = eco.net[key];
-          const low = key === 'creditos' ? player.stocks.creditos < 20 : key === 'energia' ? eco.projectedStocks.energia < 10 : false;
-          return (
-            <Tooltip key={key} text={`${RESOURCES[key].label}: ${RESOURCES[key].description}\nSaldo projetado: ${fmtRate(net)}`}>
-              <button
-                type="button"
-                role="listitem"
-                className={cx('res-chip', low && 'is-low')}
-                onClick={() => setView('economy')}
-              >
-                <span className="res-chip__icon" style={{ color: RESOURCES[key].color }}>
-                  <ResourceGlyph resource={key} size={21} />
-                </span>
-                <span className="res-chip__body">
-                  <span className="res-chip__label">{RESOURCES[key].label}</span>
-                  <strong>{fmt(player.stocks[key])}</strong>
-                </span>
-                <span className={cx('res-chip__net', trendClass(net))}>{fmtRate(net)}</span>
-              </button>
-            </Tooltip>
-          );
-        })}
+      <div className="res-strip" aria-label="Indicadores da companhia">
+        <Tooltip text={`Caixa disponível: R$ ${Math.round(player.stocks.creditos).toLocaleString('pt-BR')}\nResultado projetado: ${fmtRate(profit)}/ciclo`}>
+          <button type="button" className={cx('res-chip', player.stocks.creditos < 60 && 'is-low')} onClick={() => setView('economy')}>
+            <span className="res-chip__icon" style={{ color: 'var(--gold)' }}><Icon name="Coins" size={19} /></span>
+            <span className="res-chip__body">
+              <span className="res-chip__label">Caixa</span>
+              <strong aria-label="Caixa disponível">{money(player.stocks.creditos)}</strong>
+            </span>
+            <span className={cx('res-chip__net', trendClass(profit))}>{fmtRate(profit)}</span>
+          </button>
+        </Tooltip>
+        <Tooltip text={`Receita por ciclo: R$ ${Math.round(eco.finance.income).toLocaleString('pt-BR')}`}>
+          <button type="button" className="res-chip" onClick={() => setView('economy')}>
+            <span className="res-chip__icon" style={{ color: 'var(--teal)' }}><Icon name="TrendingUp" size={19} /></span>
+            <span className="res-chip__body">
+              <span className="res-chip__label">Receita</span>
+              <strong>{money(eco.finance.income)}</strong>
+            </span>
+            <span className="res-chip__net muted">/ciclo</span>
+          </button>
+        </Tooltip>
+        <Tooltip text={`Despesas: R$ ${Math.round(eco.finance.expenses).toLocaleString('pt-BR')} por ciclo`}>
+          <button type="button" className="res-chip" onClick={() => setView('economy')}>
+            <span className="res-chip__icon" style={{ color: profit >= 0 ? 'var(--teal-bright)' : 'var(--red)' }}><Icon name="TrendingDown" size={19} /></span>
+            <span className="res-chip__body">
+              <span className="res-chip__label">Despesas</span>
+              <strong>{money(eco.finance.expenses)}</strong>
+            </span>
+            <span className="res-chip__net muted">/ciclo</span>
+          </button>
+        </Tooltip>
+        <Tooltip text={`${operations.length} operações em ${new Set(operations.map((op) => op.countryId)).size} praças\nParticipação média: ${Math.round(share * 100)}%`}>
+          <button type="button" className="res-chip" onClick={() => setView('companies')}>
+            <span className="res-chip__icon" style={{ color: '#c6a5ea' }}><Icon name="Store" size={19} /></span>
+            <span className="res-chip__body">
+              <span className="res-chip__label">Unidades</span>
+              <strong>{units}</strong>
+            </span>
+            <span className="res-chip__net muted">{operations.length} op.</span>
+          </button>
+        </Tooltip>
+        <Tooltip text={`${markets} praças licenciadas · ${Math.round(share * 100)}% de participação média`}>
+          <button type="button" className="res-chip" onClick={() => setView('map')}>
+            <span className="res-chip__icon" style={{ color: '#8fb4f5' }}><Icon name="Map" size={19} /></span>
+            <span className="res-chip__body">
+              <span className="res-chip__label">Praças</span>
+              <strong>{markets}</strong>
+            </span>
+            <span className="res-chip__net muted">{Math.round(share * 100)}% part.</span>
+          </button>
+        </Tooltip>
       </div>
 
       <button className="score-chip" onClick={() => setView('objectives')} type="button">
         <Ring percent={victoryPercent} size={38} stroke={3} color="var(--gold)" />
         <span>
-          <span className="eyebrow">Hegemonia</span>
+          <span className="eyebrow">Relevância</span>
           <strong>{score} <small>/ {VICTORY_TARGET}</small></strong>
         </span>
         <Icon name="ChevronRight" size={14} />

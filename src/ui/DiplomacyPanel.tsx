@@ -1,12 +1,12 @@
 import { useMemo, type CSSProperties } from 'react';
-import { AI_FACTIONS, FACTIONS } from '../game/constants';
+import { AI_FACTIONS, FACTIONS, RESOURCE_VALUE } from '../game/constants';
 import { getRelation, hasActivePact, offerLabel, proposeCost, relationRequirement, relationStatus } from '../game/diplomacy';
 import { scoreOf } from '../game/progress';
 import { tilesOfFaction } from '../game/map';
 import { GIFT_COST } from '../game/commands';
 import type { FactionId } from '../game/types';
 import { useGameStore } from '../store/gameStore';
-import { fmt } from './format';
+import { fmt, money } from './format';
 import { Icon } from './Icon';
 import { Badge, cx, EmptyState, SectionHeader } from './primitives';
 import { ViewShell } from './ViewShell';
@@ -45,15 +45,14 @@ function CompanyCard({ id }: { id: FactionId }) {
   const house = FACTIONS[id];
   const relation = getRelation(game, playerId, id);
   const status = relationStatus(relation);
-  const influence = player.stocks.influencia;
   const score = scoreOf(game, id);
   const territories = tilesOfFaction(game.tiles, id).length;
   const operations = game.operations.filter((op) => op.factionId === id).length;
-  const canGift = player.stocks.creditos >= GIFT_COST.creditos && influence >= GIFT_COST.influencia && player.lastGiftCycle !== game.cycle;
+  const canGift = player.stocks.creditos >= GIFT_COST.creditos && player.lastGiftCycle !== game.cycle;
 
   const treatyState = (kind: TreatyKind): ActionState => {
-    const cost = proposeCost(kind);
-    if (influence < cost) return { disabled: true, reason: `Requer ${cost} de relações.` };
+    const cost = Math.round(proposeCost(kind) * RESOURCE_VALUE.influencia);
+    if (player.stocks.creditos < cost) return { disabled: true, reason: `Requer ${money(cost)} em caixa.` };
     if (kind === 'trade' && relation.trade) return { disabled: true, reason: 'Acordo comercial já ativo.' };
     if (kind === 'nonAggression' && relation.nonAggression) return { disabled: true, reason: 'Pacto de não concorrência já ativo.' };
     if (kind === 'alliance' && relation.alliance) return { disabled: true, reason: 'Parceria estratégica já ativa.' };
@@ -85,15 +84,15 @@ function CompanyCard({ id }: { id: FactionId }) {
       </div>
 
       <div className="house-card__stats">
-        <div><span>Valor de mercado</span><strong>{fmt(score)}</strong></div>
-        <div><span>Mercados</span><strong>{territories}</strong></div>
-        <div><span>Filiais</span><strong>{operations}</strong></div>
+        <div><span>Relevância</span><strong>{fmt(score)}</strong></div>
+        <div><span>Praças</span><strong>{territories}</strong></div>
+        <div><span>Unidades</span><strong>{operations}</strong></div>
         <div><span>Tecnologias</span><strong>{other.techs.length}</strong></div>
       </div>
 
       <div className="house-card__pacts">
         {relation.alliance ? <Badge tone="teal" icon="Handshake">Parceria estratégica</Badge> : null}
-        {relation.nonAggression ? <Badge tone="blue" icon="Shield">Não concorrência</Badge> : null}
+        {relation.nonAggression ? <Badge tone="blue" icon="Shield">Trégua de concorrência</Badge> : null}
         {relation.trade ? <Badge tone="gold" icon="Coins">Acordo comercial</Badge> : null}
         {!relation.alliance && !relation.nonAggression && !relation.trade ? <Badge tone="neutral" icon="Minus">Sem acordos</Badge> : null}
       </div>
@@ -103,19 +102,19 @@ function CompanyCard({ id }: { id: FactionId }) {
           className="button button--tiny button--ghost"
           disabled={!canGift}
           onClick={() => gift(id)}
-          title={player.lastGiftCycle === game.cycle ? 'Um presente por ciclo.' : `Custo: ${GIFT_COST.creditos} créditos e ${GIFT_COST.influencia} relações.`}
+          title={player.lastGiftCycle === game.cycle ? 'Um presente por ciclo.' : `Custo: ${money(GIFT_COST.creditos)} em presentes.`}
           type="button"
         >
           <Icon name="Gem" size={13} /> Presente
-          <span className="button__meta">{GIFT_COST.creditos}c · {GIFT_COST.influencia}rel</span>
+          <span className="button__meta">{money(GIFT_COST.creditos)}</span>
         </button>
-        <button className="button button--tiny button--ghost" disabled={treatyState('trade').disabled} onClick={() => treaty(id, 'trade')} title={treatyState('trade').reason ?? 'Relações: 4'} type="button">
+        <button className="button button--tiny button--ghost" disabled={treatyState('trade').disabled} onClick={() => treaty(id, 'trade')} title={treatyState('trade').reason ?? `Custo: ${money(4 * RESOURCE_VALUE.influencia)}`} type="button">
           <Icon name="Coins" size={13} /> Comércio
         </button>
-        <button className="button button--tiny button--ghost" disabled={treatyState('nonAggression').disabled} onClick={() => treaty(id, 'nonAggression')} title={treatyState('nonAggression').reason ?? 'Relações: 7'} type="button">
+        <button className="button button--tiny button--ghost" disabled={treatyState('nonAggression').disabled} onClick={() => treaty(id, 'nonAggression')} title={treatyState('nonAggression').reason ?? `Custo: ${money(7 * RESOURCE_VALUE.influencia)}`} type="button">
           <Icon name="Shield" size={13} /> Não concorrência
         </button>
-        <button className="button button--tiny button--ghost" disabled={treatyState('alliance').disabled} onClick={() => treaty(id, 'alliance')} title={treatyState('alliance').reason ?? 'Relações: 12'} type="button">
+        <button className="button button--tiny button--ghost" disabled={treatyState('alliance').disabled} onClick={() => treaty(id, 'alliance')} title={treatyState('alliance').reason ?? `Custo: ${money(12 * RESOURCE_VALUE.influencia)}`} type="button">
           <Icon name="Handshake" size={13} /> Parceria
         </button>
       </div>
@@ -148,16 +147,16 @@ export function DiplomacyPanel() {
     <ViewShell
       eyebrow="Mesa de relações"
       title="Acordos entre companhias"
-      subtitle="Relações abrem mercados e sustentam a operação. Presentes e acordos custam relações institucionais e podem ser recusados."
+      subtitle="Relações abrem mercados e sustentam a operação. Presentes e acordos custam caixa e podem ser recusados."
       icon="Handshake"
-      actions={<Badge tone="teal" icon="Handshake">{fmt(player.stocks.influencia)} de relações</Badge>}
+      actions={<Badge tone="teal" icon="Handshake">{money(player.stocks.creditos)} em caixa</Badge>}
     >
       <div className="summary-grid summary-grid--4">
         <div className="summary-card summary-card--teal">
-          <span className="summary-card__label"><Icon name="Handshake" size={14} /> Relações disponíveis</span>
-          <strong>{fmt(player.stocks.influencia)}</strong>
-          <span className="summary-card__delta">capital institucional</span>
-          <small>Usado em acordos, presentes e licenças de expansão.</small>
+          <span className="summary-card__label"><Icon name="Coins" size={14} /> Caixa para acordos</span>
+          <strong>{money(player.stocks.creditos)}</strong>
+          <span className="summary-card__delta">caixa para presentes e acordos</span>
+          <small>Presentes e propostas são pagos em dinheiro.</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Handshake" size={14} /> Acordos ativos</span>
@@ -166,10 +165,10 @@ export function DiplomacyPanel() {
           <small>Objetivo de campanha: 2 acordos ativos.</small>
         </div>
         <div className="summary-card">
-          <span className="summary-card__label"><Icon name="Store" size={14} /> Filiais rivais</span>
+          <span className="summary-card__label"><Icon name="Store" size={14} /> Unidades rivais</span>
           <strong>{rivalOperations}</strong>
           <span className="summary-card__delta">disputando mercado</span>
-          <small>Mais filiais rivais = menos participação por cidade.</small>
+          <small>Mais unidades rivais = menos participação por cidade.</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Scale" size={14} /> Reputação média</span>
@@ -230,14 +229,14 @@ export function DiplomacyPanel() {
         <aside className="view-card">
           <SectionHeader eyebrow="Protocolo" title="Como negociar" icon="Info" />
           <ul className="benefit-list">
-            <li><Icon name="Gem" size={13} /> Presentes custam {GIFT_COST.creditos} créditos e {GIFT_COST.influencia} de relações e elevam o relacionamento.</li>
-            <li><Icon name="Coins" size={13} /> Acordo comercial exige relações 20 e 4 de relações; rende créditos a cada ciclo.</li>
-            <li><Icon name="Shield" size={13} /> Não concorrência exige relações 32 e 7 de relações.</li>
-            <li><Icon name="Handshake" size={13} /> Parceria estratégica exige relações 62 e 12 de relações.</li>
-            <li><Icon name="Store" size={13} /> Filiais rivais disputam participação nas mesmas cidades.</li>
+            <li><Icon name="Gem" size={13} /> Presentes custam {money(GIFT_COST.creditos)} e elevam o relacionamento.</li>
+            <li><Icon name="Coins" size={13} /> Acordo comercial exige relações 20 e {money(4 * RESOURCE_VALUE.influencia)}; rende caixa a cada ciclo.</li>
+            <li><Icon name="Shield" size={13} /> Trégua de concorrência exige relações 32 e {money(7 * RESOURCE_VALUE.influencia)}.</li>
+            <li><Icon name="Handshake" size={13} /> Parceria estratégica exige relações 62 e {money(12 * RESOURCE_VALUE.influencia)}.</li>
+            <li><Icon name="Store" size={13} /> Unidades rivais disputam participação nas mesmas cidades.</li>
           </ul>
           <div className="protocol-note">
-            <Icon name="Info" size={13} /> Ofertas recebidas expiram; aceitar pode consolidar a paz e liberar receita.
+            <Icon name="Info" size={13} /> Ofertas recebidas expiram; aceitar pode consolidar a parceria e liberar receita.
           </div>
         </aside>
       </div>

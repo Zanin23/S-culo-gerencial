@@ -10,6 +10,7 @@ import {
   Bell,
   Blocks,
   Bot,
+  Car,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -83,7 +84,7 @@ import {
 } from 'lucide-react';
 
 const ICONS: Record<string, LucideIcon> = {
-  AlertTriangle, Anchor, ArrowDownRight, ArrowUpRight, Award, Bell, Blocks, Bot, Building2, Check,
+  AlertTriangle, Anchor, ArrowDownRight, ArrowUpRight, Award, Bell, Blocks, Bot, Building2, Car, Check,
   ChevronLeft, ChevronRight, Circle, Coins, Compass, Crown, Download, Eye, Factory,
   FlaskConical, Flame, Gem, Globe2, Hammer, Handshake, HelpCircle, Hexagon, Info,
   Landmark, Layers, Leaf, Lightbulb, Lock, Map, Menu, Minus, Moon, MousePointer2,

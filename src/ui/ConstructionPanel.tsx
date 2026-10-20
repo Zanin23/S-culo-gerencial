@@ -61,7 +61,7 @@ function BuildingCard({ tile, building }: { tile: Tile; building: BuildingKey })
         <div className={cx('building-card__terrain', hasBonus && 'is-active')}>
           <Icon name={hasBonus ? 'Check' : 'Info'} size={12} />
           {hasBonus
-            ? `Bônus local ativo: +${Math.round(def.terrainBonus.multiplier * 100)}% de ${def.terrainBonus.resource}`
+            ? `Bônus local ativo: +${Math.round(def.terrainBonus.multiplier * 100)}% de ${def.terrainBonus.label}`
             : `Bônus em ${def.terrainBonus.terrains?.map((t) => TERRAIN[t].name).join(' / ') ?? ''}${def.terrainBonus.nodes?.length ? ` · ${def.terrainBonus.nodes.map((n) => NODES[n].name).join(' / ')}` : ''}`}
         </div>
       ) : null}
@@ -117,13 +117,13 @@ export function ConstructionPanel() {
     <ViewShell
       eyebrow="Gabinete de obras"
       title="Construção e desenvolvimento"
-      subtitle="Cada território tem espaços limitados. Melhorar estruturas eleva o desenvolvimento, a produção e a pontuação de hegemonia."
+      subtitle="Cada praça tem espaços limitados. Melhorar estruturas eleva o desenvolvimento, a receita e a relevância da companhia."
       icon="Hammer"
       actions={<Badge tone={activeProjects.length >= projectSlots ? 'gold' : 'teal'} icon="Hammer">{activeProjects.length}/{projectSlots} projetos</Badge>}
     >
       <div className="construction-layout">
         <aside className="territory-list-panel">
-          <SectionHeader eyebrow="Territórios" title="Suas bases" icon="Map" action={<Badge tone="neutral">{owned.length}</Badge>} />
+          <SectionHeader eyebrow="Praças" title="Suas bases" icon="Map" action={<Badge tone="neutral">{owned.length}</Badge>} />
           <div className="territory-list">
             {owned.map((tile) => {
               const isActive = activeTile?.id === tile.id;
@@ -148,7 +148,7 @@ export function ConstructionPanel() {
             <div className="territory-summary">
               <div className="territory-summary__head">
                 <div>
-                  <div className="eyebrow">Território selecionado</div>
+                  <div className="eyebrow">Praça selecionada</div>
                   <h3>{activeTile.name}</h3>
                   <span>{TERRAIN[activeTile.terrain].name} · {NODES[activeTile.node].name}</span>
                 </div>
@@ -196,7 +196,7 @@ export function ConstructionPanel() {
                   </div>
                 </div>
                 <ProgressBar value={used} max={slots} tone={free ? 'teal' : 'gold'} thin />
-                <p className="table-note">Cada tipo de estrutura ocupa um espaço, independentemente do nível. O desenvolvimento do território cresce com níveis construídos e população.</p>
+                <p className="table-note">Cada tipo de estrutura ocupa um espaço, independentemente do nível. O desenvolvimento da praça cresce com níveis construídos e população.</p>
               </div>
 
               <div className="building-grid">
@@ -205,11 +205,11 @@ export function ConstructionPanel() {
 
               <div className="panel-note">
                 <Icon name="Info" size={14} />
-                <p>Obras ocupam uma vaga de projeto e um espaço do território. Tecnologias liberam níveis superiores e novos bônus. Verifique a capacidade administrativa antes de expandir.</p>
+                <p>Obras ocupam uma vaga de projeto e um espaço da praça. Tecnologias liberam níveis superiores e novos bônus. Verifique a capacidade administrativa antes de expandir.</p>
               </div>
             </>
           ) : (
-            <EmptyState icon="Map" title="Sem territórios">Selecione um território no mapa para gerenciar construções.</EmptyState>
+            <EmptyState icon="Map" title="Sem praças">Selecione uma praça no mapa para gerenciar construções.</EmptyState>
           )}
         </div>
       </div>

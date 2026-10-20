@@ -12,6 +12,15 @@ export function fmt(value: number): string {
   return decimalFormat.format(value);
 }
 
+/** Dinheiro no padrão brasileiro: R$ 1.234. */
+export function money(value: number, sign = false): string {
+  if (!Number.isFinite(value)) return 'R$ 0';
+  const rounded = Math.round(Math.abs(value));
+  const text = `R$ ${rounded.toLocaleString('pt-BR')}`;
+  if (value < -0.5) return `−${text}`;
+  return sign && value > 0.5 ? `+${text}` : text;
+}
+
 export function fmtRate(value: number): string {
   if (Math.abs(value) < 0.05) return '0';
   return `${value > 0 ? '+' : '−'}${fmt(Math.abs(value))}`;

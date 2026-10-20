@@ -1,143 +1,103 @@
-import { useMemo, useState } from 'react';
-import { MARKET_BASE, MARKET_KEYS, MARKET_LABELS, RESOURCES, RESOURCE_KEYS } from '../game/constants';
-import {
-  adminCapacityOfState,
-  computeEconomy,
-  projectSlotsOf,
-  techEffects,
-} from '../game/economy';
-import { buyUnitPrice, marketTrend, round2, sellUnitPrice } from '../game/market';
-import type { MarketKey, ResourceKey } from '../game/types';
+import { useMemo } from 'react';
 import { INSOLVENCY_CYCLES } from '../game/cycle';
+import { computeEconomy, moneyOf, techEffects } from '../game/economy';
+import { cityById } from '../game/atlas';
+import { averageOperationShare, operationOutput } from '../game/operations';
+import { leaderboard, rankOf, scoreParts, VICTORY_TARGET, victoryInfo } from '../game/progress';
+import { SECTORS } from '../game/constants';
+import type { FactionId, GameState } from '../game/types';
 import { useGameStore } from '../store/gameStore';
-import { fmt, fmtRate, trendClass } from './format';
-import { ResourceGlyph } from './art/Glyph';
+import { fmt, money, trendClass } from './format';
 import { Icon } from './Icon';
-import { Badge, cx, EmptyState, ProgressBar, SectionHeader } from './primitives';
+import { Badge, ProgressBar, SectionHeader, cx } from './primitives';
 import { ViewShell } from './ViewShell';
 
-const SOURCE_LABELS: Record<string, string> = {
-  base: 'Terreno e população',
-  nodes: 'Depósitos naturais',
-  buildings: 'Estruturas',
-  taxes: 'Impostos urbanos',
-  commerce: 'Rede comercial',
-  institutions: 'Instituições',
-  diplomacy: 'Tratados',
-};
-
-const DEMAND_LABELS: Record<string, string> = {
-  population: 'Consumo populacional',
-  industry: 'Insumos industriais',
-  upkeep: 'Manutenção e filiais',
-};
-
-const CHART_OPTIONS: ResourceKey[] = ['creditos', 'alimentos', 'energia', 'materias', 'influencia'];
-
-function EconomyChart({ history, resource }: { history: Array<{ cycle: number; stocks: Record<string, number> }>; resource: ResourceKey }) {
+function CashChart({ history }: { history: Array<{ cycle: number; stocks: Record<string, number> }> }) {
   const data = history.slice(-42);
-  const color = RESOURCES[resource].color;
   if (data.length < 2) {
-    return <EmptyState icon="TrendingUp" title="Histórico insuficiente">Avance alguns ciclos para desenhar a evolução econômica.</EmptyState>;
+    return (
+      <div className="chart-empty">
+        <Icon name="TrendingUp" size={18} />
+        <span>Avance alguns ciclos para desenhar a evolução do caixa.</span>
+      </div>
+    );
   }
   const width = 640;
   const height = 190;
-  const padding = { left: 44, right: 14, top: 16, bottom: 24 };
+  const padding = { left: 54, right: 16, top: 16, bottom: 26 };
+  const values = data.map((point) => point.stocks.creditos ?? 0);
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
   const innerW = width - padding.left - padding.right;
   const innerH = height - padding.top - padding.bottom;
-  const values = data.map((row) => row.stocks[resource] ?? 0);
-  const max = Math.max(...values) * 1.08 || 1;
-  const min = 0;
-  const points = data.map((row, index) => {
-    const x = padding.left + (index / Math.max(1, data.length - 1)) * innerW;
-    const y = padding.top + innerH - ((values[index] - min) / (max - min)) * innerH;
-    return { x, y, value: values[index], cycle: row.cycle };
-  });
-  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-  const area = `${line} L${points[points.length - 1].x},${padding.top + innerH} L${points[0].x},${padding.top + innerH} Z`;
-  const grid = [0, 0.25, 0.5, 0.75, 1];
+  const x = (index: number) => padding.left + (index / Math.max(1, data.length - 1)) * innerW;
+  const y = (value: number) => padding.top + innerH - ((value - min) / Math.max(1, max - min)) * innerH;
+  const path = data.map((point, index) => `${index === 0 ? 'M' : 'L'} ${x(index).toFixed(1)} ${y(values[index]).toFixed(1)}`).join(' ');
+  const area = `${path} L ${x(data.length - 1).toFixed(1)} ${padding.top + innerH} L ${padding.left} ${padding.top + innerH} Z`;
 
   return (
-    <div className="chart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Evolução de ${RESOURCES[resource].label}`}>
-        <defs>
-          <linearGradient id={`area-${resource}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity=".35" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {grid.map((ratio) => {
-          const y = padding.top + innerH * ratio;
-          const value = max * (1 - ratio);
-          return (
-            <g key={ratio}>
-              <line x1={padding.left} y1={y} x2={width - padding.right} y2={y} stroke="rgba(255,255,255,.07)" strokeDasharray="3 5" />
-              <text x={padding.left - 8} y={y + 3} textAnchor="end" fontSize="9" fill="rgba(220,238,234,.45)">{fmt(value)}</text>
-            </g>
-          );
-        })}
-        <path d={area} fill={`url(#area-${resource})`} />
-        <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-        {points.map((point, index) => (
-          <circle key={index} cx={point.x} cy={point.y} r={index === points.length - 1 ? 3.2 : 1.5} fill={color} opacity={index === points.length - 1 ? 1 : 0.55}>
-            <title>{`Ciclo ${point.cycle}: ${fmt(point.value)}`}</title>
-          </circle>
-        ))}
-        <text x={padding.left} y={height - 5} fontSize="9" fill="rgba(220,238,234,.4)">Ciclo {data[0].cycle}</text>
-        <text x={width - padding.right} y={height - 5} textAnchor="end" fontSize="9" fill="rgba(220,238,234,.4)">Ciclo {data[data.length - 1].cycle}</text>
-      </svg>
-    </div>
+    <svg className="cash-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Evolução do caixa por ciclo">
+      <defs>
+        <linearGradient id="cashFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="rgba(228,189,114,.42)" />
+          <stop offset="100%" stopColor="rgba(228,189,114,0)" />
+        </linearGradient>
+      </defs>
+      {[0, 0.5, 1].map((ratio) => (
+        <line
+          key={ratio}
+          x1={padding.left}
+          x2={width - padding.right}
+          y1={padding.top + innerH * ratio}
+          y2={padding.top + innerH * ratio}
+          stroke="rgba(255,255,255,.08)"
+          strokeDasharray="2 5"
+        />
+      ))}
+      <text x={8} y={y(max) + 4} className="cash-chart__label">{money(max)}</text>
+      <text x={8} y={y(min) + 4} className="cash-chart__label">{money(min)}</text>
+      <path d={area} fill="url(#cashFill)" />
+      <path d={path} fill="none" stroke="var(--gold)" strokeWidth={2} strokeLinejoin="round" />
+      <text x={padding.left} y={height - 6} className="cash-chart__label">ciclo {data[0].cycle}</text>
+      <text x={width - padding.right} y={height - 6} textAnchor="end" className="cash-chart__label">ciclo {data[data.length - 1].cycle}</text>
+    </svg>
   );
 }
 
-function MarketCard({ resource }: { resource: MarketKey }) {
-  const game = useGameStore((s) => s.game)!;
-  const trade = useGameStore((s) => s.trade);
-  const [amount, setAmount] = useState(10);
-  const player = game.factions[game.playerFactionId];
-  const price = game.market.prices[resource];
-  const trend = marketTrend(game, resource);
-  const unitBuy = buyUnitPrice(game, resource);
-  const unitSell = sellUnitPrice(game, player, resource);
-  const buyTotal = round2(amount * unitBuy);
-  const sellTotal = round2(amount * unitSell);
-  const base = MARKET_BASE[resource];
-  const ratio = price / base;
-  const stock = player.stocks[resource];
+function UnitTable({ game, playerId }: { game: GameState; playerId: FactionId }) {
+  const tech = techEffects(game.factions[playerId]);
+  const rows = game.operations
+    .filter((op) => op.factionId === playerId)
+    .map((op) => ({ op, city: cityById(op.cityId), out: operationOutput(game, op, tech.operationsMult) }))
+    .sort((a, b) => b.out.net - a.out.net)
+    .slice(0, 8);
+
+  if (!rows.length) {
+    return (
+      <div className="chart-empty">
+        <Icon name="Store" size={18} />
+        <span>Nenhuma unidade de negócio aberta. Comece por uma fazenda ou uma rede de varejo.</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="market-card">
-      <div className="market-card__head">
-        <span className="market-card__icon" style={{ color: RESOURCES[resource].color }}><ResourceGlyph resource={resource} size={20} /></span>
-        <div>
-          <strong>{MARKET_LABELS[resource]}</strong>
-          <span className={cx('market-card__trend', trend === 'up' ? 'is-positive' : trend === 'down' ? 'is-negative' : 'is-neutral')}>
-            <Icon name={trend === 'up' ? 'TrendingUp' : trend === 'down' ? 'TrendingDown' : 'Minus'} size={12} />
-            {price.toFixed(2).replace('.', ',')} cr.
-          </span>
-        </div>
-        <Badge tone={ratio >= 1.08 ? 'gold' : ratio <= 0.92 ? 'blue' : 'neutral'}>
-          {ratio >= 1.08 ? 'Alta' : ratio <= 0.92 ? 'Baixa' : 'Estável'}
-        </Badge>
-      </div>
-      <div className="market-card__stock">
-        <span>Estoque</span>
-        <strong>{fmt(stock)}</strong>
-        <span className="muted">· preço-base {base.toFixed(2).replace('.', ',')}</span>
-      </div>
-      <div className="market-card__amount">
-        <button className="stepper" onClick={() => setAmount((v) => Math.max(5, v - 5))} aria-label="Diminuir quantidade" type="button"><Icon name="Minus" size={12} /></button>
-        <span>{amount}</span>
-        <button className="stepper" onClick={() => setAmount((v) => Math.min(60, v + 5))} aria-label="Aumentar quantidade" type="button"><Icon name="Plus" size={12} /></button>
-      </div>
-      <div className="market-card__actions">
-        <button className="button button--tiny button--ghost" disabled={stock < amount} onClick={() => trade(resource, amount, 'sell')} type="button">
-          Vender <span className="button__meta">{fmt(sellTotal)}</span>
-        </button>
-        <button className="button button--tiny button--primary" disabled={player.stocks.creditos < buyTotal} onClick={() => trade(resource, amount, 'buy')} type="button">
-          Comprar <span className="button__meta">{fmt(buyTotal)}</span>
-        </button>
-      </div>
+    <div className="finance-units">
+      {rows.map(({ op, city, out }) => {
+        const sector = SECTORS[op.sector];
+        return (
+          <div className="finance-unit" key={op.id}>
+            <span className="finance-unit__icon" style={{ color: sector.color }}><Icon name={sector.icon} size={16} /></span>
+            <div className="finance-unit__name">
+              <strong>{city?.name ?? op.cityId}</strong>
+              <small>{sector.name} · {op.units} unidade{op.units > 1 ? 's' : ''} · {Math.round(out.share * 100)}% do mercado</small>
+            </div>
+            <span className="finance-unit__revenue tone-teal">{money(out.revenue)}</span>
+            <span className="finance-unit__cost">−{money(out.upkeep + out.supply)}</span>
+            <span className={cx('finance-unit__net', trendClass(out.net))}>{money(out.net, true)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -148,58 +108,48 @@ export function EconomyPanel() {
   const playerId = game.playerFactionId;
   const player = game.factions[playerId];
   const eco = useMemo(() => computeEconomy(game, playerId), [game, playerId]);
-  const [detail, setDetail] = useState<ResourceKey>('creditos');
-  const [chartResource, setChartResource] = useState<ResourceKey>('creditos');
-  const tech = techEffects(player);
-  const capacity = adminCapacityOfState(game, playerId);
-  const slots = projectSlotsOf(player);
-  const activeProjects = game.projects.filter((p) => p.factionId === playerId);
-  const sellModifier = tech.sellMult;
-
-  const sourceEntries = (Object.entries(eco.sources) as Array<[keyof typeof eco.sources, Record<ResourceKey, number>]>)
-    .map(([key, flow]) => ({ key, value: flow[detail] }))
-    .filter((entry) => entry.value > 0.01)
-    .sort((a, b) => b.value - a.value);
-  const demandEntries = (Object.entries(eco.demands) as Array<[keyof typeof eco.demands, Record<ResourceKey, number>]>)
-    .map(([key, flow]) => ({ key, value: flow[detail] }))
-    .filter((entry) => entry.value > 0.01)
-    .sort((a, b) => b.value - a.value);
-  const sourceTotal = sourceEntries.reduce((sum, entry) => sum + entry.value, 0);
-  const demandTotal = demandEntries.reduce((sum, entry) => sum + entry.value, 0);
-  const detailNet = eco.net[detail];
+  const score = useMemo(() => scoreParts(game, playerId), [game, playerId]);
+  const board = useMemo(() => leaderboard(game), [game]);
+  const victory = useMemo(() => victoryInfo(game), [game]);
+  const rank = rankOf(victory.playerScore);
+  const units = game.operations.filter((op) => op.factionId === playerId).reduce((sum, op) => sum + op.units, 0);
+  const finance = eco.finance;
+  const margin = finance.income > 0 ? (finance.net / finance.income) * 100 : 0;
+  const maxLine = Math.max(...finance.revenue.map((line) => line.value), ...finance.costs.map((line) => line.value), 1);
+  const creditFlow = useMemo(() => moneyOf({ creditos: finance.net }), [finance.net]);
 
   return (
     <ViewShell
-      eyebrow="Sala de contas do Conselho"
-      title="Economia de Concórdia"
-      subtitle="Produção, consumo, mercado e a composição do tesouro — todos os números vêm das mesmas regras que movem o mundo."
+      eyebrow="Diretoria financeira"
+      title="Finanças da companhia"
+      subtitle="Caixa, receita e custo das unidades, da infraestrutura e dos acordos. Tudo em dinheiro, ciclo a ciclo."
       icon="Coins"
-      actions={<button className="button button--ghost button--small" onClick={() => setView('construction')} type="button"><Icon name="Hammer" size={14} /> Projetos ({activeProjects.length}/{slots})</button>}
+      actions={<Badge tone={finance.net >= 0 ? 'teal' : 'red'} icon="Coins">{money(finance.net, true)}/ciclo</Badge>}
     >
       <div className="summary-grid summary-grid--4">
         <div className="summary-card summary-card--gold">
-          <span className="summary-card__label"><Icon name="Coins" size={14} /> Tesouro</span>
-          <strong>{fmt(player.stocks.creditos)}</strong>
-          <span className={cx('summary-card__delta', trendClass(eco.net.creditos))}>{fmtRate(eco.net.creditos)}/ciclo</span>
-          <small>Receita {fmt(eco.income)} · manutenção {fmt(eco.expenses)}</small>
+          <span className="summary-card__label"><Icon name="Coins" size={14} /> Caixa</span>
+          <strong>{money(player.stocks.creditos)}</strong>
+          <span className={cx('summary-card__delta', trendClass(finance.net))}>{money(finance.net, true)}/ciclo</span>
+          <small>Paga unidades, obras, P&amp;D e licenças de praça.</small>
         </div>
         <div className="summary-card">
-          <span className="summary-card__label"><Icon name="TrendingUp" size={14} /> Saldo comercial</span>
-          <strong>{fmt(eco.commerce)}</strong>
-          <span className="summary-card__delta">créditos/ciclo</span>
-          <small>Multiplicador comercial {(1 + tech.tradeMult).toFixed(2)}× · preço dos bens {game.market.prices.bens.toFixed(2)}</small>
+          <span className="summary-card__label"><Icon name="TrendingUp" size={14} /> Receita</span>
+          <strong>{money(finance.income)}</strong>
+          <span className="summary-card__delta">por ciclo</span>
+          <small>{eco.operationCount ? `${eco.operationCount} operações · ${units} unidades · ${Math.round((eco.operationRevenue / Math.max(1, finance.income)) * 100)}% da receita` : 'Abra a primeira unidade para gerar receita própria'}</small>
         </div>
         <div className="summary-card">
-          <span className="summary-card__label"><Icon name="Landmark" size={14} /> Capacidade administrativa</span>
-          <strong>{eco.territoryCount} <small>/ {capacity}</small></strong>
-          <ProgressBar value={eco.territoryCount} max={capacity} tone={eco.overCapacity ? 'red' : 'teal'} thin />
-          <small>{eco.overCapacity ? 'Sobrecarga: −10% de produção e desordem' : 'Territórios dentro do limite'}</small>
+          <span className="summary-card__label"><Icon name="TrendingDown" size={14} /> Despesas</span>
+          <strong>{money(finance.expenses)}</strong>
+          <span className="summary-card__delta">por ciclo</span>
+          <small>Pessoal, insumos e manutenção.</small>
         </div>
         <div className="summary-card">
-          <span className="summary-card__label"><Icon name="Users" size={14} /> População e trabalho</span>
-          <strong>{fmt(eco.pop)}</strong>
-          <span className="summary-card__delta">{fmt(eco.jobs)} empregos produtivos</span>
-          <small>Consumo alimentar {fmt(eco.demands.population.alimentos)}/ciclo</small>
+          <span className="summary-card__label"><Icon name="Award" size={14} /> Margem</span>
+          <strong className={finance.net >= 0 ? 'tone-teal' : 'tone-red'}>{Math.round(margin)}%</strong>
+          <span className="summary-card__delta">resultado sobre receita</span>
+          <small>Relevância {victory.playerScore} / {VICTORY_TARGET} · {rank.name}</small>
         </div>
       </div>
 
@@ -211,214 +161,103 @@ export function EconomyPanel() {
               Caixa zerado há {player.deficitCycles} ciclo{player.deficitCycles > 1 ? 's' : ''} — insolvência em {Math.max(0, INSOLVENCY_CYCLES - player.deficitCycles)}
             </strong>
             <p>
-              Seis ciclos seguidos no vermelho encerram a companhia: as filiais fecham e os mercados ficam livres.
-              Venda excedentes, encerre filiais deficitárias ou corte obras para voltar ao azul.
+              Seis ciclos seguidos no vermelho encerram a companhia: as unidades fecham e as praças ficam livres.
+              Venda uma unidade deficitária, corte obras ou reduza a estrutura.
             </p>
           </div>
-          <a href="#market" className="button button--tiny button--danger" onClick={(event) => { event.preventDefault(); document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' }); }}>Vender estoque</a>
-        </div>
-      ) : null}
-
-      {eco.shortages.length ? (
-        <div className="warning-banner">
-          <Icon name="AlertTriangle" size={18} />
-          <div>
-            <strong>Déficit projetado: {eco.shortages.map((key) => RESOURCES[key].label).join(', ')}</strong>
-            <p>Sem estoque, a produção industrial é reduzida e a desordem aumenta. Compre no mercado ou reforce a cadeia produtiva.</p>
-          </div>
-          <a href="#market" className="button button--tiny button--danger" onClick={(event) => { event.preventDefault(); document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' }); }}>Ir ao mercado</a>
+          <button className="button button--tiny button--danger" onClick={() => setView('companies')} type="button">Ver unidades</button>
         </div>
       ) : null}
 
       <div className="economy-layout">
         <div className="economy-main">
           <section className="view-card">
-            <SectionHeader eyebrow="Fluxo nacional" title="Balanço por recurso" icon="TrendingUp" action={<Badge tone="teal">clique para detalhar</Badge>} />
-            <div className="flow-table flow-table--economy flow-table--head">
-              <span>Recurso</span>
-              <span>Estoque</span>
-              <span>Produção</span>
-              <span>Demanda</span>
-              <span>Saldo</span>
-            </div>
-            <div className="flow-table flow-table--economy">
-              {RESOURCE_KEYS.map((key) => (
-                <button
-                  type="button"
-                  key={key}
-                  className={cx('flow-row flow-row--clickable', detail === key && 'is-selected')}
-                  onClick={() => setDetail(key)}
-                >
-                  <span className="flow-row__name"><span className="flow-row__icon" style={{ color: RESOURCES[key].color }}><ResourceGlyph resource={key} size={17} /></span>{RESOURCES[key].label}</span>
-                  <span className="flow-row__stock">{fmt(player.stocks[key])}</span>
-                  <span className="flow-row__prod">+{fmt(eco.production[key])}</span>
-                  <span className="flow-row__cons">−{fmt(eco.demand[key])}</span>
-                  <span className={cx('flow-row__net', trendClass(eco.net[key]))}>{fmtRate(eco.net[key])}</span>
-                </button>
-              ))}
-            </div>
-            <div className="resource-detail">
-              <div className="resource-detail__head">
-                <span style={{ color: RESOURCES[detail].color }}><ResourceGlyph resource={detail} size={18} /></span>
-                <strong>{RESOURCES[detail].label}</strong>
-                <Badge tone={detailNet >= 0 ? 'teal' : 'red'}>{fmtRate(detailNet)}/ciclo</Badge>
+            <SectionHeader eyebrow="Resultado do ciclo" title="De onde vem e para onde vai o dinheiro" icon="Scale" />
+            <div className="credit-columns">
+              <div>
+                <div className="breakdown-title">Receita ({money(finance.income)})</div>
+                {finance.revenue.map((line) => (
+                  <div className="breakdown-row" key={line.key}>
+                    <span>{line.label}</span>
+                    <div className="breakdown-bar"><i style={{ width: `${(line.value / maxLine) * 100}%`, background: 'var(--gold)' }} /></div>
+                    <strong>{money(line.value)}</strong>
+                  </div>
+                ))}
               </div>
-              <div className="resource-detail__grid">
-                <div>
-                  <div className="breakdown-title">Fontes de produção</div>
-                  {sourceEntries.length ? sourceEntries.map((entry) => (
-                    <div className="breakdown-row" key={entry.key}>
-                      <span>{SOURCE_LABELS[entry.key] ?? entry.key}</span>
-                      <div className="breakdown-bar"><i style={{ width: `${sourceTotal ? (entry.value / sourceTotal) * 100 : 0}%`, background: RESOURCES[detail].color }} /></div>
-                      <strong>{fmt(entry.value)}</strong>
-                    </div>
-                  )) : <span className="muted small">Nenhuma fonte ativa.</span>}
-                </div>
-                <div>
-                  <div className="breakdown-title">Destinos do recurso</div>
-                  {demandEntries.length ? demandEntries.map((entry) => (
-                    <div className="breakdown-row" key={entry.key}>
-                      <span>{DEMAND_LABELS[entry.key] ?? entry.key}</span>
-                      <div className="breakdown-bar"><i style={{ width: `${demandTotal ? (entry.value / demandTotal) * 100 : 0}%`, background: '#e39a80' }} /></div>
-                      <strong>{fmt(entry.value)}</strong>
-                    </div>
-                  )) : <span className="muted small">Nenhum consumo ativo.</span>}
+              <div>
+                <div className="breakdown-title">Despesas ({money(finance.expenses)})</div>
+                {finance.costs.map((line) => (
+                  <div className="breakdown-row" key={line.key}>
+                    <span>{line.label}</span>
+                    <div className="breakdown-bar"><i style={{ width: `${(line.value / maxLine) * 100}%`, background: '#e39a80' }} /></div>
+                    <strong>{money(line.value)}</strong>
+                  </div>
+                ))}
+                <div className="credit-result">
+                  <span>Resultado do ciclo</span>
+                  <strong className={trendClass(finance.net)}>{money(finance.net, true)}</strong>
                 </div>
               </div>
-              <p className="table-note">Projeção para o próximo ciclo, considerando estruturas, população, tratados e capacidade administrativa.</p>
             </div>
           </section>
 
           <section className="view-card">
             <SectionHeader
-              eyebrow="Memória econômica"
-              title="Evolução do estoque"
-              icon="TrendingUp"
-              action={
-                <div className="chip-tabs">
-                  {CHART_OPTIONS.map((key) => (
-                    <button key={key} className={cx('chip-tab', chartResource === key && 'is-active')} onClick={() => setChartResource(key)} type="button">
-                      <ResourceGlyph resource={key} size={14} /> {RESOURCES[key].short}
-                    </button>
-                  ))}
-                </div>
-              }
+              eyebrow="Carteira"
+              title="Resultado por unidade"
+              icon="Store"
+              action={<button className="button button--tiny button--ghost" onClick={() => setView('companies')} type="button">Gerir empresas</button>}
             />
-            <EconomyChart history={game.history} resource={chartResource} />
-            <div className="chart-foot">
-              <span><i style={{ background: RESOURCES[chartResource].color }} /> {RESOURCES[chartResource].label}</span>
-              <span>{game.history.length} ciclos registrados</span>
-            </div>
+            <UnitTable game={game} playerId={playerId} />
           </section>
 
           <section className="view-card">
-            <SectionHeader eyebrow="Contas do Estado" title="De onde vêm os créditos" icon="Coins" />
-            <div className="credit-columns">
-              <div>
-                <div className="breakdown-title">Receitas ({fmt(eco.income)}/ciclo)</div>
-                {[
-                  ['taxes', 'Impostos urbanos', '#e4bd72'],
-                  ['commerce', 'Comércio de bens', '#c6a5ea'],
-                  ['buildings', 'Administração e estruturas', '#9fc2b4'],
-                  ['operations', 'Filiais da companhia', '#6fd9c7'],
-                  ['diplomacy', 'Acordos comerciais', '#9db8e8'],
-                  ['nodes', 'Depósitos naturais', '#c7a17b'],
-                  ['base', 'Terreno', '#82c97c'],
-                ].map(([key, label, color]) => {
-                  const value = (eco.sources[key as keyof typeof eco.sources]?.creditos ?? 0);
-                  if (value <= 0.01) return null;
-                  return (
-                    <div className="breakdown-row" key={key}>
-                      <span>{label}</span>
-                      <div className="breakdown-bar"><i style={{ width: `${eco.income ? (value / eco.income) * 100 : 0}%`, background: color }} /></div>
-                      <strong>{fmt(value)}</strong>
-                    </div>
-                  );
-                })}
-              </div>
-              <div>
-                <div className="breakdown-title">Despesas ({fmt(eco.expenses)}/ciclo)</div>
-                {[
-                  ['buildings', 'Manutenção de estruturas', '#e39a80'],
-                  ['operations', 'Filiais e operações', '#8fb4f5'],
-                  ['inputs', 'Insumos de produção', '#e36d63'],
-                ].map(([key, label, color]) => {
-                  const value = key === 'buildings'
-                    ? eco.buildingUpkeep
-                    : key === 'operations'
-                      ? eco.operationUpkeep
-                      : Math.max(0, eco.upkeep - eco.buildingUpkeep - eco.operationUpkeep);
-                  if (value <= 0.01) return null;
-                  return (
-                    <div className="breakdown-row" key={key}>
-                      <span>{label}</span>
-                      <div className="breakdown-bar"><i style={{ width: `${eco.upkeep ? (value / eco.upkeep) * 100 : 0}%`, background: color }} /></div>
-                      <strong>{fmt(value)}</strong>
-                    </div>
-                  );
-                })}
-                <div className="credit-result">
-                  <span>Resultado operacional</span>
-                  <strong className={trendClass(eco.income - eco.expenses)}>{fmtRate(eco.income - eco.expenses)}</strong>
-                </div>
-              </div>
+            <SectionHeader eyebrow="Histórico" title="Fluxo de caixa" icon="TrendingUp" action={<Badge tone="neutral">{game.history.length === 1 ? 'último ciclo' : `últimos ${Math.min(42, game.history.length)} ciclos`}</Badge>} />
+            <CashChart history={game.history} />
+            <div className="chart-foot">
+              <span><i style={{ background: 'var(--gold)' }} /> caixa ao fim do ciclo</span>
+              <span>{creditFlow >= 0 ? 'Operação superavitária' : 'Operação deficitária'}</span>
             </div>
           </section>
         </div>
 
         <aside className="economy-side">
-          <section className="view-card" id="market">
-            <SectionHeader eyebrow="Ponto de troca" title="Mercado Global" icon="Store" action={<Badge tone="gold">volátil</Badge>} />
-            <div className="market-list">
-              {MARKET_KEYS.map((resource) => <MarketCard key={resource} resource={resource} />)}
+          <section className="view-card">
+            <SectionHeader eyebrow="Relevância" title="Peso da companhia" icon="Award" action={<Badge tone="gold">{victory.playerScore}</Badge>} />
+            <ProgressBar value={victory.playerScore} max={VICTORY_TARGET} tone="gold" />
+            <div className="score-list">
+              {score.map((part) => (
+                <div className="score-row" key={part.label}>
+                  <span>{part.label}<small>{part.detail}</small></span>
+                  <strong>{part.value}</strong>
+                </div>
+              ))}
             </div>
-            <div className="market-foot">
-              <Icon name="Info" size={13} />
-              <span>Preço de compra inclui 6% de corretagem. Grandes volumes movem o mercado. Bônus de venda atual: {Math.round(sellModifier * 100)}%.</span>
+            <p className="table-note">A relevância é recalculada a cada ciclo e define a liderança do mercado.</p>
+          </section>
+
+          <section className="view-card">
+            <SectionHeader eyebrow="Mercado" title="Ranking de relevância" icon="Crown" />
+            <div className="ranking-list">
+              {board.map((row, index) => (
+                <div className={cx('ranking-row', row.isPlayer && 'is-player')} key={row.id}>
+                  <span className="ranking-row__rank">{index + 1}</span>
+                  <span className="ranking-row__house"><i style={{ background: row.color }} />{row.name}</span>
+                  <span className="ranking-row__score"><strong>{fmt(row.score)}</strong></span>
+                </div>
+              ))}
             </div>
           </section>
 
           <section className="view-card">
-            <SectionHeader eyebrow="Cadelas de suprimento" title="Estado das cadeias" icon="Network" />
-            <div className="supply-list">
-              <div>
-                <span><Icon name="FlaskConical" size={13} /> Pesquisa</span>
-                <Badge tone={eco.energyRatio < 1 ? 'red' : 'teal'}>{eco.energyRatio < 1 ? 'Energia limitando' : 'Operacional'}</Badge>
-              </div>
-              <div>
-                <span><Icon name="Factory" size={13} /> Indústria</span>
-                <Badge tone={eco.materialRatio < 1 || eco.energyRatio < 1 ? 'red' : 'teal'}>{eco.materialRatio < 1 ? 'Insumos limitando' : eco.energyRatio < 1 ? 'Energia limitando' : 'Operacional'}</Badge>
-              </div>
-              <div>
-                <span><Icon name="Landmark" size={13} /> Administração</span>
-                <Badge tone={eco.overCapacity ? 'red' : 'teal'}>{eco.territoryCount}/{capacity}</Badge>
-              </div>
-              <div>
-                <span><Icon name="Hammer" size={13} /> Projetos</span>
-                <Badge tone="blue">{activeProjects.length}/{slots}</Badge>
-              </div>
+            <SectionHeader eyebrow="Praças" title="Estrutura da rede" icon="Map" />
+            <div className="finance-facts">
+              <div><span>Praças licenciadas</span><strong>{eco.territoryCount}</strong></div>
+              <div><span>Unidades de negócio</span><strong>{units}</strong></div>
+              <div><span>Participação média</span><strong>{Math.round(averageOperationShare(game, playerId) * 100)}%</strong></div>
+              <div><span>Capacidade administrativa</span><strong>{eco.territoryCount} / {eco.adminCapacity}</strong></div>
             </div>
-            <p className="table-note">A falta de energia reduz a produção de bens e P&amp;D. A falta de matérias-primas limita a indústria.</p>
-          </section>
-
-          <section className="view-card">
-            <SectionHeader eyebrow="Projeção" title="Próximos ciclos" icon="Compass" />
-            <div className="forecast-list">
-              {RESOURCE_KEYS.map((key) => {
-                const weeks = [1, 3, 5].map((n) => Math.max(0, player.stocks[key] + eco.net[key] * n));
-                const risk = eco.net[key] < 0 && player.stocks[key] / Math.max(1, Math.abs(eco.net[key])) < 5;
-                return (
-                  <div className="forecast-row" key={key}>
-                    <span style={{ color: RESOURCES[key].color }}><ResourceGlyph resource={key} size={16} /></span>
-                    <span>{RESOURCES[key].short}</span>
-                    <span>+1c <b>{fmt(weeks[0])}</b></span>
-                    <span>+3c <b>{fmt(weeks[1])}</b></span>
-                    <span>+5c <b className={risk ? 'tone-red' : undefined}>{fmt(weeks[2])}</b></span>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="table-note">Projeção linear com o saldo atual; eventos, construções e comércio alteram o resultado.</p>
+            <p className="table-note">Cada praça licenciada permite abrir unidades nas cidades daquele país.</p>
           </section>
         </aside>
       </div>

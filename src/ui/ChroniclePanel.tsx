@@ -69,7 +69,7 @@ export function ChroniclePanel() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `management-century-cronicas-seed-${game.seed}.txt`;
+    anchor.download = `management-century-registro-seed-${game.seed}.txt`;
     anchor.click();
     URL.revokeObjectURL(url);
     toast('success', 'Registro exportado', 'O registro completo foi salvo como arquivo de texto.');
@@ -78,13 +78,13 @@ export function ChroniclePanel() {
   return (
     <ViewShell
       eyebrow="Arquivo da campanha"
-      title="Registro da Partilha"
+      title="Registro da companhia"
       subtitle="Cada decisão relevante fica registrada aqui — o mesmo log que um servidor autoritativo usaria para auditar a partida."
       icon="ScrollText"
       actions={<button className="button button--ghost button--small" onClick={download} type="button"><Icon name="Download" size={14} /> Exportar .txt</button>}
     >
       <div className="chronicle-toolbar">
-        <div className="chip-tabs" role="tablist" aria-label="Filtrar crônicas">
+        <div className="chip-tabs" role="tablist" aria-label="Filtrar registros">
           {FILTERS.map((item) => (
             <button
               key={item.id}
@@ -101,7 +101,7 @@ export function ChroniclePanel() {
         </div>
         <label className="search-field">
           <Icon name="Search" size={14} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar no registro…" aria-label="Buscar nas crônicas" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar no registro…" aria-label="Buscar no registro" />
           {query ? <button onClick={() => setQuery('')} type="button" aria-label="Limpar busca"><Icon name="X" size={12} /></button> : null}
         </label>
       </div>
@@ -140,7 +140,7 @@ export function ChroniclePanel() {
         </div>
       ) : (
         <EmptyState icon="ScrollText" title="Nada registrado com esse filtro">
-          As crônicas crescem conforme você governa. Avance ciclos, construa, negocie ou entre em conflito para gerar registros.
+          O registro cresce conforme a companhia opera. Avance ciclos, construa, negocie e abra unidades para gerar registros.
         </EmptyState>
       )}
     </ViewShell>

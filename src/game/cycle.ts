@@ -1,5 +1,5 @@
 import { BUILDINGS, FACTIONS, MARKET_LABELS, OBJECTIVES, TECHS } from './constants';
-import { applyEconomy, adminCapacityOfState, developmentOf } from './economy';
+import { applyEconomy, adminCapacityOfState, developmentOf, moneyOf } from './economy';
 import { generateOffers, runAITurns } from './ai';
 import { eventById, pickEvent } from './events';
 import { getRelation, relationKey } from './diplomacy';
@@ -27,9 +27,13 @@ export interface AdvanceResult {
 function refund(state: GameState, project: Project, credits: number, materias: number, influence: number): void {
   const faction = state.factions[project.factionId];
   if (!faction) return;
-  faction.stocks.creditos = round1(faction.stocks.creditos + Math.round((project.cost.creditos ?? 0) * credits));
-  faction.stocks.materias = round1(faction.stocks.materias + Math.round((project.cost.materias ?? 0) * materias));
-  faction.stocks.influencia = round1(faction.stocks.influencia + Math.round((project.cost.influencia ?? 0) * influence));
+  // A obra foi paga em caixa: o reembolso devolve a parcela correspondente em dinheiro.
+  const returned = moneyOf({
+    creditos: (project.cost.creditos ?? 0) * credits,
+    materias: (project.cost.materias ?? 0) * materias,
+    influencia: (project.cost.influencia ?? 0) * influence,
+  });
+  faction.stocks.creditos = round1(faction.stocks.creditos + Math.round(returned));
 }
 
 function completeProjects(state: GameState, completed: string[]): void {
@@ -46,7 +50,7 @@ function completeProjects(state: GameState, completed: string[]): void {
     if (project.kind === 'construcao' && project.building) {
       if (!tile || tile.owner !== project.factionId) {
         refund(state, project, 0.5, 0.5, 0);
-        logEntry(state, 'construcao', `Obra perdida: o território de ${tile?.name ?? 'destino'} não pertence mais a ${FACTIONS[project.factionId].short}.`, project.factionId);
+        logEntry(state, 'construcao', `Obra perdida: a praça de ${tile?.name ?? 'destino'} não pertence mais a ${FACTIONS[project.factionId].short}.`, project.factionId);
       } else {
         const level = Math.min(3, project.targetLevel ?? tile.buildings[project.building] + 1);
         tile.buildings[project.building] = level;
@@ -65,7 +69,7 @@ function completeProjects(state: GameState, completed: string[]): void {
         // Already ours (should not happen).
       } else if (tile.owner !== null) {
         refund(state, project, 0.7, 0.5, 1);
-        logEntry(state, 'expansao', `${FACTIONS[project.factionId].short}: a expedição a ${tile.name} foi desviada — outro poder chegou primeiro.`, project.factionId);
+        logEntry(state, 'expansao', `${FACTIONS[project.factionId].short}: a licença para ${tile.name} foi perdida — outra companhia chegou primeiro.`, project.factionId);
       } else if (tilesOfFaction(state.tiles, project.factionId).length >= adminCapacityOfState(state, project.factionId)) {
         refund(state, project, 0.8, 0.8, 1);
         logEntry(state, 'expansao', `${FACTIONS[project.factionId].short}: entrada em ${tile.name} cancelada por falta de capacidade administrativa.`, project.factionId);
@@ -191,8 +195,12 @@ export function advanceCycle(state: GameState): AdvanceResult {
 
   completeProjects(next, completed);
 
+  let playerEco: ReturnType<typeof applyEconomy> | null = null;
   for (const id of Object.keys(next.factions) as FactionId[]) {
-    if (!next.factions[id].eliminated) applyEconomy(next, id);
+    if (!next.factions[id].eliminated) {
+      const eco = applyEconomy(next, id);
+      if (id === next.playerFactionId) playerEco = eco;
+    }
   }
 
   resolveInsolvency(next);
@@ -228,6 +236,9 @@ export function advanceCycle(state: GameState): AdvanceResult {
     deltas,
     production: { ...player.lastProduction },
     consumption: { ...player.lastConsumption },
+    income: round1(playerEco?.finance.income ?? 0),
+    expenses: round1(playerEco?.finance.expenses ?? 0),
+    cash: round1(player.stocks.creditos),
     completed,
     events: eventTitle ? [eventTitle] : [],
     shortages: [...player.shortages],
