@@ -25,6 +25,8 @@ import {
   expandOperation,
   expansionCost,
   openOperation,
+  expandUnitBuild,
+  expandUnitBusiness,
   proposeTreaty,
   requiredDevelopment,
   sendGift,
@@ -33,10 +35,10 @@ import {
   startResearch,
 } from './commands';
 import { citiesOf, cityById } from './atlas';
-import { SECTORS } from './constants';
+import { MAX_UNIT_BUILD, MAX_UNIT_RANGE, SECTORS } from './constants';
 import { scoreOf } from './progress';
 import type { AtlasCity } from './atlas';
-import { operationCost } from './operations';
+import { buildLevel, operationCost, rangeLevel, unitExpansionCost } from './operations';
 import type { SectorKey } from './types';
 import { logEntry } from './state';
 import type {
@@ -353,6 +355,30 @@ function tryOpenOperation(state: GameState, id: FactionId): boolean {
   return false;
 }
 
+/** Comprar expansão física ou de negócio: as rivais também crescem no lugar. */
+function tryExpandUnit(state: GameState, id: FactionId): boolean {
+  const faction = state.factions[id];
+  const operations = state.operations.filter((op) => op.factionId === id);
+  if (!operations.length) return false;
+  const operation = operations[Math.floor(nextRandom(state) * operations.length)];
+  const city = cityById(operation.cityId);
+  if (!city) return false;
+  const options: Array<'build' | 'range'> = [];
+  if (buildLevel(operation) < MAX_UNIT_BUILD) options.push('build');
+  if (rangeLevel(operation) < MAX_UNIT_RANGE) options.push('range');
+  if (!options.length) return false;
+  const kind = options[Math.floor(nextRandom(state) * options.length)];
+  const level = kind === 'build' ? buildLevel(operation) : rangeLevel(operation);
+  const cost = unitExpansionCost(city, operation.sector, kind, level);
+  if (faction.stocks.creditos - cost.creditos < 40) return false;
+  return applyResult(
+    state,
+    kind === 'build'
+      ? expandUnitBuild(state, id, operation.id)
+      : expandUnitBusiness(state, id, operation.id),
+  );
+}
+
 /** Ampliar a filial existente rende mais que abrir outra em cidade pequena. */
 function tryUpgradeOperation(state: GameState, id: FactionId): boolean {
   const candidates = state.operations
@@ -408,9 +434,11 @@ export function runAITurn(state: GameState, id: FactionId): void {
     acted = tryExpand(state, id);
   }
 
-  // 2. Rede de filiais: investimento recorrente que não ocupa vaga de obra.
-  if (nextRandom(state) < 0.55) tryOpenOperation(state, id);
-  else tryUpgradeOperation(state, id);
+  // 2. Rede de filiais: abrir, comprar módulos ou expandir a unidade.
+  const branchRoll = nextRandom(state);
+  if (branchRoll < 0.42) tryOpenOperation(state, id);
+  else if (branchRoll < 0.75) tryUpgradeOperation(state, id);
+  else tryExpandUnit(state, id);
 
   // 3. Essential infrastructure, then research and development.
   if (!acted) {

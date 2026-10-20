@@ -21,8 +21,8 @@ export const GAME = {
   subtitle: 'Companhias, mercado e relevância',
   world: 'Terra · Mercado global',
   tagline: 'Todo mercado é uma decisão.',
-  version: 4,
-  saveVersion: 4,
+  version: 5,
+  saveVersion: 5,
   baseProjectSlots: 2,
   baseAdminCapacity: 4,
   maxBuildingLevel: 3,
@@ -533,6 +533,12 @@ export const OBJECTIVES: ObjectiveDef[] = [
     hint: 'Compre fazendas, lojas, portos e fábricas nas cidades das praças licenciadas.',
   },
   {
+    id: 'expansoes', title: 'Unidades que crescem', target: 4, unit: 'expansões',
+    description: 'Conclua 4 expansões nas suas unidades.',
+    icon: 'Blocks',
+    hint: 'No módulo Construção, compre expansões de construção e de ramo para os mesmos endereços.',
+  },
+  {
     id: 'territorios', title: 'Presença internacional', target: 8, unit: 'praças',
     description: 'Tenha licença em ao menos 8 praças.',
     icon: 'Map',
@@ -658,3 +664,127 @@ export const SECTORS: Record<SectorKey, SectorDef> = {
 };
 
 export const SECTOR_ORDER: SectorKey[] = ['fazenda', 'varejo', 'porto', 'industria', 'fabrica', 'financas'];
+
+// ── Expansões das unidades ──────────────────────────────────────────────────
+
+export interface UnitExpansionDef {
+  key: string;
+  name: string;
+  short: string;
+  description: string;
+  /** Fração de receita adicionada ao resultado da unidade. */
+  revenue: number;
+  /** Fração de manutenção adicionada (só construção). */
+  upkeep?: number;
+  /** Fração de insumos adicionada (ramos industriais). */
+  supply?: number;
+  /** Peso extra na participação de mercado (só construção). */
+  presence?: number;
+}
+
+/** Três degraus físicos: a unidade nasce pequena e ganha área construída. */
+export const UNIT_BUILD_STEPS: UnitExpansionDef[] = [
+  {
+    key: 'ampliacao', name: 'Ampliação da área', short: 'Ampliação',
+    description: 'Mais área construída, pátio próprio e um segundo turno de operação.',
+    revenue: 0.12, upkeep: 0.06, presence: 0.3,
+  },
+  {
+    key: 'complexo', name: 'Complexo próprio', short: 'Complexo',
+    description: 'Prédio administrativo, docas e estacionamento no mesmo terreno.',
+    revenue: 0.2, upkeep: 0.1, presence: 0.55,
+  },
+  {
+    key: 'ancora', name: 'Unidade âncora', short: 'Âncora',
+    description: 'Marco da companhia na cidade: vitrine, centro logístico e diretoria regional.',
+    revenue: 0.3, upkeep: 0.14, presence: 0.8,
+  },
+];
+
+/** Custo base das expansões físicas, como múltiplo do custo de abertura. */
+export const UNIT_BUILD_COST = [0.8, 1.8, 3.4];
+/** Custo base das expansões de negócio, como múltiplo do custo de abertura. */
+export const UNIT_RANGE_COST = [0.7, 1.5, 2.8];
+
+/**
+ * Expansões do ramo de negócio: cada linha acrescenta uma fonte de receita
+ * concreta ao mesmo endereço. Ramos industriais também compram mais insumos.
+ */
+export const UNIT_RANGE_STEPS: Record<SectorKey, UnitExpansionDef[]> = {
+  fazenda: [
+    { key: 'irrigacao', name: 'Irrigação própria', short: 'Irrigação', description: 'Segunda safra no ano e menos dependência do clima.', revenue: 0.16 },
+    { key: 'embalagem', name: 'Casa de embalagem', short: 'Embalagem', description: 'Classifica e embala a produção antes de vender.', revenue: 0.22 },
+    { key: 'frigorifico', name: 'Frigorífico', short: 'Frigorífico', description: 'Cadeia de frio e cortes premium para o varejo.', revenue: 0.3 },
+  ],
+  varejo: [
+    { key: 'sortimento', name: 'Sortimento ampliado', short: 'Sortimento', description: 'Mais categorias na prateleira e compra em volume.', revenue: 0.16 },
+    { key: 'clube', name: 'Clube de assinatura', short: 'Clube', description: 'Receita recorrente dos clientes fiéis da rede.', revenue: 0.22 },
+    { key: 'centro', name: 'Centro de distribuição', short: 'Centro', description: 'Reposição rápida e marcas próprias nas lojas.', revenue: 0.3 },
+  ],
+  porto: [
+    { key: 'guindastes', name: 'Guindastes de pátio', short: 'Guindastes', description: 'Menos espera por navio e mais carga movimentada.', revenue: 0.16 },
+    { key: 'frio', name: 'Armazém frigorificado', short: 'Armazém frio', description: 'Cargas refrigeradas, de maior valor por tonelada.', revenue: 0.22 },
+    { key: 'conteineres', name: 'Terminal de contêineres', short: 'Contêineres', description: 'Escala para navios oceânicos e rotas longas.', revenue: 0.3 },
+  ],
+  industria: [
+    { key: 'segunda-linha', name: 'Segunda linha', short: '2ª linha', description: 'Outro turno e outra linha no mesmo galpão.', revenue: 0.16, supply: 0.06 },
+    { key: 'automacao', name: 'Automação de célula', short: 'Automação', description: 'Menos retrabalho, mais margem por peça.', revenue: 0.22, supply: 0.06 },
+    { key: 'fornecedores', name: 'Parque de fornecedores', short: 'Fornecedores', description: 'Insumos comprados em escala ao lado da planta.', revenue: 0.3, supply: 0.06 },
+  ],
+  fabrica: [
+    { key: 'modelos', name: 'Linha de modelos', short: 'Modelos', description: 'Segundo modelo na mesma plataforma.', revenue: 0.16, supply: 0.06 },
+    { key: 'engenharia', name: 'Centro de engenharia', short: 'Engenharia', description: 'Plataforma própria, protótipos e testes.', revenue: 0.22, supply: 0.06 },
+    { key: 'exportacao', name: 'Plataforma de exportação', short: 'Exportação', description: 'Veículos embarcados para outros continentes.', revenue: 0.3, supply: 0.06 },
+  ],
+  financas: [
+    { key: 'cambio', name: 'Mesa de câmbio', short: 'Câmbio', description: 'Operações internacionais e hedge para clientes.', revenue: 0.16 },
+    { key: 'seguros', name: 'Seguros próprios', short: 'Seguros', description: 'Prêmios recorrentes sobre a carteira da rede.', revenue: 0.22 },
+    { key: 'credito', name: 'Crédito estruturado', short: 'Crédito', description: 'Financia fornecedores e cobra spread.', revenue: 0.3 },
+  ],
+};
+
+export const MAX_UNIT_BUILD = UNIT_BUILD_STEPS.length;
+export const MAX_UNIT_RANGE = 3;
+
+// ── Expansões da sede ───────────────────────────────────────────────────────
+
+export interface HqStageDef {
+  key: string;
+  name: string;
+  description: string;
+  /** Pisos exibidos na maquete. */
+  floors: number;
+  /** Altura em metros para a cena 3D. */
+  height: number;
+  /** Bônus de comércio nas unidades da cidade-sede. */
+  commerce: number;
+  /** Vagas administrativas extras. */
+  admin: number;
+  /** Custo da expansão que leva a este estágio (0 no estágio inicial). */
+  cost: number;
+}
+
+export const HQ_STAGES: HqStageDef[] = [
+  {
+    key: 'compacto', name: 'Escritório compacto',
+    description: 'Uma sala, um balcão e a primeira vitrine da companhia na cidade.',
+    floors: 3, height: 14, commerce: 0, admin: 0, cost: 0,
+  },
+  {
+    key: 'corporativa', name: 'Sede corporativa',
+    description: 'Pisos próprios, recepção e sala de diretoria para receber parceiros.',
+    floors: 8, height: 34, commerce: 0.08, admin: 0, cost: 320,
+  },
+  {
+    key: 'torre', name: 'Torre administrativa',
+    description: 'Torre com fachada de vidro, auditório e central de operações.',
+    floors: 14, height: 66, commerce: 0.14, admin: 1, cost: 780,
+  },
+  {
+    key: 'matriz', name: 'Complexo matriz',
+    description: 'Campus matriz com heliponto, jardins e o centro de comando do grupo.',
+    floors: 20, height: 98, commerce: 0.22, admin: 1, cost: 1500,
+  },
+];
+
+export const MAX_HQ_BUILD = HQ_STAGES.length - 1;

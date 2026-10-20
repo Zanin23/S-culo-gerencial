@@ -14,7 +14,7 @@ import type {
 } from './types';
 import { EMPTY_FLOW, EMPTY_STOCKS } from './constants';
 import { clamp, round1 } from './rng';
-import { hqCommerceMult, hqDefenseMult, hqProductionMult } from './hq';
+import { hqCommerceMult, hqDefenseMult, hqProductionMult, seatAdminBonus } from './hq';
 import { operationsSummary } from './operations';
 
 export const POP_FOOD = 0;
@@ -209,7 +209,7 @@ export function adminCapacityOfState(state: GameState, factionId: FactionId): nu
   const adminLevels = Object.values(state.tiles)
     .filter((t) => t.owner === factionId)
     .reduce((sum, t) => sum + t.buildings.administrativo, 0);
-  return BASE_ADMIN_CAPACITY + adminLevels + techEffects(faction).adminCapacity;
+  return BASE_ADMIN_CAPACITY + adminLevels + techEffects(faction).adminCapacity + seatAdminBonus(state, factionId);
 }
 
 export function projectSlotsOf(faction: Faction): number {

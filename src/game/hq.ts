@@ -1,4 +1,6 @@
-import type { CityDistrict, GameState } from './types';
+import { HQ_STAGES, MAX_HQ_BUILD, type HqStageDef } from './constants';
+import { clamp } from './rng';
+import type { CityDistrict, FactionId, GameState } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Efeito do distrito onde a sede foi erguida.
@@ -60,4 +62,31 @@ export function hqProductionMult(state: GameState, tileId: string): number {
 
 export function hqDefenseMult(state: GameState, tileId: string): number {
   return 1 + (hqEffectFor(state, tileId)?.defense ?? 0);
+}
+
+
+// ── Expansões da sede ───────────────────────────────────────────────────────
+// A sede também começa pequena. Cada expansão física aumenta a maquete e
+// beneficia as unidades de negócio instaladas na mesma cidade.
+
+/** Estágio atual da sede (0–3). Saves antigos não têm o campo. */
+export function seatBuildLevel(state: GameState): number {
+  return clamp(Math.round(state.city?.build ?? 0), 0, MAX_HQ_BUILD);
+}
+
+export function seatStage(state: GameState): HqStageDef {
+  return HQ_STAGES[seatBuildLevel(state)];
+}
+
+/** Bônus de comércio da sede nas unidades da própria cidade-sede. */
+export function seatCommerceMult(state: GameState, factionId: FactionId, cityId: string): number {
+  if (factionId !== state.playerFactionId) return 1;
+  if (!state.city || state.city.cityId !== cityId) return 1;
+  return 1 + seatStage(state).commerce;
+}
+
+/** Vagas administrativas extras conquistadas com as expansões da sede. */
+export function seatAdminBonus(state: GameState, factionId: FactionId): number {
+  if (factionId !== state.playerFactionId || !state.city) return 0;
+  return HQ_STAGES.slice(0, seatBuildLevel(state) + 1).reduce((sum, stage) => sum + stage.admin, 0);
 }

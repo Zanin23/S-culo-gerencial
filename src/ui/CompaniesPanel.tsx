@@ -12,6 +12,7 @@ import {
   LOCAL_MARKET_UNITS,
   MAX_UNITS_PER_CITY,
   averageOperationShare,
+  buildLevel,
   canOpenOperation,
   canOpenSector,
   cityMarketSize,
@@ -19,6 +20,7 @@ import {
   operationOutput,
   operationsOf,
   operationsSummary,
+  rangeLevel,
 } from '../game/operations';
 import { scoreOf } from '../game/progress';
 import type { SectorKey } from '../game/types';
@@ -35,6 +37,7 @@ export function CompaniesPanel() {
   const openOperation = useGameStore((s) => s.openOperation);
   const upgradeOperation = useGameStore((s) => s.upgradeOperation);
   const closeOperation = useGameStore((s) => s.closeOperation);
+  const setView = useGameStore((s) => s.setView);
   const playerId = game.playerFactionId;
   const player = game.factions[playerId];
   const tech = techEffects(player);
@@ -145,7 +148,15 @@ export function CompaniesPanel() {
           eyebrow="Portfólio"
           title={operations.length ? 'Unidades da companhia' : 'Nenhuma unidade aberta'}
           icon="Store"
-          action={<span className="muted tiny">{FACTIONS[playerId].short} · {game.cycle}º ciclo</span>}
+          action={
+            operations.length ? (
+              <button className="text-button" type="button" onClick={() => setView('units')}>
+                Construção e expansões <Icon name="ChevronRight" size={13} />
+              </button>
+            ) : (
+              <span className="muted tiny">{FACTIONS[playerId].short} · {game.cycle}º ciclo</span>
+            )
+          }
         />
         {operations.length ? (
           <div className="ops-grid">
@@ -163,6 +174,9 @@ export function CompaniesPanel() {
                   <div className="ops-row__name">
                     <strong>{host?.name ?? operation.cityId}</strong>
                     <small>{meta.name} · {country?.name ?? operation.countryId} · {fmt(host?.pop ?? 0)} hab</small>
+                    <small className="ops-row__build">
+                      obra {buildLevel(operation) + 1}/4 · ramo {rangeLevel(operation) + 1}/4
+                    </small>
                   </div>
                   <div className="ops-row__share">
                     <span className="muted tiny">participação</span>

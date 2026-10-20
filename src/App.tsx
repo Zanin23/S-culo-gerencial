@@ -7,6 +7,7 @@ import { CYCLE_SECONDS, useGameStore } from './store/gameStore';
 import { ChroniclePanel } from './ui/ChroniclePanel';
 import { CompaniesPanel } from './ui/CompaniesPanel';
 import { CityView } from './ui/CityView';
+import { BuildPanel } from './ui/BuildPanel';
 import { ConstructionPanel } from './ui/ConstructionPanel';
 import { DiplomacyPanel } from './ui/DiplomacyPanel';
 import { EconomyPanel } from './ui/EconomyPanel';
@@ -28,6 +29,7 @@ import { TopBar } from './ui/TopBar';
 const VIEWS = {
   map: MapView,
   city: CityView,
+  units: BuildPanel,
   companies: CompaniesPanel,
   economy: EconomyPanel,
   construction: ConstructionPanel,
@@ -39,10 +41,10 @@ const VIEWS = {
   settings: SettingsPanel,
 } as const;
 
-/** Teclas 1–9 percorrem as telas principais; 0 abre o relatório. */
+/** Teclas 1–9 percorrem as telas principais; 0 abre o relatório; U abre as unidades. */
 const KEY_VIEWS = ['map', 'city', 'companies', 'economy', 'construction', 'tech', 'expansion', 'diplomacy', 'objectives'] as const;
 
-const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'city' | 'economy' | 'construction' | 'tech' | 'companies' | 'diplomacy' | 'objectives'; hint: string }> = [
+const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'city' | 'economy' | 'construction' | 'tech' | 'companies' | 'diplomacy' | 'objectives' | 'units'; hint: string }> = [
   {
     title: 'Sua companhia, seu mercado',
     body: 'Você dirige o Grupo Concórdia, com operações em Portugal e Espanha. A campanha começa na escolha da cidade-sede: terreno real, ruas geradas e o lote onde a primeira estrutura será erguida.',
@@ -55,7 +57,7 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
     body: 'Cada decisão é econômica: o ciclo fecha receita e despesa em caixa; obras elevam o desenvolvimento; a expansão compra licenças para operar em novas praças. O distrito da sede já entra no cálculo.',
     icon: 'Building2',
     view: 'economy',
-    hint: 'Use Economia para ver caixa e resultado, Obras para construir e Expansão para licenciar novas praças.',
+    hint: 'Use Economia para ver caixa e resultado, Estruturas para construir e Expansão para licenciar novas praças.',
   },
   {
     title: 'O ciclo move o mundo',
@@ -70,6 +72,13 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
     icon: 'Hammer',
     view: 'construction',
     hint: 'Cada praça tem vagas limitadas. Obras ocupam uma vaga de projeto até concluir.',
+  },
+  {
+    title: 'Sede e filiais evoluem',
+    body: 'Toda unidade nasce pequena. No módulo Construção você compra expansões de construção, que erguem o prédio e aumentam a presença de mercado, e expansões de ramo, que abrem novas fontes de receita no mesmo endereço. A sede sobe do escritório compacto ao complexo matriz.',
+    icon: 'Blocks',
+    view: 'units',
+    hint: 'A tecla U abre Construção. Cada trilha tem três compras e mexe em receita, manutenção e participação de mercado.',
   },
   {
     title: 'P&D com trade-offs',
@@ -134,6 +143,11 @@ export function App() {
         if (helpOpen || store.digest || store.confirm || store.tutorialStep !== null) return;
         event.preventDefault();
         if (store.game?.phase === 'playing' && !store.game?.pendingEventId) store.advance();
+        return;
+      }
+      if (event.key.toLowerCase() === 'u') {
+        event.preventDefault();
+        store.setView('units');
         return;
       }
       if (/^[0-9]$/.test(event.key)) {
@@ -222,7 +236,7 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
       <div className="help-footer">
         <div>
           <strong>Indicadores e atalhos</strong>
-          <p>Caixa, receita, despesas, unidades e praças. Teclas 1–9 trocam de tela, espaço avança um ciclo, Esc fecha modais e ? abre este manual.</p>
+          <p>Caixa, receita, despesas, unidades e praças. Teclas 1–9 trocam de tela, U abre a construção das unidades, espaço avança um ciclo, Esc fecha modais e ? abre este manual.</p>
         </div>
         <div>
           <strong>Sem jogadores fictícios</strong>

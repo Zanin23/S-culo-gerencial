@@ -12,6 +12,8 @@ export interface CityStageProps {
   plotId?: string | null;
   /** Pisos visíveis no corte da sede (1–4). */
   floor?: number;
+  /** Estágio da sede (0–3): muda a altura e os detalhes da maquete. */
+  stage?: number;
   showMinimap?: boolean;
   onPickPlot?: (plot: CityPlot) => void;
   onEnterBuilding?: () => void;
@@ -87,16 +89,24 @@ export function CityPlan2D({
           <stop offset="0%" stopColor="#12414f" />
           <stop offset="100%" stopColor="#0a2630" />
         </radialGradient>
+        <radialGradient id={`land-glow-${plan.cityId}`} cx="48%" cy="42%" r="68%">
+          <stop offset="0%" stopColor="#3d4a39" />
+          <stop offset="62%" stopColor="#2b382b" />
+          <stop offset="100%" stopColor="#1d2a24" />
+        </radialGradient>
       </defs>
-      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill="#243128" />
-      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill={`url(#water-glow-${plan.cityId})`} opacity={0.35} />
+      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill={`url(#land-glow-${plan.cityId})`} />
+      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill={`url(#water-glow-${plan.cityId})`} opacity={0.3} />
       {/* água aproximada pelas células: retângulos agrupados por linha */}
       {!compact && <WaterMask plan={plan} />}
-      <path d={roads} fill="none" stroke="#454b4e" strokeWidth={compact ? 26 : 11} strokeLinecap="round" />
+      {!compact && <ParkMask plan={plan} />}
+      <path d={roads} fill="none" stroke="#3b4144" strokeWidth={compact ? 26 : 12} strokeLinecap="round" />
+      <path d={roads} fill="none" stroke="#5c625f" strokeWidth={compact ? 26 : 2} strokeLinecap="round" opacity={0.5} />
       {fabric.map(([kind, path]) => (
         <path key={kind} d={path.join('')} fill={PLAN2D_KINDS[kind] ?? '#6b6f66'} opacity={0.9} />
       ))}
       {shore && <path d={shore} fill="none" stroke="#c9bd9a" strokeWidth={compact ? 30 : 13} opacity={0.55} />}
+      {!compact && <TreeDots plan={plan} />}
       {plan.plots.map((plot) => {
         const isHq = plot.id === plotId;
         const isChosen = plot.id === selectedPlotId;
@@ -161,6 +171,57 @@ function WaterMask({ plan }: { plan: CityPlan }) {
   return <g>{rows}</g>;
 }
 
+/** Parques e praças na planta 2D, agrupados por linha para ficar leve. */
+function ParkMask({ plan }: { plan: CityPlan }) {
+  const rows: React.ReactNode[] = [];
+  const step = 4;
+  for (let j = 0; j < plan.cells; j += step) {
+    let start = -1;
+    for (let i = 0; i <= plan.cells; i += step) {
+      const park = i < plan.cells && plan.park[j * plan.cells + i] === 1;
+      if (park && start < 0) start = i;
+      if (!park && start >= 0) {
+        const x = -plan.size / 2 + start * plan.cell;
+        const y = -plan.size / 2 + j * plan.cell;
+        rows.push(
+          <rect
+            key={`p-${j}-${start}`}
+            x={x}
+            y={-y - step * plan.cell}
+            width={(i - start) * plan.cell}
+            height={step * plan.cell + 1}
+            fill="#2f5236"
+            opacity={0.85}
+          />,
+        );
+        start = -1;
+      }
+    }
+  }
+  return <g>{rows}</g>;
+}
+
+/** Copas de árvore pontuais na planta: o mesmo verde da maquete 3D. */
+function TreeDots({ plan }: { plan: CityPlan }) {
+  const trees = plan.trees.length > 1600
+    ? plan.trees.filter((_, index) => index % Math.ceil(plan.trees.length / 1600) === 0)
+    : plan.trees;
+  return (
+    <g>
+      {trees.map((tree, index) => (
+        <circle
+          key={`${tree.x}-${tree.y}-${index}`}
+          cx={tree.x}
+          cy={-tree.y}
+          r={Math.max(3, tree.s * 0.55)}
+          fill="#4c7f4f"
+          opacity={0.75}
+        />
+      ))}
+    </g>
+  );
+}
+
 export function CityStage({
   cityId,
   mode,
@@ -171,6 +232,7 @@ export function CityStage({
   onFail,
   onHoverPlot,
   floor = 4,
+  stage = 0,
   children,
   className,
 }: CityStageProps) {
@@ -237,8 +299,8 @@ export function CityStage({
 
   useEffect(() => {
     if (!sceneRef.current || !selectedPlot) return;
-    sceneRef.current.setHq(selectedPlot);
-  }, [selectedPlot, active]);
+    sceneRef.current.setHq(selectedPlot, stage);
+  }, [selectedPlot, stage, active]);
 
   useEffect(() => {
     sceneRef.current?.setMode(mode);

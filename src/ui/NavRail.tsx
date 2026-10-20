@@ -5,9 +5,10 @@ import { cx, Tooltip } from './primitives';
 const ITEMS: Array<{ view: ViewKey; label: string; icon: string }> = [
   { view: 'map', label: 'Mundo', icon: 'Map' },
   { view: 'city', label: 'Cidade', icon: 'Building2' },
+  { view: 'units', label: 'Construção', icon: 'Blocks' },
   { view: 'companies', label: 'Empresas', icon: 'Store' },
   { view: 'economy', label: 'Economia', icon: 'Coins' },
-  { view: 'construction', label: 'Obras', icon: 'Hammer' },
+  { view: 'construction', label: 'Estruturas', icon: 'Hammer' },
   { view: 'tech', label: 'P&D', icon: 'FlaskConical' },
   { view: 'expansion', label: 'Expansão', icon: 'Target' },
   { view: 'diplomacy', label: 'Acordos', icon: 'Handshake' },
@@ -49,7 +50,7 @@ export function NavRail({ onHelp }: { onHelp: () => void }) {
                 <Icon name={item.icon} size={19} />
                 {item.view === 'diplomacy' && offers ? <span className="dot-badge">{offers}</span> : null}
                 {item.view === 'construction' && pendingProjects ? <span className="dot-badge dot-badge--teal">{pendingProjects}</span> : null}
-                {item.view === 'companies' && openOperations ? <span className="dot-badge dot-badge--teal">{openOperations}</span> : null}
+                {item.view === 'units' && openOperations ? <span className="dot-badge dot-badge--gold">{openOperations}</span> : null}
               </span>
               <span className="nav-item__label">{item.label}</span>
             </button>

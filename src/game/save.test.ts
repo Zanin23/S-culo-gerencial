@@ -23,9 +23,9 @@ describe('save com o novo nome do jogo', () => {
   it('grava na chave de MANAGEMENT CENTURY', () => {
     const storage = memoryStorage();
     expect(saveState(state(), storage)).toBe(true);
-    expect(storage.getItem('management-century.save.v4')).toBeTruthy();
+    expect(storage.getItem('management-century.save.v5')).toBeTruthy();
     expect(storage.getItem('tessera.save.v2')).toBeNull();
-    expect(SAVE_KEY).toBe('management-century.save.v4');
+    expect(SAVE_KEY).toBe('management-century.save.v5');
   });
 
   it('migra a campanha salva como TESSERA e libera a chave antiga', () => {
@@ -57,7 +57,7 @@ describe('save com o novo nome do jogo', () => {
     const result = loadState(storage);
     expect(result.error).toBeNull();
     const migrated = result.state!;
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.operations[0].units).toBe(3);
     expect(migrated.operations[0].sector).toBe('porto');
     expect((migrated.operations[0] as unknown as Record<string, unknown>).level).toBeUndefined();
@@ -105,7 +105,7 @@ describe('save com o novo nome do jogo', () => {
     const result = loadState(storage);
     expect(result.error).toBeNull();
     const migrated = result.state!;
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(migrated.operations).toEqual([]);
     expect(migrated.factions.concordia.deficitCycles).toBe(0);
     expect((migrated.factions.concordia as unknown as Record<string, unknown>).military).toBeUndefined();
@@ -115,5 +115,49 @@ describe('save com o novo nome do jogo', () => {
     expect(migrated.log[0].kind).toBe('operacoes');
     expect((migrated as unknown as Record<string, unknown>).lastBattle).toBeUndefined();
     expect((migrated.lastReport as unknown as Record<string, unknown> | undefined)?.battles).toBeUndefined();
+  });
+
+  it('abre uma campanha v4 sem expansões como estágio inicial', () => {
+    const legacy = JSON.parse(JSON.stringify(state())) as Record<string, unknown>;
+    legacy.version = 4;
+    legacy.operations = [
+      { id: 'op1', factionId: 'concordia', cityId: 'c1', countryId: 'PRT', sector: 'varejo', units: 2, openedCycle: 1 },
+    ];
+    legacy.city = {
+      cityId: 'c1', cityName: 'Lisboa', countryId: 'PRT', district: 'Centro',
+      plotId: 'c1-lote-01', foundedCycle: 1,
+    };
+    const storage = memoryStorage();
+    storage.setItem('management-century.save.v4', JSON.stringify(legacy));
+
+    const result = loadState(storage);
+    expect(result.error).toBeNull();
+    const migrated = result.state!;
+    expect(migrated.version).toBe(5);
+    expect(migrated.operations[0].build).toBe(0);
+    expect(migrated.operations[0].range).toBe(0);
+    expect(migrated.city?.build).toBe(0);
+    // A campanha antiga continua jogável e é regravada já no formato v5.
+    expect(storage.getItem(SAVE_KEY)).toBeTruthy();
+    expect(storage.getItem('management-century.save.v4')).toBeNull();
+  });
+
+  it('limita expansões corrompidas ao intervalo válido', () => {
+    const legacy = JSON.parse(JSON.stringify(state())) as Record<string, unknown>;
+    legacy.version = 4;
+    legacy.operations = [
+      { id: 'op1', factionId: 'concordia', cityId: 'c1', countryId: 'PRT', sector: 'varejo', units: 2, openedCycle: 1, build: 99, range: -4 },
+    ];
+    legacy.city = {
+      cityId: 'c1', cityName: 'Lisboa', countryId: 'PRT', district: 'Centro',
+      plotId: 'c1-lote-01', foundedCycle: 1, build: 42,
+    };
+    const storage = memoryStorage();
+    storage.setItem('management-century.save.v4', JSON.stringify(legacy));
+
+    const migrated = loadState(storage).state!;
+    expect(migrated.operations[0].build).toBe(3);
+    expect(migrated.operations[0].range).toBe(0);
+    expect(migrated.city?.build).toBe(3);
   });
 });
