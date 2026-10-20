@@ -85,7 +85,7 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
     body: `Vença alcançando ${VICTORY_TARGET} pontos ou cumprindo a meta de desenvolvimento do capital. Você perde se perder o capital ou ficar sem territórios. As quatro Casas adversárias perseguem doutrinas diferentes e não recebem vantagens ocultas.`,
     icon: 'Award',
     view: 'objectives',
-    hint: 'A aba Campanha lista objetivos, ranking e a composição exata da sua pontuação.',
+    hint: 'A aba Metas lista objetivos, ranking e a composição exata da sua pontuação.',
   },
 ];
 

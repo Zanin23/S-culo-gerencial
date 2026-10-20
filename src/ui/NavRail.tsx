@@ -12,8 +12,8 @@ const ITEMS: Array<{ view: ViewKey; label: string; icon: string }> = [
   { view: 'tech', label: 'Ciência', icon: 'FlaskConical' },
   { view: 'expansion', label: 'Expansão', icon: 'Target' },
   { view: 'diplomacy', label: 'Diplomacia', icon: 'Handshake' },
-  { view: 'objectives', label: 'Campanha', icon: 'Award' },
-  { view: 'chronicle', label: 'Crônicas', icon: 'ScrollText' },
+  { view: 'objectives', label: 'Metas', icon: 'Award' },
+  { view: 'chronicle', label: 'Registro', icon: 'ScrollText' },
 ];
 
 export function NavRail({ onHelp }: { onHelp: () => void }) {

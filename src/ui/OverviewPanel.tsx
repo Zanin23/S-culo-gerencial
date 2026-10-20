@@ -232,7 +232,7 @@ export function OverviewPanel() {
         </section>
 
         <section className="card">
-          <SectionHeader eyebrow="Últimos acontecimentos" title="Crônicas recentes" icon="ScrollText" action={<button className="text-button" onClick={() => setView('chronicle')} type="button">Histórico <Icon name="ChevronRight" size={13} /></button>} />
+          <SectionHeader eyebrow="Últimos acontecimentos" title="Movimento recente" icon="ScrollText" action={<button className="text-button" onClick={() => setView('chronicle')} type="button">Histórico <Icon name="ChevronRight" size={13} /></button>} />
           <div className="feed">
             {game.log.slice(0, 4).map((entry) => (
               <div className="feed-row" key={entry.id}>

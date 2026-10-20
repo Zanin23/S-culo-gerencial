@@ -139,7 +139,7 @@ export function SettingsPanel() {
           <div className="about-grid">
             <div><span>Estado</span><strong>Seed + RNG próprios</strong><p>Snapshots versionados e serializáveis em JSON.</p></div>
             <div><span>Comandos</span><strong>Revalidação total</strong><p>Dono, custo, vagas e pré-requisitos checados no motor.</p></div>
-            <div><span>Auditoria</span><strong>Log append-only</strong><p>Crônicas por ciclo, com facção e tipo.</p></div>
+            <div><span>Auditoria</span><strong>Log append-only</strong><p>Registro por ciclo, com facção e tipo.</p></div>
             <div><span>Online</span><strong>Fora do MVP</strong><p>Sem transporte, contas ou matchmaking nesta versão.</p></div>
           </div>
           <p className="muted small" style={{ marginTop: 10 }}>
