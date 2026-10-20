@@ -912,9 +912,10 @@ h1, h2, h3, h4,
 
 .atlas-graticule line {
   stroke: #5f8b83;
-  stroke-width: 0.4;
-  opacity: 0.34;
-  stroke-dasharray: 1 3;
+  stroke-width: 0.35;
+  stroke-opacity: 0.22;
+  stroke-dasharray: 1 5;
+  vector-effect: non-scaling-stroke;
 }
 
 .atlas-rhumb {
@@ -1014,13 +1015,12 @@ h1, h2, h3, h4,
 .atlas-compass {
   position: absolute;
   z-index: 3;
-  right: 16px;
-  top: 58px;
-  width: 104px;
-  height: 104px;
+  right: 18px;
+  bottom: 74px;
+  width: 84px;
+  height: 84px;
   pointer-events: none;
-  filter: drop-shadow(0 8px 16px rgba(43, 32, 18, 0.35));
-  opacity: 0.94;
+  opacity: 0.72;
 }
 
 .atlas-compass__letter {
@@ -1031,6 +1031,7 @@ h1, h2, h3, h4,
 }
 
 .atlas-plate {
+  display: none;
   position: absolute;
   z-index: 3;
   left: 50%;
@@ -1066,6 +1067,7 @@ h1, h2, h3, h4,
 }
 
 .atlas-scalebar {
+  display: none;
   position: absolute;
   z-index: 3;
   left: 18px;
@@ -1652,4 +1654,60 @@ thead th {
 .map-view .map-control {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+
+/* ==========================================================================
+   GESTO: a carta fica mais direta enquanto o ponteiro corre
+   --------------------------------------------------------------------------
+   Durante arrasto e zoom, padrões de terreno, hachuras e cidades são caros de
+   repintar. Em vez de re-renderizar, o CSS troca o desenho: a terra vira
+   lavagem lisa, a trama some e o mapa responde na hora. Ao assentar, tudo volta.
+   ========================================================================== */
+
+.atlas-illustrated.is-panning .atlas-land > path[data-terrain],
+.atlas-illustrated.is-zooming .atlas-land > path[data-terrain] {
+  fill: var(--atlas-flat, #d3c480);
+}
+
+/* Lavagem de emergência por terreno (espelha LAND.*.wash do componente). */
+.atlas-illustrated.is-panning .atlas-land > path[data-terrain='planicie'],
+.atlas-illustrated.is-zooming .atlas-land > path[data-terrain='planicie'] { --atlas-flat: #d3c480; }
+.atlas-illustrated.is-panning .atlas-land > path[data-terrain='floresta'],
+.atlas-illustrated.is-zooming .atlas-land > path[data-terrain='floresta'] { --atlas-flat: #8fae6f; }
+.atlas-illustrated.is-panning .atlas-land > path[data-terrain='colina'],
+.atlas-illustrated.is-zooming .atlas-land > path[data-terrain='colina'] { --atlas-flat: #c9b172; }
+.atlas-illustrated.is-panning .atlas-land > path[data-terrain='montanha'],
+.atlas-illustrated.is-zooming .atlas-land > path[data-terrain='montanha'] { --atlas-flat: #b3a795; }
+.atlas-illustrated.is-panning .atlas-land > path[data-terrain='deserto'],
+.atlas-illustrated.is-zooming .atlas-land > path[data-terrain='deserto'] { --atlas-flat: #dcc08a; }
+.atlas-illustrated.is-panning .atlas-land > path[data-terrain='costa'],
+.atlas-illustrated.is-zooming .atlas-land > path[data-terrain='costa'] { --atlas-flat: #c2c483; }
+
+.atlas-illustrated.is-panning .atlas-hatch,
+.atlas-illustrated.is-zooming .atlas-hatch,
+.atlas-illustrated.is-panning .atlas-claim,
+.atlas-illustrated.is-zooming .atlas-claim,
+.atlas-illustrated.is-panning .atlas-labels,
+.atlas-illustrated.is-zooming .atlas-labels {
+  display: none;
+}
+
+/* Hit-test de 231 polígonos sob o cursor é caro; durante o gesto não é preciso. */
+.atlas-illustrated.is-panning .atlas-hits,
+.atlas-illustrated.is-zooming .atlas-hits,
+.atlas-illustrated.is-panning .atlas-cities,
+.atlas-illustrated.is-zooming .atlas-cities {
+  pointer-events: none;
+}
+
+.atlas-illustrated.is-panning .atlas-shore,
+.atlas-illustrated.is-zooming .atlas-shore {
+  stroke-width: 3;
+  stroke-opacity: 0.7;
+}
+
+.atlas-illustrated.is-panning .atlas-graticule line,
+.atlas-illustrated.is-zooming .atlas-graticule line {
+  stroke-opacity: 0.12;
 }

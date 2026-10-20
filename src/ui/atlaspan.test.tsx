@@ -37,6 +37,11 @@ it('arrastar não reconstrói a árvore: só o viewBox muda', async () => {
     svg.dispatchEvent(pointer('pointerup', 268, 232));
   });
 
+  // A escrita do viewBox é agendada num quadro (um write por frame).
+  await act(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+  });
+
   // Câmera andou…
   expect(svg.getAttribute('viewBox')).not.toBe(before);
   // …sem remontar a carta: mesmos nós e mesmo número de caminhos.
@@ -45,6 +50,48 @@ it('arrastar não reconstrói a árvore: só o viewBox muda', async () => {
   // A camada de terra é mesclada: poucos caminhos para 231 países.
   expect(svg.querySelectorAll(".atlas-land > path").length).toBeLessThan(30);
   expect(svg.querySelectorAll('.atlas-country').length).toBeGreaterThan(200);
+
+  await act(async () => { root.unmount(); });
+  container.remove();
+});
+
+it('zoom também não remonta a carta e limpa o estado de gesto', async () => {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  await act(async () => { root.render(<App />); });
+  await act(async () => {
+    useGameStore.getState().startNewGame(2024);
+    useGameStore.getState().finishTutorial();
+    useGameStore.getState().setView('map');
+  });
+
+  const wrap = container.querySelector('.atlas-illustrated') as HTMLDivElement;
+  const svg = wrap.querySelector('.atlas-svg') as SVGSVGElement;
+  const before = svg.getAttribute('viewBox');
+  const firstCountry = svg.querySelector('.atlas-country');
+
+  for (let i = 0; i < 6; i += 1) {
+    await act(async () => {
+      svg.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaY: -120, clientX: 300, clientY: 200 }));
+    });
+  }
+
+  await act(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+  });
+
+  // Aproximou…
+  expect(svg.getAttribute('viewBox')).not.toBe(before);
+  // …sem remontar nada e em modo de gesto (padrões escondidos por CSS).
+  expect(svg.querySelector('.atlas-country')).toBe(firstCountry);
+  expect(wrap.classList.contains('is-zooming')).toBe(true);
+
+  // Rendering settles and the gesture class is removed.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  });
+  expect(wrap.classList.contains('is-zooming')).toBe(false);
 
   await act(async () => { root.unmount(); });
   container.remove();
