@@ -26,6 +26,25 @@ it('atlas monta sem NaN e com camadas principais', async () => {
   expect(container.querySelector('.atlas-compass')).toBeTruthy();
   expect(container.querySelector('.map-modes')?.textContent).toContain('Atlas');
   expect(container.querySelector('.res-chip__icon svg')).toBeTruthy();
+
+  // Ficha territorial: indicadores em papel e terreno desenhado.
+  const state = useGameStore.getState().game!;
+  const ownTile = Object.values(state.tiles).find((tile) => tile.owner === state.playerFactionId)!;
+  expect(ownTile).toBeTruthy();
+  await act(async () => {
+    useGameStore.getState().selectTile(null);
+    useGameStore.getState().selectTile(ownTile.id);
+  });
+  expect(container.querySelectorAll('.tile-stat').length).toBeGreaterThan(3);
+  expect(container.querySelector('.tile-subline__terrain svg')).toBeTruthy();
+
+  // Obras: cada cartão de construção mostra o glifo ilustrado.
+  await act(async () => {
+    useGameStore.getState().setView('construction');
+  });
+  const cards = container.querySelectorAll('.building-card');
+  expect(cards.length).toBeGreaterThan(2);
+  expect(cards[0].querySelector('.building-card__icon svg')).toBeTruthy();
   await act(async () => { root.unmount(); });
   container.remove();
 });
