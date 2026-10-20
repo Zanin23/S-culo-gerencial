@@ -18,7 +18,7 @@ export type Flow = Record<ResourceKey, number>;
 export type Cost = Partial<Stocks>;
 
 export type FactionId = 'concordia' | 'aurelia' | 'kestrel' | 'vantor';
-export type Personality = 'mercantil' | 'industrial' | 'militar' | 'tecnocrata';
+export type Personality = 'mercantil' | 'industrial' | 'expansionista' | 'tecnocrata';
 
 export type TerrainKey =
   | 'planicie'
@@ -59,9 +59,12 @@ export type TechId =
 
 export type MarketKey = 'alimentos' | 'energia' | 'materias' | 'bens';
 
+/** Linhas de negócio das operações urbanas. */
+export type SectorKey = 'varejo' | 'industria' | 'logistica' | 'financas';
+
 export type GamePhase = 'playing' | 'victory' | 'defeat';
 
-export type ProjectKind = 'construcao' | 'expansao' | 'operacao' | 'pesquisa';
+export type ProjectKind = 'construcao' | 'expansao' | 'pesquisa';
 
 export interface Tile {
   /** ISO 3166-1 alpha-3 (Natural Earth ADM0_A3). */
@@ -91,15 +94,30 @@ export interface Faction {
   stocks: Stocks;
   techs: TechId[];
   capitalId: string;
-  military: number;
   lastFlow: Flow;
   lastProduction: Flow;
   lastConsumption: Flow;
   shortages: ResourceKey[];
   debts: Debt[];
-  warExhaustion: number;
   eliminated: boolean;
+  /** Ciclos consecutivos com caixa zerado e resultado negativo. */
+  deficitCycles: number;
   lastGiftCycle: number;
+}
+
+/**
+ * Filial da companhia numa cidade real. Cada operação disputa o mercado local
+ * com as rivais: a receita depende da população da cidade e da participação
+ * conquistada.
+ */
+export interface Operation {
+  id: string;
+  factionId: FactionId;
+  cityId: string;
+  countryId: string;
+  sector: SectorKey;
+  level: number;
+  openedCycle: number;
 }
 
 export interface Debt {
@@ -113,7 +131,6 @@ export interface Relation {
   trade: boolean;
   nonAggression: boolean;
   alliance: boolean;
-  war: boolean;
   since: number;
 }
 
@@ -138,7 +155,7 @@ export interface DiplomaticOffer {
   id: string;
   from: FactionId;
   to: FactionId;
-  kind: 'trade' | 'nonAggression' | 'alliance' | 'peace';
+  kind: 'trade' | 'nonAggression' | 'alliance';
   createdCycle: number;
   expiresCycle: number;
 }
@@ -148,7 +165,7 @@ export type LogKind =
   | 'construcao'
   | 'expansao'
   | 'diplomacia'
-  | 'militar'
+  | 'operacoes'
   | 'evento'
   | 'sistema'
   | 'pesquisa';
@@ -198,22 +215,8 @@ export interface CycleReport {
   completed: string[];
   events: string[];
   shortages: ResourceKey[];
-  battles: BattleReport[];
   alerts: string[];
   notable: boolean;
-}
-
-export interface BattleReport {
-  cycle: number;
-  attacker: FactionId;
-  defender: FactionId;
-  tileId: string;
-  tileName: string;
-  attackerStrength: number;
-  defenderStrength: number;
-  success: boolean;
-  attackerLoss: number;
-  defenderLoss: number;
 }
 
 export interface ObjectiveState {
@@ -272,8 +275,9 @@ export interface GameState {
   pendingEventId: string | null;
   usedEvents: string[];
   lastReport: CycleReport | null;
-  lastBattle: BattleReport | null;
   victoryCycle: number | null;
+  /** Presente a partir da v3; saves antigos são migrados na leitura. */
+  operations: Operation[];
   tutorial: TutorialState;
   settings: GameSettings;
   /** Presente a partir da fundação da sede; saves antigos não têm o campo. */

@@ -55,19 +55,19 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
           <div className="start-hero__brand">
             <WaxSeal size={78} letter="M" />
             <div>
-              <div className="eyebrow">Estratégia territorial · {GAME.world}</div>
+              <div className="eyebrow">Gestão de companhias · {GAME.world}</div>
               <h1>{GAME.name}</h1>
-              <p className="start-hero__subtitle">Crônicas da Partilha</p>
+              <p className="start-hero__subtitle">Crônicas do mercado</p>
             </div>
           </div>
           <p className="start-hero__lede">
-            Quatro Casas disputam a Terra. Escolha uma cidade real, erga a sede no lote que quiser e governe ruas, prédios e rotas até a hegemonia.
-            Construa uma economia, negocie com rivais e transforme um porto pequeno na potência que
-            dita a ordem do mundo.
+            Quatro companhias disputam o mundo. Escolha uma cidade real, erga a sede no lote que quiser e administre filiais, obras e rotas até a hegemonia.
+            Construa uma economia, negocie com rivais e transforme um porto pequeno no grupo que
+            dita a ordem do mercado.
           </p>
           <div className="start-hero__tagline">
             <span className="rule" />
-            “Toda fronteira é uma decisão.”
+            “Todo mercado é uma decisão.”
           </div>
 
           <div className="start-actions">
@@ -80,7 +80,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
             ) : null}
             <button className={saved ? 'button button--ghost button--large' : 'button button--primary button--large'} onClick={newCampaign} type="button">
               <Icon name="Landmark" size={17} />
-              {saved ? 'Nova campanha' : 'Fundar Concórdia'}
+              {saved ? 'Nova campanha' : 'Fundar o grupo'}
             </button>
             <button className="button button--quiet button--large" onClick={onHelp} type="button">
               <Icon name="HelpCircle" size={17} />
@@ -96,18 +96,18 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
           ) : null}
 
           <div className="start-meta">
-            <span><Icon name="Building2" size={13} /> Cidade-sede em 3D</span>
+            <span><Icon name="Building2" size={13} /> Sede em 3D</span>
             <span><Icon name="Save" size={13} /> Salvamento local no navegador</span>
             <span><Icon name="ScrollText" size={13} /> Campanha por ciclos</span>
-            <span><Icon name="Swords" size={13} /> IA estratégica, sem trapaças</span>
+            <span><Icon name="Store" size={13} /> Rivais com doutrina própria</span>
           </div>
         </section>
 
         <aside className="briefing">
           <div className="briefing__top">
             <div>
-              <div className="eyebrow">Briefing do Conselho</div>
-              <h2>{saved ? 'Campanha em andamento' : 'O mundo aguarda'}</h2>
+              <div className="eyebrow">Briefing da diretoria</div>
+              <h2>{saved ? 'Campanha em andamento' : 'O mercado aguarda'}</h2>
             </div>
             <span className={`briefing__seal ${saved ? 'is-live' : ''}`}>{saved ? 'ATIVA' : 'NOVO'}</span>
           </div>
@@ -116,7 +116,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
             <div className="briefing__campaign">
               <div className="briefing__campaign-row">
                 <div>
-                  <span className="eyebrow">Casa</span>
+                  <span className="eyebrow">Companhia</span>
                   <strong>{FACTIONS[saved.playerFactionId].name}</strong>
                   <small>{FACTIONS[saved.playerFactionId].epithet}</small>
                 </div>
@@ -136,8 +136,8 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
           ) : (
             <div className="briefing__campaign briefing__campaign--intro">
               <p>
-                Você governa a <strong>Casa Concórdia</strong>: Portugal e Espanha, a rota do Atlântico e uma dívida de
-                confiança com as outras Casas. O caminho até a hegemonia passa por escolhas — não por um único exército.
+                Você dirige o <strong>Grupo Concórdia</strong>: Portugal e Espanha, a rota do Atlântico e uma dívida de
+                confiança com as outras companhias. O caminho até a hegemonia passa por decisões de gestão — não por uma única jogada.
               </p>
               <div className="briefing__pills">
                 <span><Icon name="Target" size={13} /> 360 de hegemonia</span>
@@ -158,7 +158,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
                   </span>
                   <div className="house-row__body">
                     <strong>{house.short}</strong>
-                    <small>{isPlayer ? 'Sua Casa · Equilíbrio' : house.epithet}</small>
+                    <small>{isPlayer ? 'Sua companhia · Equilíbrio' : house.epithet}</small>
                   </div>
                   <span className="house-row__leader">{isPlayer ? 'Você' : house.leader}</span>
                 </div>
@@ -168,7 +168,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
 
           <div className="briefing__foot">
             <Icon name="Compass" size={14} />
-            <span>O mundo continua apenas quando você encerra o ciclo.</span>
+            <span>O mercado só se move quando você encerra o ciclo.</span>
           </div>
         </aside>
       </div>

@@ -76,7 +76,7 @@ export function SeatScreen() {
             );
           })}
           <p className="seat-cities__hint">
-            Só cidades dos países da Casa Concórdia. A sede anexa o país escolhido e passa a comandar o comércio dele.
+            Só cidades dos países do Grupo Concórdia. A sede anexa o país escolhido e passa a comandar o comércio dele.
           </p>
         </aside>
 
@@ -178,7 +178,7 @@ export function SeatScreen() {
             <small>
               {seatMode === 'existing'
                 ? 'A sede muda de cidade e de distrito. A capital passa a ser o país de acolhimento.'
-                : 'O país-sede é anexado à Casa Concórdia. O restante da Partilha segue igual.'}
+                : 'O país-sede é anexado ao Grupo Concórdia. O restante da Partilha segue igual.'}
             </small>
           </div>
         </aside>

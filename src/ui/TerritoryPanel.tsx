@@ -6,6 +6,7 @@ import {
   NODES,
   RESOURCES,
   RESOURCE_KEYS,
+  SECTORS,
   TECH_BRANCHES,
   TECHS,
   TERRAIN,
@@ -23,16 +24,9 @@ import {
   usedSlots,
 } from '../game/economy';
 import { getRelation, relationStatus } from '../game/diplomacy';
-import { battleEstimate } from '../game/cycle';
+import { cityOfOperation, operationOutput } from '../game/operations';
 import { neighborsOf, tilesOfFaction } from '../game/map';
-import {
-  canBuild,
-  expansionPreview,
-  militaryCap,
-  operationCost,
-  RECRUIT_BATCH,
-  RECRUIT_COST,
-} from '../game/commands';
+import { canBuild, expansionPreview } from '../game/commands';
 import type { BuildingKey, FactionId, GameState, Tile } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 import { fmt, fmtRate, trendClass } from './format';
@@ -126,77 +120,6 @@ export function ClaimCard({ tile, game, compact = false }: { tile: Tile; game: G
   );
 }
 
-function AttackCard({ tile, game }: { tile: Tile; game: GameState }) {
-  const playerId = game.playerFactionId;
-  const attack = useGameStore((s) => s.attack);
-  const requestConfirm = useGameStore((s) => s.requestConfirm);
-  const war = useGameStore((s) => s.war);
-  const player = game.factions[playerId];
-  const owner = tile.owner!;
-  const relation = getRelation(game, playerId, owner);
-  const estimate = battleEstimate(game, playerId, tile.id);
-  const cost = operationCost(game, playerId, tile);
-  const projectCount = game.projects.filter((p) => p.factionId === playerId).length;
-  const inProgress = game.projects.some((p) => p.kind === 'operacao' && p.tileId === tile.id);
-  const missing = (Object.entries(cost) as Array<[keyof typeof player.stocks, number]>).filter(([key, value]) => player.stocks[key] < value);
-  const adjacency = estimate?.adjacent ?? false;
-  const disabled = !relation.war || !adjacency || player.military < 25 || projectCount >= projectSlotsOf(player) || missing.length > 0 || inProgress;
-
-  const declare = () => {
-    requestConfirm({
-      title: `Declarar guerra a ${FACTIONS[owner].short}?`,
-      body: `A guerra rompe acordos, custa 5 de influência e abre caminho para operações militares. Relações cairão drasticamente. ${FACTIONS[owner].short} tem ${Math.round(game.factions[owner].military)} de poder militar.`,
-      confirmLabel: 'Declarar guerra',
-      tone: 'danger',
-      onConfirm: () => war(owner),
-    });
-  };
-
-  return (
-    <div className="attack-card">
-      <div className="attack-card__head">
-        <div>
-          <div className="eyebrow">Território estrangeiro</div>
-          <strong>{tile.name}</strong>
-          <span>{FACTIONS[owner].short} · {relationStatus(relation).label}</span>
-        </div>
-        <span className="crest" style={{ borderColor: FACTIONS[owner].color, color: FACTIONS[owner].color }}>{FACTIONS[owner].short.slice(0, 1)}</span>
-      </div>
-      <div className="battle-bar">
-        <div>
-          <span>Seu poder</span>
-          <strong>{estimate?.attackerStrength ?? 0}</strong>
-        </div>
-        <div className="battle-bar__odds">
-          <span>Chance estimada</span>
-          <strong>{estimate?.chance ?? 0}%</strong>
-        </div>
-        <div>
-          <span>Defesa</span>
-          <strong>{estimate?.defenderStrength ?? 0}</strong>
-        </div>
-      </div>
-      <div className="attack-card__cost">
-        <span className="muted small">Custo da operação</span>
-        <Cost cost={cost} stocks={player.stocks} />
-      </div>
-      {!relation.war ? (
-        <button className="button button--danger button--block" onClick={declare} type="button">
-          <Icon name="Swords" size={14} /> Declarar guerra
-        </button>
-      ) : (
-        <button className="button button--danger button--block" onClick={() => attack(tile.id)} disabled={disabled} type="button">
-          <Icon name="Swords" size={14} />
-          {inProgress ? 'Operação em andamento' : 'Preparar operação'}
-          <span className="button__meta">2 ciclos</span>
-        </button>
-      )}
-      {!adjacency ? <div className="disabled-note">A operação exige um território seu adjacente.</div> : null}
-      {relation.war && missing.length ? <div className="disabled-note">Faltam recursos para a operação.</div> : null}
-    </div>
-  );
-}
-
 function BuildRow({ tile, game, building }: { tile: Tile; game: GameState; building: BuildingKey }) {
   const build = useGameStore((s) => s.build);
   const playerId = game.playerFactionId;
@@ -254,7 +177,6 @@ export function TerritoryPanel() {
   const selectedTileId = useGameStore((s) => s.selectedTileId);
   const selectTile = useGameStore((s) => s.selectTile);
   const setView = useGameStore((s) => s.setView);
-  const enlist = useGameStore((s) => s.enlist);
   const playerId = game.playerFactionId;
   const player = game.factions[playerId];
   const [tab, setTab] = useState<Tab>('resumo');
@@ -276,10 +198,6 @@ export function TerritoryPanel() {
   const tileProjects = game.projects.filter((p) => p.tileId === tile.id);
   const neighbors = neighborsOf(tile, game.tiles);
   const neutralNeighbors = neighbors.filter((n) => n.owner === null);
-  const enemyNeighbors = neighbors.filter((n) => n.owner && n.owner !== playerId);
-  const military = player.military;
-  const cap = militaryCap(game, playerId);
-  const canRecruit = player.stocks.creditos >= RECRUIT_COST.creditos && player.stocks.bens >= RECRUIT_COST.bens && player.stocks.influencia >= RECRUIT_COST.influencia && military + RECRUIT_BATCH <= cap;
   const popCap = 10 + dev * 0.85 + (capital ? 8 : 0);
 
   const resourceRows = useMemo(() => {
@@ -297,6 +215,19 @@ export function TerritoryPanel() {
   }, [prod]);
 
   const strategicText = tile.strategic === 3 ? 'Coração estratégico do mundo' : tile.strategic === 2 ? 'Posição estratégica relevante' : 'Posição comum';
+
+  const marketOps = game.operations
+    .filter((op) => op.countryId === tile.id)
+    .map((op) => ({
+      op,
+      city: cityOfOperation(op),
+      revenue: operationOutput(game, op, techEffects(game.factions[op.factionId]).operationsMult).revenue,
+    }))
+    .sort((a, b) => b.op.level - a.op.level || b.revenue - a.revenue);
+  const ownMarketOps = marketOps.filter((row) => row.op.factionId === playerId);
+  const foreignOperations = tile.owner && tile.owner !== playerId
+    ? game.operations.filter((op) => op.factionId === tile.owner).length
+    : 0;
 
   const relationBadge = relation ? relationStatus(relation) : null;
 
@@ -330,8 +261,8 @@ export function TerritoryPanel() {
       </header>
 
       <div className="tile-strip">
-        <span className={cx('tile-status', isOwn && 'is-own', relation?.war && 'is-war')}>
-          <i /> {isOwn ? 'Sob seu controle' : isNeutral ? 'Sem soberano' : relation?.war ? 'Território inimigo' : 'Território estrangeiro'}
+        <span className={cx('tile-status', isOwn && 'is-own')}>
+          <i /> {isOwn ? 'Mercado administrado' : isNeutral ? 'Mercado livre' : 'Mercado de outra companhia'}
         </span>
         <span className="tile-strip__dev">{dev} <small>dev.</small></span>
         <button className="text-button text-button--small" onClick={() => selectTile(null)} type="button">
@@ -441,14 +372,14 @@ export function TerritoryPanel() {
                 <div>
                   <p>
                     {tile.unrest >= 50
-                      ? 'A produção local está reduzida e protestos podem eclodir. Construa administração, reduza escassez e evite guerras prolongadas.'
+                      ? 'A produção local está reduzida e protestos podem eclodir. Construa administração, reduza a escassez e reforce a segurança das filiais.'
                       : tile.unrest >= 25
                         ? 'A insatisfação cresce. Centros administrativos e alimentos estáveis reduzem a desordem a cada ciclo.'
-                        : 'A população está satisfeita. A desordem cai naturalmente quando há alimento, administração e paz.'}
+                        : 'A população está satisfeita. A desordem cai naturalmente com alimento, administração e segurança.'}
                   </p>
                   <div className="unrest-factors">
                     {tile.unrest >= 25 ? <Badge tone="gold" icon="AlertTriangle">Pressão social</Badge> : <Badge tone="teal" icon="Check">Ordem</Badge>}
-                    {tile.conqueredCycle && game.cycle - tile.conqueredCycle < 12 ? <Badge tone="red" icon="Swords">Conquista recente</Badge> : null}
+                    {tile.conqueredCycle && game.cycle - tile.conqueredCycle < 12 ? <Badge tone="gold" icon="Map">Mercado recém-integrado</Badge> : null}
                     {isOwn ? <Badge tone="blue" icon="Landmark">Admin. {tile.buildings.administrativo}</Badge> : null}
                   </div>
                 </div>
@@ -461,7 +392,7 @@ export function TerritoryPanel() {
                 <div className="project-mini-list">
                   {tileProjects.map((project) => (
                     <div className="project-mini" key={project.id}>
-                      <span className="project-mini__icon"><Icon name={project.kind === 'pesquisa' ? 'FlaskConical' : project.kind === 'expansao' ? 'Target' : project.kind === 'operacao' ? 'Swords' : 'Hammer'} size={15} /></span>
+                      <span className="project-mini__icon"><Icon name={project.kind === 'pesquisa' ? 'FlaskConical' : project.kind === 'expansao' ? 'Target' : 'Hammer'} size={15} /></span>
                       <div>
                         <strong>{project.label}</strong>
                         <ProgressBar value={Math.max(0, game.cycle - project.startedCycle)} max={Math.max(1, project.completesCycle - project.startedCycle)} tone="teal" thin />
@@ -480,15 +411,14 @@ export function TerritoryPanel() {
                   <div><span>Líder</span><strong>{FACTIONS[ownerFaction.id].leader}</strong></div>
                   <div><span>Relações</span><strong>{relation ? Math.round(relation.relation) : '—'}</strong></div>
                   <div><span>Tecnologias</span><strong>{ownerFaction.techs.length}</strong></div>
-                  <div><span>Militar</span><strong>{Math.round(ownerFaction.military)}</strong></div>
+                  <div><span>Filiais</span><strong>{foreignOperations}</strong></div>
                 </div>
                 <p className="muted small">{FACTIONS[ownerFaction.id].description}</p>
                 {relation ? <div className="foreign-summary__pacts">
-                  {relation.war ? <Badge tone="red" icon="Swords">Em guerra</Badge> : null}
-                  {relation.alliance ? <Badge tone="teal" icon="Handshake">Aliança</Badge> : null}
-                  {relation.nonAggression ? <Badge tone="blue" icon="Shield">Não-agressão</Badge> : null}
-                  {relation.trade ? <Badge tone="gold" icon="Coins">Comércio</Badge> : null}
-                  {!relation.war && !relation.alliance && !relation.nonAggression && !relation.trade ? <Badge tone="neutral" icon="Handshake">Sem acordos</Badge> : null}
+                  {relation.alliance ? <Badge tone="teal" icon="Handshake">Parceria estratégica</Badge> : null}
+                  {relation.nonAggression ? <Badge tone="blue" icon="Shield">Não concorrência</Badge> : null}
+                  {relation.trade ? <Badge tone="gold" icon="Coins">Acordo comercial</Badge> : null}
+                  {!relation.alliance && !relation.nonAggression && !relation.trade ? <Badge tone="neutral" icon="Handshake">Sem acordos</Badge> : null}
                 </div> : null}
                 <button className="button button--ghost button--block" onClick={() => setView('diplomacy')} type="button"><Icon name="Handshake" size={14} /> Abrir mesa de negociações</button>
               </section>
@@ -545,55 +475,58 @@ export function TerritoryPanel() {
                       {neutralNeighbors.map((neighbor) => <ClaimCard key={neighbor.id} tile={neighbor} game={game} compact />)}
                     </div>
                   ) : (
-                    <EmptyState icon="Map" title="Sem fronteiras livres">Todos os territórios vizinhos já têm soberano. Desenvolva a base, negocie ou prepare uma campanha militar.</EmptyState>
+                    <EmptyState icon="Map" title="Sem fronteiras livres">Todos os territórios vizinhos já têm soberano. Desenvolva a base ou negocie acordos com a companhia vizinha.</EmptyState>
                   )}
                 </section>
 
                 <section>
-                  <SectionHeader eyebrow="Forças armadas" title="Exército de Concórdia" icon="Swords" />
-                  <div className="military-card">
-                    <div className="military-card__top">
-                      <div>
-                        <span>Poder militar</span>
-                        <strong>{Math.round(military)} <small>/ {cap}</small></strong>
-                      </div>
-                      <div>
-                        <span>Manutenção</span>
-                        <strong>{fmt(military * 0.03)} <small>cr./ciclo</small></strong>
-                      </div>
-                    </div>
-                    <ProgressBar value={military} max={cap} tone="red" thin />
-                    <div className="military-card__action">
-                      <div>
-                        <strong>+{RECRUIT_BATCH} unidades</strong>
-                        <Cost cost={RECRUIT_COST} stocks={player.stocks} compact />
-                      </div>
-                      <button className="button button--tiny button--primary" onClick={() => enlist(1)} disabled={!canRecruit} type="button">
-                        <Icon name="Plus" size={12} /> Recrutar
-                      </button>
-                    </div>
-                    {!canRecruit ? <div className="disabled-note">Limite militar, créditos, bens ou influência insuficientes.</div> : null}
-                  </div>
-                  {enemyNeighbors.length ? (
-                    <div className="enemy-list">
-                      {enemyNeighbors.map((neighbor) => <AttackCard key={neighbor.id} tile={neighbor} game={game} />)}
+                  <SectionHeader
+                    eyebrow="Rede de filiais"
+                    title="Operações neste mercado"
+                    icon="Store"
+                    action={<Badge tone={ownMarketOps.length ? 'teal' : 'neutral'}>{ownMarketOps.length} sua(s)</Badge>}
+                  />
+                  {marketOps.length ? (
+                    <div className="market-ops">
+                      {marketOps.slice(0, 8).map(({ op, city, revenue }) => (
+                        <div className={cx('market-op', op.factionId === playerId && 'is-own')} key={op.id}>
+                          <span className="crest crest--sm" style={{ borderColor: FACTIONS[op.factionId].color, color: FACTIONS[op.factionId].color }}>
+                            {FACTIONS[op.factionId].short.slice(0, 1)}
+                          </span>
+                          <div className="market-op__body">
+                            <strong>{city?.name ?? 'Cidade'}</strong>
+                            <small>{SECTORS[op.sector].name} · nível {op.level} · {FACTIONS[op.factionId].short}</small>
+                          </div>
+                          <span className={cx('market-op__revenue', op.factionId === playerId ? 'tone-teal' : 'muted')}>
+                            {op.factionId === playerId ? fmt(revenue) : '—'}
+                          </span>
+                        </div>
+                      ))}
+                      {marketOps.length > 8 ? <p className="table-note">Mais {marketOps.length - 8} filiais neste país — veja a rede completa em Empresas.</p> : null}
                     </div>
                   ) : (
-                    <div className="callout callout--neutral">
-                      <Icon name="Shield" size={16} />
-                      <span><strong>Nenhuma fronteira hostil</strong><small>Suas fronteiras atuais não tocam outra Casa. Expanda-se ou aguarde o contato.</small></span>
-                    </div>
+                    <EmptyState icon="Store" title="Nenhuma filial neste mercado">Abra a primeira filial em uma cidade deste país para capturar receita local.</EmptyState>
                   )}
+                  <button className="button button--ghost button--block" onClick={() => setView('companies')} type="button">
+                    <Icon name="Store" size={14} /> Gerir filiais da companhia
+                  </button>
                 </section>
               </>
             ) : null}
 
             {!isOwn && !isNeutral ? (
               <>
-                <AttackCard tile={tile} game={game} />
+                <div className="callout callout--neutral">
+                  <Icon name="Lock" size={16} />
+                  <span>
+                    <strong>Mercado fechado à sua companhia</strong>
+                    <small>{FACTIONS[owner!.id].short} administra este território. Filiais só podem ser abertas em países que a sua companhia administra.</small>
+                  </span>
+                  <button className="button button--tiny button--ghost" onClick={() => setView('companies')} type="button">Ver minhas filiais</button>
+                </div>
                 <div className="callout callout--gold">
                   <Icon name="Handshake" size={16} />
-                  <span><strong>A via diplomática</strong><small>Presentes e acordos podem abrir mercados e evitar uma guerra dispendiosa.</small></span>
+                  <span><strong>A via institucional</strong><small>Presentes e acordos melhoram as relações e podem abrir caminho para entrar neste mercado.</small></span>
                   <button className="button button--tiny button--ghost" onClick={() => setView('diplomacy')} type="button">Negociar</button>
                 </div>
               </>
@@ -601,13 +534,13 @@ export function TerritoryPanel() {
 
             {isOwn ? (
               <section>
-                <SectionHeader eyebrow="Apoio político" title="Diplomacia e influência" icon="Handshake" />
+                <SectionHeader eyebrow="Apoio institucional" title="Acordos e relações" icon="Handshake" />
                 <div className="influence-card">
                   <div>
-                    <span>Influência disponível</span>
+                    <span>Relações disponíveis</span>
                     <strong>{fmt(player.stocks.influencia)}</strong>
                   </div>
-                  <p>Presentes e tratados usam influência. Expansões também consomem capital político.</p>
+                  <p>Presentes, acordos e licenças de expansão consomem relações institucionais.</p>
                   <button className="button button--ghost button--block" onClick={() => setView('diplomacy')} type="button">Abrir mesa de negociações</button>
                 </div>
               </section>

@@ -1,9 +1,12 @@
 import {
   BUILDINGS,
   FACTIONS,
+  GAME,
   MARKET_KEYS,
   RESOURCES,
   RESOURCE_KEYS,
+  SECTOR_ORDER,
+  SECTORS,
   TECH_ORDER,
   TECHS,
 } from './constants';
@@ -22,7 +25,8 @@ import {
 } from './economy';
 import { applyTradeImpact, buyUnitPrice, sellUnitPrice } from './market';
 import { getRelation, offerLabel, proposeCost, relationKey, relationRequirement } from './diplomacy';
-import { CITY_BY_ID, COUNTRY_BY_ID } from './atlas';
+import { COUNTRY_BY_ID, cityById } from './atlas';
+import { canOpenOperation, operationCost } from './operations';
 import { neighborsOf, tilesOfFaction } from './map';
 import { logEntry } from './state';
 import type {
@@ -31,8 +35,10 @@ import type {
   FactionId,
   GameState,
   MarketKey,
+  Operation,
   Project,
   ResourceKey,
+  SectorKey,
   CityDistrict,
   TechId,
   Tile,
@@ -260,119 +266,8 @@ export function startExpansion(state: GameState, factionId: FactionId, targetId:
       completesCycle: next.cycle + 2,
     };
     next.projects.push(project);
-    logEntry(next, 'expansao', `${FACTIONS[factionId].short}: expedição enviada a ${target.name}.`, factionId);
-    return `Expedição enviada para ${target.name}. A soberania será proclamada no ciclo ${project.completesCycle}.`;
-  });
-}
-
-// ── Military ────────────────────────────────────────────────────────────────
-
-export const RECRUIT_BATCH = 10;
-export const RECRUIT_COST = { creditos: 45, bens: 3, influencia: 2 };
-
-export function militaryCap(state: GameState, factionId: FactionId): number {
-  return 60 + adminCapacityOfState(state, factionId) * 15 + (state.factions[factionId].techs.includes('es3') ? 30 : 0);
-}
-
-export function recruit(state: GameState, factionId: FactionId, batches = 1): CommandResult {
-  return withState(state, (next) => {
-    requirePlaying(next);
-    const faction = factionOf(next, factionId);
-    const count = clamp(Math.floor(batches), 1, 5);
-    const cost = {
-      creditos: RECRUIT_COST.creditos * count,
-      bens: RECRUIT_COST.bens * count,
-      influencia: RECRUIT_COST.influencia * count,
-    };
-    const cap = militaryCap(next, factionId);
-    if (faction.military + RECRUIT_BATCH * count > cap) {
-      fail(`Limite de força militar atingido (${Math.round(faction.military)}/${cap}). Expanda a administração ou pesquise Doutrina de Defesa.`);
-    }
-    requireAfford(next, factionId, cost);
-    payCost(faction.stocks, cost);
-    faction.military = round1(faction.military + RECRUIT_BATCH * count);
-    logEntry(next, 'militar', `${FACTIONS[factionId].short}: ${RECRUIT_BATCH * count} novas unidades incorporadas.`, factionId);
-    return `${RECRUIT_BATCH * count} unidades incorporadas. Poder militar: ${Math.round(faction.military)}.`;
-  });
-}
-
-export function operationCost(state: GameState, factionId: FactionId, target: Tile) {
-  const defense = target.buildings.defesa;
-  return {
-    creditos: Math.round(150 + defense * 22 + target.strategic * 10),
-    materias: 30,
-    bens: 8,
-    influencia: 8,
-  };
-}
-
-export function startOperation(state: GameState, factionId: FactionId, targetId: string): CommandResult {
-  return withState(state, (next) => {
-    requirePlaying(next);
-    const faction = factionOf(next, factionId);
-    const target = next.tiles[targetId];
-    if (!target) fail('Território não encontrado.');
-    if (!target.owner) fail('Operações militares exigem um território inimigo.');
-    if (target.owner === factionId) fail('Este território já é seu.');
-    const relation = getRelation(next, factionId, target.owner);
-    if (!relation.war) fail(`É preciso declarar guerra a ${FACTIONS[target.owner].short} antes de atacar.`);
-    if (relation.alliance) fail('Aliados não podem ser atacados.');
-    if (!neighborsOf(target, next.tiles).some((t) => t.owner === factionId)) {
-      fail('A operação precisa partir de um território adjacente controlado por você.');
-    }
-    if (faction.military < 25) fail('Poder militar insuficiente (mínimo 25). Recrute unidades.');
-    if (next.projects.some((p) => p.kind === 'operacao' && p.tileId === target.id)) {
-      fail('Já existe uma operação planejada contra este território.');
-    }
-    requireProjectSlot(next, factionId);
-    const cost = operationCost(next, factionId, target);
-    requireAfford(next, factionId, cost);
-    payCost(faction.stocks, cost);
-    const project: Project = {
-      id: newProjectId(next),
-      factionId,
-      kind: 'operacao',
-      tileId: target.id,
-      targetFaction: target.owner,
-      label: `Operação contra ${target.name}`,
-      cost,
-      startedCycle: next.cycle,
-      completesCycle: next.cycle + 2,
-    };
-    next.projects.push(project);
-    logEntry(next, 'militar', `${FACTIONS[factionId].short}: operação militar preparada contra ${target.name} (${FACTIONS[target.owner].short}).`, factionId);
-    return `Operação preparada contra ${target.name}. O confronto ocorre no ciclo ${project.completesCycle}.`;
-  });
-}
-
-export function declareWar(state: GameState, factionId: FactionId, targetId: FactionId): CommandResult {
-  return withState(state, (next) => {
-    requirePlaying(next);
-    const faction = factionOf(next, factionId);
-    factionOf(next, targetId);
-    if (targetId === factionId) fail('Uma Casa não pode declarar guerra a si mesma.');
-    const key = relationKey(factionId, targetId);
-    const relation = next.diplomacy[key] ?? {
-      relation: 0, trade: false, nonAggression: false, alliance: false, war: false, since: 0,
-    };
-    if (relation.war) fail('Você já está em guerra com esta potência.');
-    const cost = { influencia: 5 };
-    requireAfford(next, factionId, cost);
-    payCost(faction.stocks, cost);
-    const hadPact = relation.trade || relation.nonAggression || relation.alliance;
-    next.diplomacy[key] = {
-      ...relation,
-      war: true,
-      trade: false,
-      nonAggression: false,
-      alliance: false,
-      relation: clamp(relation.relation - (hadPact ? 42 : 30), -100, 100),
-      since: next.cycle,
-    };
-    next.factions[targetId].military = round1(next.factions[targetId].military + 2);
-    logEntry(next, 'militar', `${FACTIONS[factionId].short} declarou guerra a ${FACTIONS[targetId].short}.`, factionId);
-    if (hadPact) logEntry(next, 'diplomacia', `Os acordos com ${FACTIONS[targetId].short} foram rompidos pela guerra.`, factionId);
-    return `Guerra declarada a ${FACTIONS[targetId].short}. Prepare operações a partir de territórios adjacentes.`;
+    logEntry(next, 'expansao', `${FACTIONS[factionId].short}: licença protocolada para operar em ${target.name}.`, factionId);
+    return `Licença protocolada para ${target.name}. A entrada no mercado é efetivada no ciclo ${project.completesCycle}.`;
   });
 }
 
@@ -441,7 +336,6 @@ export function sendGift(state: GameState, factionId: FactionId, targetId: Facti
     if (faction.lastGiftCycle === next.cycle) fail('Você já enviou um presente neste ciclo.');
     const key = relationKey(factionId, targetId);
     const relation = getRelation(next, factionId, targetId);
-    if (relation.war) fail('Não é possível enviar presentes durante uma guerra.');
     requireAfford(next, factionId, GIFT_COST);
     payCost(faction.stocks, GIFT_COST);
     faction.lastGiftCycle = next.cycle;
@@ -460,7 +354,7 @@ function acceptTreaty(
   next: GameState,
   from: FactionId,
   to: FactionId,
-  kind: 'trade' | 'nonAggression' | 'alliance' | 'peace',
+  kind: 'trade' | 'nonAggression' | 'alliance',
 ): void {
   const key = relationKey(from, to);
   const relation = getRelation(next, from, to);
@@ -471,12 +365,6 @@ function acceptTreaty(
     updated.alliance = true;
     updated.nonAggression = true;
     updated.trade = true;
-    updated.war = false;
-  }
-  if (kind === 'peace') {
-    updated.war = false;
-    updated.nonAggression = true;
-    updated.relation = clamp(updated.relation + 10, -100, 100);
   }
   updated.relation = clamp(updated.relation + (kind === 'alliance' ? 6 : 3), -100, 100);
   next.diplomacy[key] = updated;
@@ -487,7 +375,7 @@ export function proposeTreaty(
   state: GameState,
   factionId: FactionId,
   targetId: FactionId,
-  kind: 'trade' | 'nonAggression' | 'alliance' | 'peace',
+  kind: 'trade' | 'nonAggression' | 'alliance',
 ): CommandResult {
   return withState(state, (next) => {
     requirePlaying(next);
@@ -495,17 +383,12 @@ export function proposeTreaty(
     const target = factionOf(next, targetId);
     if (targetId === factionId) fail('Escolha outra potência.');
     const relation = getRelation(next, factionId, targetId);
-    if (kind === 'peace') {
-      if (!relation.war) fail('Não há guerra em andamento com esta potência.');
-    } else {
-      if (relation.war) fail('Assine a paz antes de propor novos acordos.');
-      if (relation.alliance) fail('Já existe uma aliança com esta potência.');
-      if (kind === 'trade' && relation.trade) fail('Já existe um acordo comercial.');
-      if (kind === 'nonAggression' && relation.nonAggression) fail('Já existe um pacto de não-agressão.');
-      if (kind === 'alliance' && relation.alliance) fail('Já existe uma aliança.');
-      if (relation.relation < relationRequirement(kind)) {
-        fail(`Relações insuficientes (${Math.round(relation.relation)}/${relationRequirement(kind)}). Envie presentes ou negocie antes.`);
-      }
+    if (relation.alliance) fail('Já existe uma parceria estratégica com esta companhia.');
+    if (kind === 'trade' && relation.trade) fail('Já existe um acordo comercial.');
+    if (kind === 'nonAggression' && relation.nonAggression) fail('Já existe um pacto de não concorrência.');
+    if (kind === 'alliance' && relation.alliance) fail('Já existe uma parceria estratégica.');
+    if (relation.relation < relationRequirement(kind)) {
+      fail(`Relações insuficientes (${Math.round(relation.relation)}/${relationRequirement(kind)}). Envie presentes ou negocie antes.`);
     }
     const influence = proposeCost(kind);
     requireAfford(next, factionId, { influencia: influence });
@@ -515,15 +398,14 @@ export function proposeTreaty(
     const targetDef = FACTIONS[targetId];
     const targetTech = techEffects(target);
     let chance = clamp(
-      0.28 + (relation.relation - relationRequirement(kind)) / 90 + targetDef.diplomacyBias * 0.2 - targetDef.aggression * 0.18,
+      0.28 + (relation.relation - relationRequirement(kind)) / 90 + targetDef.diplomacyBias * 0.2 - targetDef.aggression * 0.12,
       0.05,
       0.95,
     );
-    if (kind === 'peace') {
-      const myPower = faction.military + faction.stocks.creditos * 0.02;
-      const theirPower = target.military + target.stocks.creditos * 0.02;
-      chance = clamp(0.45 + (myPower - theirPower) / 400 + (100 - relation.relation) / 500, 0.2, 0.95);
-    }
+    // Porte da rede pesa na negociação: quem já tem mais filiais inspira confiança.
+    const myNetwork = next.operations.filter((op) => op.factionId === factionId).length;
+    const theirNetwork = next.operations.filter((op) => op.factionId === targetId).length;
+    chance = clamp(chance + (myNetwork - theirNetwork) * 0.01, 0.05, 0.95);
     chance += targetTech.relationGainMult * 0.05;
     const roll = nextRandom(next);
     if (roll < chance) {
@@ -548,10 +430,6 @@ export function respondToOffer(state: GameState, factionId: FactionId, offerId: 
     if (offer.to !== factionId) fail('Esta proposta foi feita a outra potência.');
     next.offers = next.offers.filter((o) => o.id !== offerId);
     if (accept) {
-      if (offer.kind === 'peace') {
-        const relation = getRelation(next, offer.from, offer.to);
-        if (!relation.war) fail('A guerra já terminou.');
-      }
       acceptTreaty(next, offer.from, offer.to, offer.kind);
       return `Proposta aceita: ${offerLabel(offer.kind)} com ${FACTIONS[offer.from].short}.`;
     }
@@ -560,6 +438,78 @@ export function respondToOffer(state: GameState, factionId: FactionId, offerId: 
     next.diplomacy[key] = { ...relation, relation: clamp(relation.relation - 4, -100, 100) };
     logEntry(next, 'diplomacia', `${FACTIONS[factionId].short} recusou ${offerLabel(offer.kind).toLowerCase()} de ${FACTIONS[offer.from].short}.`, factionId);
     return `Proposta recusada. ${FACTIONS[offer.from].short} reagirá à negativa.`;
+  });
+}
+
+// ── Operações urbanas ───────────────────────────────────────────────────────
+
+export function openOperation(
+  state: GameState,
+  factionId: FactionId,
+  cityId: string,
+  sector: SectorKey,
+): CommandResult {
+  return withState(state, (next) => {
+    requirePlaying(next);
+    const faction = factionOf(next, factionId);
+    if (!SECTOR_ORDER.includes(sector)) fail('Linha de negócio desconhecida.');
+    const city = cityById(cityId);
+    if (!city) fail('Cidade desconhecida no atlas.');
+    const blocked = canOpenOperation(next, factionId, cityId);
+    if (blocked) fail(blocked);
+    const cost = operationCost(city, sector, 1);
+    requireAfford(next, factionId, cost);
+    payCost(faction.stocks, cost);
+    const operation: Operation = {
+      id: `op_${++next.nextId}`,
+      factionId,
+      cityId,
+      countryId: city.countryId,
+      sector,
+      level: 1,
+      openedCycle: next.cycle,
+    };
+    next.operations.push(operation);
+    logEntry(
+      next,
+      'operacoes',
+      `${FACTIONS[factionId].short} abriu ${SECTORS[sector].name} em ${city.name} (${COUNTRY_BY_ID[city.countryId]?.name ?? city.countryId}).`,
+      factionId,
+    );
+    return `Filial de ${SECTORS[sector].name} aberta em ${city.name}.`;
+  });
+}
+
+export function expandOperation(state: GameState, factionId: FactionId, operationId: string): CommandResult {
+  return withState(state, (next) => {
+    requirePlaying(next);
+    const faction = factionOf(next, factionId);
+    const operation = next.operations.find((op) => op.id === operationId);
+    if (!operation) fail('Operação não encontrada.');
+    if (operation.factionId !== factionId) fail('Esta operação pertence a outra companhia.');
+    if (operation.level >= GAME.maxOperationLevel) fail('Esta filial já está no nível máximo.');
+    const city = cityById(operation.cityId);
+    if (!city) fail('Cidade da operação não existe mais no atlas.');
+    const cost = operationCost(city, operation.sector, operation.level + 1);
+    requireAfford(next, factionId, cost);
+    payCost(faction.stocks, cost);
+    operation.level += 1;
+    logEntry(next, 'operacoes', `${FACTIONS[factionId].short}: ${SECTORS[operation.sector].short} em ${city.name} chegou ao nível ${operation.level}.`, factionId);
+    return `${city.name}: ${SECTORS[operation.sector].short} nível ${operation.level}.`;
+  });
+}
+
+export function closeOperation(state: GameState, factionId: FactionId, operationId: string): CommandResult {
+  return withState(state, (next) => {
+    requirePlaying(next);
+    factionOf(next, factionId);
+    const operation = next.operations.find((op) => op.id === operationId);
+    if (!operation) fail('Operação não encontrada.');
+    if (operation.factionId !== factionId) fail('Esta operação pertence a outra companhia.');
+    const city = cityById(operation.cityId);
+    next.operations = next.operations.filter((op) => op.id !== operationId);
+    logEntry(next, 'operacoes', `${FACTIONS[factionId].short} encerrou a filial de ${city?.name ?? 'uma cidade'}.`, factionId);
+    return `Filial encerrada em ${city?.name ?? 'cidade'}.`;
   });
 }
 
@@ -638,12 +588,12 @@ export function foundSeat(
   district: CityDistrict,
 ): CommandResult {
   return withState(state, (next) => {
-    const city = CITY_BY_ID[cityId];
+    const city = cityById(cityId);
     if (!city) fail('Cidade desconhecida no atlas.');
     const host = next.tiles[city.countryId];
     if (!host) fail('O país da cidade não faz parte do tabuleiro.');
     const player = next.factions[next.playerFactionId];
-    if (host.owner && host.owner !== player.id) fail('A cidade está em território de outra Casa.');
+    if (host.owner && host.owner !== player.id) fail('A cidade está em território de outra companhia.');
     if (!host.owner) {
       // Fundar a sede anexa o país anfitrião (é a primeira decisão do jogador).
       const own = tilesOfFaction(next.tiles, player.id).length;

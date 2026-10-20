@@ -5,7 +5,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { App } from '../App';
-import { CITIES, PROVINCES } from '../game/atlas';
+import { CITIES, PROVINCES, citiesOf } from '../game/atlas';
 import { eventById } from '../game/events';
 import { useGameStore } from '../store/gameStore';
 
@@ -34,7 +34,7 @@ it('boots the menu, chooses a city and founds the seat on a plot', async () => {
     root.render(<App />);
   });
   expect(text()).toContain('MANAGEMENT CENTURY');
-  const start = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Fundar Concórdia'));
+  const start = Array.from(container.querySelectorAll('button')).find((button) => button.textContent?.includes('Fundar o grupo'));
   expect(start).toBeTruthy();
   await act(async () => {
     start?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -68,7 +68,7 @@ it('boots the menu, chooses a city and founds the seat on a plot', async () => {
   expect(state.game!.city?.plotId).toBe(draft.plotId);
   expect(state.view).toBe('city');
   expect(container.querySelector('.city-stage')).toBeTruthy();
-  expect(text()).toContain('Sede da Casa');
+  expect(text()).toContain('Sede do grupo');
 
   await act(async () => {
     useGameStore.getState().setView('map');
@@ -85,7 +85,7 @@ it('advances cycles and opens every view', async () => {
   await act(async () => {
     useGameStore.getState().startNewGame(777);
   });
-  const views = ['economy', 'construction', 'tech', 'expansion', 'diplomacy', 'objectives', 'chronicle', 'settings'] as const;
+  const views = ['companies', 'economy', 'construction', 'tech', 'expansion', 'diplomacy', 'objectives', 'chronicle', 'settings'] as const;
   for (const view of views) {
     await act(async () => {
       useGameStore.getState().setView(view);
@@ -258,6 +258,55 @@ it('clicking the primary UI actions mutates the world', async () => {
     expandButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
   expect(useGameStore.getState().game!.projects.some((project) => project.kind === 'expansao')).toBe(true);
+});
+
+it('opens a filial and manages the company network', async () => {
+  await act(async () => {
+    root = createRoot(container);
+    root.render(<App />);
+  });
+  await act(async () => {
+    useGameStore.getState().startNewGame(9090);
+    useGameStore.getState().finishTutorial();
+  });
+  const game = useGameStore.getState().game!;
+  const playerId = game.playerFactionId;
+  const country = Object.values(game.tiles).find((tile) => tile.owner === playerId)!;
+  const city = citiesOf(country.id)[0];
+  expect(city).toBeTruthy();
+
+  let opened = false;
+  await act(async () => {
+    opened = useGameStore.getState().openOperation(city.id, 'varejo');
+  });
+  expect(opened).toBe(true);
+  const operation = useGameStore.getState().game!.operations.find((op) => op.cityId === city.id)!;
+  expect(operation.factionId).toBe(playerId);
+  expect(operation.level).toBe(1);
+
+  await act(async () => {
+    useGameStore.getState().setView('companies');
+  });
+  expect(text()).toContain('Empresas e operações');
+  expect(text()).toContain(city.name);
+  expect(container.querySelectorAll('.ops-row').length).toBe(1);
+  expect(container.querySelector('.ops-sectors')).toBeTruthy();
+
+  // Expansão de filial custa créditos e matérias; abastece o caixa do teste.
+  await act(async () => {
+    const player = useGameStore.getState().game!.factions.concordia;
+    player.stocks.creditos += 2500;
+    player.stocks.materias += 200;
+  });
+  await act(async () => {
+    expect(useGameStore.getState().upgradeOperation(operation.id)).toBe(true);
+  });
+  expect(useGameStore.getState().game!.operations.find((op) => op.id === operation.id)!.level).toBe(2);
+
+  await act(async () => {
+    expect(useGameStore.getState().closeOperation(operation.id)).toBe(true);
+  });
+  expect(useGameStore.getState().game!.operations.some((op) => op.id === operation.id)).toBe(false);
 });
 
 it('selects countries, provinces and cities on the world map', async () => {

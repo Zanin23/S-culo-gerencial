@@ -16,7 +16,7 @@ const LOG_ICON: Record<LogKind, string> = {
   construcao: 'Hammer',
   expansao: 'Target',
   diplomacia: 'Handshake',
-  militar: 'Swords',
+  operacoes: 'Store',
   evento: 'Sun',
   sistema: 'Info',
   pesquisa: 'FlaskConical',
@@ -181,7 +181,7 @@ export function OverviewPanel() {
         <section className="card">
           <SectionHeader
             eyebrow="Corrida pela hegemonia"
-            title="Casas da Partilha"
+            title="Companhias da Partilha"
             icon="Crown"
             action={<button className="text-button" onClick={() => setView('objectives')} type="button">Ranking <Icon name="ChevronRight" size={13} /></button>}
           />
@@ -217,7 +217,7 @@ export function OverviewPanel() {
                 const elapsed = Math.max(0, game.cycle - project.startedCycle);
                 return (
                   <button className="project-mini" key={project.id} onClick={() => selectTile(project.tileId)} type="button">
-                    <span className="project-mini__icon"><Icon name={project.kind === 'pesquisa' ? 'FlaskConical' : project.kind === 'expansao' ? 'Target' : project.kind === 'operacao' ? 'Swords' : 'Hammer'} size={15} /></span>
+                    <span className="project-mini__icon"><Icon name={project.kind === 'pesquisa' ? 'FlaskConical' : project.kind === 'expansao' ? 'Target' : 'Hammer'} size={15} /></span>
                     <div>
                       <strong>{project.label}</strong>
                       <ProgressBar value={elapsed} max={total} tone="teal" thin />

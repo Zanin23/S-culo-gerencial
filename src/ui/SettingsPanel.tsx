@@ -143,7 +143,7 @@ export function SettingsPanel() {
             <div><span>Online</span><strong>Fora do MVP</strong><p>Sem transporte, contas ou matchmaking nesta versão.</p></div>
           </div>
           <p className="muted small" style={{ marginTop: 10 }}>
-            As quatro Casas adversárias são IA declaradas com doutrinas visíveis — não há jogadores fictícios se passando por humanos.
+            As quatro companhias adversárias são IA declaradas com doutrinas visíveis — não há jogadores fictícios se passando por humanos.
           </p>
         </section>
       </div>

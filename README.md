@@ -1,8 +1,8 @@
-# MANAGEMENT CENTURY — Crônicas da Partilha
+# MANAGEMENT CENTURY — Crônicas do mercado
 
-Jogo de estratégia territorial e gestão econômica para navegador. Quatro Casas disputam **a Terra partilhada**; você governa **Concórdia** a partir de Lisboa e precisa transformar Portugal e Espanha em uma potência global — por economia, obras, ciência, diplomacia ou força.
+Jogo de **gestão de companhias e economia** para navegador. Quatro grupos disputam mercados no **mundo partilhado**; você dirige o **Grupo Concórdia** a partir de Lisboa e precisa transformar Portugal e Espanha em uma potência global — com filiais, obras, P&D e acordos, não com exércitos.
 
-O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e 1.203 cidades a partir de dados geográficos do Natural Earth.
+O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e **5.759 cidades** a partir de dados geográficos do Natural Earth. As 1.203 principais viajam no pacote; as outras 4.556 chegam sob demanda quando você aproxima o mapa, sem pesar no carregamento.
 
 Antes de começar, você **funda a sede**: escolhe uma cidade real, vê a maquete 3D do terreno e das ruas e marca o lote onde a primeira construção será erguida. O distrito do lote altera permanentemente comércio, indústria ou defesa da capital — e dá para orbitar a cidade, abrir o **corte da sede** como uma casa de bonecas e entrar nela.
 
@@ -33,14 +33,14 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 
 ## Como jogar
 
-1. **Fundar Concórdia** no menu (ou retomar uma campanha salva no navegador).
+1. **Fundar o grupo** no menu (ou retomar uma campanha salva no navegador).
    - Escolha a **cidade-sede** entre as cidades de Portugal e Espanha (Lisboa, Madrid, Barcelona, Sevilha, Valência, Bilbao, Vigo, Córdoba, Funchal, Ponta Delgada, Las Palmas).
    - A maquete mostra o terreno real (costa, rios, lagoas) e a malha de ruas gerada. Clique num dos lotes dourados.
    - Confirme em **Fundar a sede**. O país da cidade é anexado à Casa e passa a ser a capital.
-2. Leia o tutorial de seis passos. Ele explica o ciclo, a economia, obras, expansão, diplomacia e a condição de vitória.
+2. Leia o tutorial de sete passos. Ele explica o ciclo, a economia, obras, P&D, filiais, acordos e a condição de vitória.
 3. O relógio do ciclo roda a cada 14 segundos quando você está no mapa. Você pode pausar, avançar manualmente ou simplesmente tomar decisões.
 4. No **atlas de papel** (leitura padrão do mapa), arraste para percorrer o mundo, use a roda para aproximar e clique num país para abrir a ficha do território. Aproxime para revelar **províncias/estados** e **cidades**; duplo clique foca o país e carrega a malha interna. Os botões **Atlas / Globo / Carta** trocam a leitura sem perder seleção.
-5. Vença alcançando **360 de hegemonia** antes de uma Casa rival. Hegemonia soma territórios, desenvolvimento, tecnologias, força militar, influência, acordos e uma fração limitada do tesouro.
+5. Vença alcançando **360 de hegemonia** antes de uma companhia rival. Hegemonia soma mercados, desenvolvimento, tecnologias, receita das filiais, relações institucionais, acordos e uma fração limitada do caixa. Seis ciclos seguidos com caixa zerado e resultado negativo levam à **insolvência**: as filiais fecham, os mercados ficam livres e a companhia sai do jogo.
 
 ### Controles
 
@@ -61,12 +61,12 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 | Trocar atlas / globo / carta | Botões **Atlas · Globo · Carta** no canto superior direito |
 | Localizar país, província ou cidade | Seletores no canto superior esquerdo (também acessíveis por teclado) |
 | Painel da nação | Clique no fundo do mapa / botão “Painel da nação” |
-| Trocar de tela | Barra lateral; teclas `1`–`8` |
+| Trocar de tela | Barra lateral; teclas `1`–`9` (telas principais) e `0` (relatório) |
 | Encerrar ciclo | Botão “Avançar” ou `Espaço` |
 | Voltar ao mapa | `Esc` |
 | Manual | `H` ou botão “Ajuda” |
 
-Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6` Expansão · `7` Diplomacia · `8` Metas · `9` Registro. Ajustes e saves ficam na engrenagem.
+Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6` P&D · `7` Expansão · `8` Acordos · `9` Metas · `0` Relatório. Ajustes e saves ficam na engrenagem.
 
 ---
 
@@ -101,13 +101,13 @@ Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6
 - Localizador com três seletores (país → província → cidade) resolve o problema de clicar em países minúsculos e serve de caminho acessível por teclado.
 - Tooltip com terreno ilustrado, dono, população, terreno e valor estratégico.
 - Cada território possui terreno, nó de recurso, população, desordem, valor estratégico, espaços construíveis, estruturas (níveis 0–3), defesa, produção e consumo locais.
-- Painel de território com abas **Resumo / Estruturas / Ações**, recrutamento, expansão, guerra e negociação.
+- Painel de território com abas **Resumo / Estruturas / Ações**: produção local, obras, expansão para territórios livres, filiais do país e acordos.
 
 ### Economia
-- Sete recursos com estoque, produção, demanda, saldo e histórico: créditos, alimentos, energia, matérias-primas, bens, influência e conhecimento.
+- Sete recursos com estoque, produção, demanda, saldo e histórico: créditos, alimentos, energia, matérias-primas, bens, **relações** (chave `influencia`) e **P&D** (chave `conhecimento`).
 - Cadeias reais: energia e matérias-primas limitam indústria e pesquisa; alimentos sustentam população; bens valorizam comércio; influência financia expansão e tratados.
 - Mercado volátil com preços que reagem ao volume negociado, corretagem de 6% na compra, tendências e bônus tecnológico de venda.
-- Gráfico de evolução por recurso, detalhamento de fontes e destinos, projeção de 1/3/5 ciclos, receitas/despesas e manutenção militar.
+- Gráfico de evolução por recurso, detalhamento de fontes e destinos, projeção de 1/3/5 ciclos, receitas/despesas da companhia e custo das filiais.
 - Capacidade administrativa limita territórios; excedente reduz produção e aumenta desordem.
 
 ### Obras e tecnologia
@@ -116,12 +116,14 @@ Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6
 - Bônus de terreno/nó de recurso; vagas de estrutura limitadas por território (logística amplia).
 - Quatro ramos tecnológicos com 16 tecnologias, pré-requisitos, custos crescentes, descontos por modificadores e benefícios visíveis. Não há caminho obrigatório.
 
-### Expansão, diplomacia e guerra
-- Expansão de territórios neutros adjacentes: custo em créditos, matérias e influência; exige desenvolvimento mínimo na base, vaga de projeto e capacidade administrativa. A soberania chega em 2 ciclos.
-- Três Casas rivais com doutrinas distintas (comércio, indústria, expansão, militarismo), avaliando custos, riscos e relações.
-- Relações de −100 a +100, presentes, acordo comercial, não-agressão, aliança, guerra e paz. Propostas das Casas chegam ao longo dos ciclos.
-- Operações militares com custo, preparação de 2 ciclos, estimativa de força/defesa, resolução com terreno, desordem e consequências territoriais. Guerra custa influência e rompe acordos.
-- Eventos dinâmicos com escolhas e efeitos consistentes (colheita, seca, greve, refugiados, corsários, inovação, dívida, entre outros).
+### Filiais, expansão e acordos
+- **Insolvência** substitui a eliminação militar: caixa zerado com resultado negativo por seis ciclos encerra a companhia, fecha as filiais e devolve os territórios ao mapa. O painel de Economia avisa a partir do primeiro ciclo no vermelho.
+- **Empresas e operações**: cada filial ocupa uma cidade real de um país administrado, em uma de quatro linhas — varejo, indústria, logística e finanças. Receita cresce com a população da cidade, o nível da filial e a participação de mercado; filiais rivais na mesma cidade diluem a participação de todos.
+- Custos de abertura e expansão em créditos, matérias e relações; manutenção por ciclo; insumos industriais cobrados da produção do país.
+- Expansão para territórios neutros adjacentes: custo em créditos, matérias e relações; exige desenvolvimento mínimo na base, vaga de projeto e capacidade administrativa. A soberania chega em 2 ciclos.
+- Três companhias rivais com doutrinas próprias (varejo, indústria, logística, finanças) abrem e ampliam filiais dentro do próprio caixa.
+- Relações de −100 a +100, presentes, acordo comercial, não concorrência e parceria estratégica. Propostas das rivais chegam ao longo dos ciclos.
+- Eventos dinâmicos com escolhas e efeitos consistentes (colheita, seca, greve, leilão de concessões, cargas desviadas, inovação, dívida, entre outros).
 
 ### Interface e persistência
 - Barra superior em livro-razão com glifos ilustrados de recurso, saldo, ciclo, hegemonia e alertas; navegação lateral em plaquetas; painel contextual em papel; notificações; crônicas completas.
@@ -151,7 +153,8 @@ src/
     market.ts      preços, tendências, impacto de volume e atualização
     diplomacy.ts   relações, acordos e exigências
     commands.ts    comandos validados (construir, pesquisar, expandir, recrutar, guerrear, negociar)
-    cycle.ts       avanço de ciclo, conclusão de projetos, resolução de batalhas, vitória/derrota
+    cycle.ts       avanço de ciclo, conclusão de projetos, vitória/derrota
+    operations.ts  mercado das cidades, participação, receita e custo das filiais
     ai.ts          turnos das Casas, ofertas diplomáticas e doutrinas
     events.ts      catálogo de eventos, escolhas e efeitos
     progress.ts    hegemonia, objetivos, ranking e condições de fim
@@ -209,10 +212,11 @@ O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carreg
 ## Limites conhecidos e próximos passos
 
 - Uma única Casa jogável (Concórdia); a seleção de Casa e cenários alternativos são expansões naturais.
-- Sem áudio, sem animações de batalha quadro a quadro e sem campanha narrativa roteirizada.
+- Sem áudio, sem animações de combate e sem campanha narrativa roteirizada.
 - Sem servidor, contas ou partidas assíncronas — apenas a arquitetura preparada descrita acima.
 - **Ruas e edifícios são sintetizados**, não copiados do OpenStreetMap: o ambiente de build não tem acesso à API do Overpass. A costa, os rios e o centro de cada cidade são reais; o tecido urbano é gerado de forma determinística a partir deles (padrão radial/ortogonal, densidade e gabarito). A **variedade de prédios** segue um catálogo de tipologias com pesos por zona, não dados reais de lote.
 - Microestados e ilhas muito pequenas recebem um contorno mínimo gerado no build para continuarem visíveis e clicáveis; não há modelagem de relevo ou elevação real.
 - A malha provincial é carregada por país sob demanda; em conexões lentas o primeiro foco pode exibir o aviso de carregamento.
+- As 4.556 cidades de detalhe ficam em `/atlas/cities-detail.json` (229 kB) e só são baixadas ao aproximar ou focar um país. O arquivo é indexado uma vez (~16 ms) numa grade de 6°; cada consulta de viewport leva ~1,5 µs. Nenhum byte desse lote entra no pacote JS inicial.
 - 13 das 4.502 províncias (ilhas e enclaves minúsculos na Espanha, Reino Unido e Irlanda) não têm polígono após a simplificação: continuam listadas no localizador e selecionáveis, mas não são desenhadas no globo.
 - Balanceamento calibrado por simulação, não por playtest humano extenso. Ajustes ficam concentrados em `constants.ts`, `commands.ts` e `progress.ts`.

@@ -8,6 +8,7 @@ import {
 } from '../game/economy';
 import { buyUnitPrice, marketTrend, round2, sellUnitPrice } from '../game/market';
 import type { MarketKey, ResourceKey } from '../game/types';
+import { INSOLVENCY_CYCLES } from '../game/cycle';
 import { useGameStore } from '../store/gameStore';
 import { fmt, fmtRate, trendClass } from './format';
 import { ResourceGlyph } from './art/Glyph';
@@ -202,6 +203,22 @@ export function EconomyPanel() {
         </div>
       </div>
 
+      {player.deficitCycles > 0 ? (
+        <div className="warning-banner warning-banner--debt">
+          <Icon name="AlertTriangle" size={18} />
+          <div>
+            <strong>
+              Caixa zerado há {player.deficitCycles} ciclo{player.deficitCycles > 1 ? 's' : ''} — insolvência em {Math.max(0, INSOLVENCY_CYCLES - player.deficitCycles)}
+            </strong>
+            <p>
+              Seis ciclos seguidos no vermelho encerram a companhia: as filiais fecham e os mercados ficam livres.
+              Venda excedentes, encerre filiais deficitárias ou corte obras para voltar ao azul.
+            </p>
+          </div>
+          <a href="#market" className="button button--tiny button--danger" onClick={(event) => { event.preventDefault(); document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' }); }}>Vender estoque</a>
+        </div>
+      ) : null}
+
       {eco.shortages.length ? (
         <div className="warning-banner">
           <Icon name="AlertTriangle" size={18} />
@@ -303,7 +320,8 @@ export function EconomyPanel() {
                   ['taxes', 'Impostos urbanos', '#e4bd72'],
                   ['commerce', 'Comércio de bens', '#c6a5ea'],
                   ['buildings', 'Administração e estruturas', '#9fc2b4'],
-                  ['diplomacy', 'Tratados', '#6fd9c7'],
+                  ['operations', 'Filiais da companhia', '#6fd9c7'],
+                  ['diplomacy', 'Acordos comerciais', '#9db8e8'],
                   ['nodes', 'Depósitos naturais', '#c7a17b'],
                   ['base', 'Terreno', '#82c97c'],
                 ].map(([key, label, color]) => {
@@ -322,10 +340,14 @@ export function EconomyPanel() {
                 <div className="breakdown-title">Despesas ({fmt(eco.expenses)}/ciclo)</div>
                 {[
                   ['buildings', 'Manutenção de estruturas', '#e39a80'],
-                  ['military', 'Exército', '#8fb4f5'],
-                  ['war', 'Esforço de guerra', '#e36d63'],
+                  ['operations', 'Filiais e operações', '#8fb4f5'],
+                  ['inputs', 'Insumos de produção', '#e36d63'],
                 ].map(([key, label, color]) => {
-                  const value = key === 'buildings' ? eco.buildingUpkeep : key === 'military' ? eco.militaryUpkeep : Math.max(0, eco.upkeep - eco.buildingUpkeep - eco.militaryUpkeep);
+                  const value = key === 'buildings'
+                    ? eco.buildingUpkeep
+                    : key === 'operations'
+                      ? eco.operationUpkeep
+                      : Math.max(0, eco.upkeep - eco.buildingUpkeep - eco.operationUpkeep);
                   if (value <= 0.01) return null;
                   return (
                     <div className="breakdown-row" key={key}>
@@ -376,7 +398,7 @@ export function EconomyPanel() {
                 <Badge tone="blue">{activeProjects.length}/{slots}</Badge>
               </div>
             </div>
-            <p className="table-note">A falta de energia reduz a produção de bens e conhecimento. A falta de matérias-primas limita a indústria.</p>
+            <p className="table-note">A falta de energia reduz a produção de bens e P&amp;D. A falta de matérias-primas limita a indústria.</p>
           </section>
 
           <section className="view-card">

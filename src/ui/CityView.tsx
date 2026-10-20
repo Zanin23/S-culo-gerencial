@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CITY_BY_ID, COUNTRY_BY_ID } from '../game/atlas';
+import { COUNTRY_BY_ID, cityById } from '../game/atlas';
 import { getCityPlan } from '../game/cityPlan';
 import { FACTIONS, RESOURCES, RESOURCE_KEYS } from '../game/constants';
 import { developmentOf, territoryProduction } from '../game/economy';
@@ -35,7 +35,7 @@ export function CityView() {
     () => (plan && seat ? plan.plots.find((candidate) => candidate.id === seat.plotId) ?? null : null),
     [plan, seat],
   );
-  const city = seat ? CITY_BY_ID[seat.cityId] : null;
+  const city = seat ? cityById(seat.cityId) : null;
   const country = seat ? COUNTRY_BY_ID[seat.countryId] : null;
 
   if (!game) return null;
@@ -164,7 +164,7 @@ export function CityView() {
         <aside className="city-side">
           <header className="city-side__head">
             <div>
-              <div className="eyebrow">Sede da Casa</div>
+              <div className="eyebrow">Sede do grupo</div>
               <h2>{cityLabel(city.name)}</h2>
               <span>{country?.name} · fundada no ciclo {seat.foundedCycle}</span>
             </div>
@@ -306,6 +306,6 @@ export function CityView() {
 }
 
 export function MiniCityBadge({ cityId }: { cityId: string }) {
-  const city = CITY_BY_ID[cityId];
+  const city = cityById(cityId);
   return <span className="mini-city">{cityLabel(city?.name)}</span>;
 }

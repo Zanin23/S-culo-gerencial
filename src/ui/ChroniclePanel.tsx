@@ -12,7 +12,7 @@ const KIND_META: Record<LogKind, { label: string; icon: string; tone: 'teal' | '
   construcao: { label: 'Construção', icon: 'Hammer', tone: 'teal' },
   expansao: { label: 'Expansão', icon: 'Map', tone: 'teal' },
   diplomacia: { label: 'Diplomacia', icon: 'Handshake', tone: 'blue' },
-  militar: { label: 'Militar', icon: 'Swords', tone: 'red' },
+  operacoes: { label: 'Operações', icon: 'Store', tone: 'teal' },
   evento: { label: 'Evento', icon: 'Sparkles', tone: 'purple' },
   sistema: { label: 'Sistema', icon: 'Info', tone: 'neutral' },
   pesquisa: { label: 'Pesquisa', icon: 'FlaskConical', tone: 'purple' },
@@ -24,7 +24,7 @@ const FILTERS: Array<{ id: 'todos' | LogKind; label: string }> = [
   { id: 'construcao', label: 'Obras' },
   { id: 'expansao', label: 'Expansão' },
   { id: 'diplomacia', label: 'Diplomacia' },
-  { id: 'militar', label: 'Militar' },
+  { id: 'operacoes', label: 'Operações' },
   { id: 'pesquisa', label: 'Pesquisa' },
   { id: 'evento', label: 'Eventos' },
 ];

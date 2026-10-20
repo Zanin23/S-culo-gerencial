@@ -3,20 +3,20 @@ import { createInitialState, exportSave, importSave, loadState, saveState } from
 import { advanceCycle } from '../game/cycle';
 import { chooseEvent } from '../game/events';
 import { FACTIONS } from '../game/constants';
-import { CITY_BY_ID, PROVINCE_BY_ID } from '../game/atlas';
+import { CITY_BY_ID, PROVINCE_BY_ID, cityById } from '../game/atlas';
 import { scoreOf } from '../game/progress';
-import type { CommandResult, CycleReport, FactionId, GameState, MarketKey, ResourceKey, TechId, BuildingKey } from '../game/types';
+import type { CommandResult, CycleReport, FactionId, GameState, MarketKey, ResourceKey, SectorKey, TechId, BuildingKey } from '../game/types';
 import {
   buyResource,
-  declareWar,
+  closeOperation,
+  expandOperation,
+  openOperation,
   proposeTreaty,
-  recruit,
   respondToOffer,
   sellResource,
   sendGift,
   startConstruction,
   startExpansion,
-  startOperation,
   startResearch,
   foundSeat as foundSeatCommand,
 } from '../game/commands';
@@ -29,11 +29,12 @@ export type ViewKey =
   | 'tech'
   | 'expansion'
   | 'diplomacy'
+  | 'companies'
   | 'objectives'
   | 'chronicle'
   | 'settings';
 
-export type ToastKind = 'success' | 'error' | 'info' | 'warning' | 'battle';
+export type ToastKind = 'success' | 'error' | 'info' | 'warning' | 'operation';
 
 export interface Toast {
   id: number;
@@ -112,12 +113,12 @@ interface GameStore {
   build: (tileId: string, building: BuildingKey) => boolean;
   research: (techId: TechId) => boolean;
   expand: (tileId: string) => boolean;
-  attack: (tileId: string) => boolean;
-  enlist: (batches: number) => boolean;
+  openOperation: (cityId: string, sector: SectorKey) => boolean;
+  upgradeOperation: (operationId: string) => boolean;
+  closeOperation: (operationId: string) => boolean;
   trade: (resource: MarketKey, amount: number, side: 'buy' | 'sell') => boolean;
   gift: (target: FactionId) => boolean;
-  treaty: (target: FactionId, kind: 'trade' | 'nonAggression' | 'alliance' | 'peace') => boolean;
-  war: (target: FactionId) => boolean;
+  treaty: (target: FactionId, kind: 'trade' | 'nonAggression' | 'alliance') => boolean;
   answerOffer: (offerId: string, accept: boolean) => boolean;
   resolveEvent: (choiceId: string) => boolean;
   openTutorial: (step?: number) => void;
@@ -340,7 +341,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
         set({ selectedCityId: null });
         return;
       }
-      const city = CITY_BY_ID[cityId];
+      const city = cityById(cityId);
       set({
         selectedCityId: cityId,
         selectedProvinceId: null,
@@ -411,8 +412,12 @@ export const useGameStore = create<GameStore>()((set, get) => {
     build: (tileId, building) => run((state) => startConstruction(state, state.playerFactionId, tileId, building)),
     research: (techId) => run((state) => startResearch(state, state.playerFactionId, techId)),
     expand: (tileId) => run((state) => startExpansion(state, state.playerFactionId, tileId)),
-    attack: (tileId) => run((state) => startOperation(state, state.playerFactionId, tileId)),
-    enlist: (batches) => run((state) => recruit(state, state.playerFactionId, batches)),
+    openOperation: (cityId, sector) =>
+      run((state) => openOperation(state, state.playerFactionId, cityId, sector)),
+    upgradeOperation: (operationId) =>
+      run((state) => expandOperation(state, state.playerFactionId, operationId)),
+    closeOperation: (operationId) =>
+      run((state) => closeOperation(state, state.playerFactionId, operationId)),
     trade: (resource, amount, side) =>
       run((state) =>
         side === 'sell'
@@ -421,7 +426,6 @@ export const useGameStore = create<GameStore>()((set, get) => {
       ),
     gift: (target) => run((state) => sendGift(state, state.playerFactionId, target)),
     treaty: (target, kind) => run((state) => proposeTreaty(state, state.playerFactionId, target, kind)),
-    war: (target) => run((state) => declareWar(state, state.playerFactionId, target)),
     answerOffer: (offerId, accept) => run((state) => respondToOffer(state, state.playerFactionId, offerId, accept)),
 
     resolveEvent: (choiceId) => {
