@@ -1,10 +1,12 @@
 import '@fontsource-variable/inter';
+import '@fontsource-variable/fraunces';
 import '@fontsource/spectral/400.css';
 import '@fontsource/spectral/500.css';
 import '@fontsource/spectral/600.css';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './index.css';
+import './ui/theme/atelier.css';
 
 const container = document.getElementById('root');
 
