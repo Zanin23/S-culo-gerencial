@@ -18,10 +18,12 @@ import {
   startExpansion,
   startOperation,
   startResearch,
+  foundSeat as foundSeatCommand,
 } from '../game/commands';
 
 export type ViewKey =
   | 'map'
+  | 'city'
   | 'economy'
   | 'construction'
   | 'tech'
@@ -48,7 +50,13 @@ export interface ConfirmConfig {
   onConfirm: () => void;
 }
 
-export type Screen = 'menu' | 'game';
+export type Screen = 'menu' | 'seat' | 'game';
+
+export interface SeatDraft {
+  cityId: string;
+  plotId: string | null;
+  district: 'Centro' | 'Expansão' | 'Periferia' | null;
+}
 export const CYCLE_SECONDS = 14;
 let toastId = 1;
 
@@ -75,7 +83,16 @@ interface GameStore {
   openEvent: () => void;
 
   boot: () => void;
-  startNewGame: (seed?: number) => void;
+  seatDraft: SeatDraft;
+  seatMode: 'new' | 'existing';
+  cityMode: 'overview' | 'building' | 'interior';
+  openSeat: (mode?: 'new' | 'existing') => void;
+  chooseSeatCity: (cityId: string) => void;
+  chooseSeatPlot: (plotId: string, district: SeatDraft['district']) => void;
+  cancelSeat: () => void;
+  foundSeat: () => void;
+  setCityMode: (mode: 'overview' | 'building' | 'interior') => void;
+  startNewGame: (seed?: number, seat?: { cityId: string; plotId: string; district: 'Centro' | 'Expansão' | 'Periferia' }) => void;
   continueGame: () => void;
   goToMenu: () => void;
   selectTile: (tileId: string | null) => void;
@@ -158,6 +175,9 @@ export const useGameStore = create<GameStore>()((set, get) => {
     game: null,
     loadError: null,
     view: 'map',
+    seatDraft: { cityId: 'c1044', plotId: null, district: null },
+    seatMode: 'new',
+    cityMode: 'overview',
     selectedTileId: null,
     selectedProvinceId: null,
     selectedCityId: null,
@@ -186,14 +206,54 @@ export const useGameStore = create<GameStore>()((set, get) => {
       }
     },
 
-    startNewGame: (seed) => {
-      const game = createInitialState(seed ?? (Date.now() % 1_000_000), Date.now());
+    openSeat: (mode = 'new') => set({
+      screen: 'seat',
+      seatMode: mode,
+      seatDraft: {
+        cityId: get().game?.city?.cityId ?? 'c1044',
+        plotId: null,
+        district: null,
+      },
+      cityMode: 'overview',
+    }),
+    chooseSeatCity: (cityId) => set({ seatDraft: { cityId, plotId: null, district: null } }),
+    chooseSeatPlot: (plotId, district) => set((state) => ({
+      seatDraft: { ...state.seatDraft, plotId, district },
+      cityMode: 'building',
+    })),
+    cancelSeat: () => set((state) => ({
+      screen: state.seatMode === 'existing' && state.game ? 'game' : 'menu',
+      cityMode: 'overview',
+    })),
+    setCityMode: (mode) => set({ cityMode: mode }),
+    foundSeat: () => {
+      const draft = get().seatDraft;
+      if (!draft.plotId || !draft.district) return;
+      if (get().seatMode === 'existing' && get().game) {
+        const ok = get().run(
+          (state) => foundSeatCommand(state, draft.cityId, draft.plotId!, draft.district!),
+          false,
+        );
+        if (!ok) return;
+        set({ screen: 'game', view: 'city', cityMode: 'building' });
+        return;
+      }
+      get().startNewGame(undefined, {
+        cityId: draft.cityId,
+        plotId: draft.plotId,
+        district: draft.district,
+      });
+      set({ screen: 'game', view: 'city', cityMode: 'building' });
+    },
+
+    startNewGame: (seed, seat) => {
+      const game = createInitialState(seed ?? (Date.now() % 1_000_000), Date.now(), seat);
       persist(game);
       set({
         game,
         savedGame: game,
         screen: 'game',
-        view: 'map',
+        view: seat ? 'city' : 'map',
         selectedTileId: game.factions[game.playerFactionId].capitalId,
         focusCountryId: null,
         selectedProvinceId: null,
@@ -206,7 +266,13 @@ export const useGameStore = create<GameStore>()((set, get) => {
         savedAt: Date.now(),
         eventDismissed: false,
       });
-      notify('info', 'Nova campanha', 'Lisboa aguarda suas decisões. Leia o tutorial para começar.');
+      notify(
+        'info',
+        'Nova campanha',
+        seat
+          ? `Sede fundada em ${game.city?.cityName ?? 'sua cidade'}. O distrito ${seat.district} já influencia a economia.`
+          : 'Lisboa aguarda suas decisões. Leia o tutorial para começar.',
+      );
     },
 
     continueGame: () => {

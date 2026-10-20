@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { chooseEvent, eventById } from './events';
 import { runAITurn } from './ai';
 import { advanceCycle } from './cycle';
-import { computeEconomy, developmentOf, techEffects } from './economy';
+import { computeEconomy, defenseOf, developmentOf, techEffects, territoryProduction } from './economy';
 import { neighborsOf, tilesOfFaction } from './map';
 import { createInitialState, exportSave, importSave, validateState } from './state';
-import { buildingCost, startConstruction, startResearch, startExpansion, sellResource } from './commands';
+import { buildingCost, foundSeat, startConstruction, startResearch, startExpansion, sellResource } from './commands';
 import { objectivesOf, scoreOf } from './progress';
 import { FACTIONS } from './constants';
 import type { FactionId, GameState } from './types';
@@ -132,4 +132,42 @@ describe('TESSERA engine', () => {
     const invalid = validateState({ version: 1, cycle: 0 });
     expect(invalid.state).toBeNull();
   });
+});
+
+it('a sede escolhida altera a economia real da capital', () => {
+  const base = createInitialState(8080, Date.now());
+  const withSeat = foundSeat(base, 'c1044', 'c1044-lote-01', 'Centro');
+  expect(withSeat.ok).toBe(true);
+  const seat = withSeat.state.city!;
+  expect(seat.cityName).toBe('Lisbon');
+  expect(seat.district).toBe('Centro');
+  expect(seat.countryId).toBe('PRT');
+
+  const commerce = (state: typeof base) => {
+    const capital = state.tiles[state.factions[state.playerFactionId].capitalId];
+    return territoryProduction(state, capital, state.factions[state.playerFactionId]).commerceBase;
+  };
+  expect(commerce(withSeat.state)).toBeGreaterThan(commerce(base));
+
+  const industry = foundSeat(base, 'c1146', 'c1146-lote-01', 'Expansão');
+  expect(industry.ok).toBe(true);
+  const defense = (state: typeof base) => {
+    const capital = state.tiles[state.factions[state.playerFactionId].capitalId];
+    return defenseOf(state, capital);
+  };
+  expect(defense(withSeat.state)).toBeLessThan(defense(base));
+  const periphery = foundSeat(base, 'c1044', 'c1044-lote-01', 'Periferia');
+  expect(periphery.ok).toBe(true);
+  expect(defense(periphery.state)).toBeGreaterThan(defense(withSeat.state));
+
+  // Anexa o país-sede quando ele ainda não pertence à Casa.
+  const madrid = industry.state;
+  expect(madrid.tiles.ESP.owner).toBe('concordia');
+  expect(madrid.factions.concordia.capitalId).toBe('ESP');
+  expect(madrid.tiles.ESP.isCapital).toBe(true);
+  expect(madrid.tiles.PRT.isCapital).toBe(false);
+
+  // Sem lote não há sede.
+  const none = foundSeat(base, 'inexistente', 'x', 'Centro');
+  expect(none.ok).toBe(false);
 });

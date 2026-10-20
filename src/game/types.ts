@@ -238,6 +238,20 @@ export interface GameSettings {
   showDigest: boolean;
 }
 
+export type CityDistrict = 'Centro' | 'Expansão' | 'Periferia';
+
+/** Sede do jogador: cidade real escolhida no mapa-múndi e lote no plano 3D. */
+export interface CitySeat {
+  cityId: string;
+  cityName: string;
+  countryId: string;
+  plotId: string;
+  district: CityDistrict;
+  lat: number;
+  lon: number;
+  foundedCycle: number;
+}
+
 export interface GameState {
   version: number;
   seed: number;
@@ -262,6 +276,8 @@ export interface GameState {
   victoryCycle: number | null;
   tutorial: TutorialState;
   settings: GameSettings;
+  /** Presente a partir da fundação da sede; saves antigos não têm o campo. */
+  city?: CitySeat | null;
   nextId: number;
 }
 

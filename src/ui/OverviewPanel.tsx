@@ -5,6 +5,7 @@ import { leaderboard, objectivesOf, rankOf, scoreParts, VICTORY_TARGET } from '.
 import { tilesOfFaction } from '../game/map';
 import type { LogKind } from '../game/types';
 import { useGameStore } from '../store/gameStore';
+import { cityLabel } from '../game/names';
 import { fmt, fmtRate, trendClass } from './format';
 import { Icon } from './Icon';
 import { Badge, ProgressBar, Ring, SectionHeader } from './primitives';
@@ -80,6 +81,17 @@ export function OverviewPanel() {
             <span>
               <strong>{offers.length} proposta{offers.length > 1 ? 's' : ''} diplomática{offers.length > 1 ? 's' : ''}</strong>
               <small>Uma resposta pode mudar as relações do mundo.</small>
+            </span>
+            <Icon name="ChevronRight" size={15} />
+          </button>
+        ) : null}
+
+        {game.city ? (
+          <button className="callout callout--seat" onClick={() => setView('city')} type="button">
+            <Icon name="Building2" size={18} />
+            <span>
+              <strong>Sede em {cityLabel(game.city.cityName)}</strong>
+              <small>Distrito {game.city.district} · lote {game.city.plotId} · abrir a cidade 3D</small>
             </span>
             <Icon name="ChevronRight" size={15} />
           </button>
