@@ -278,7 +278,7 @@ export function TerritoryPanel() {
           <Icon name="Hammer" size={14} /> Estruturas {isOwn ? <span className="tab-count">{used}/{slots}</span> : null}
         </button>
         <button className={cx('context-tab', tab === 'acoes' && 'is-active')} onClick={() => setTab('acoes')} type="button" role="tab" aria-selected={tab === 'acoes'}>
-          <Icon name="Swords" size={14} /> Ações
+          <Icon name="Target" size={14} /> Ações
         </button>
       </div>
 
@@ -442,7 +442,7 @@ export function TerritoryPanel() {
             {!isOwn ? (
               <div className="callout callout--neutral">
                 <Icon name="Lock" size={16} />
-                <span><strong>Território sob controle de {owner?.short}</strong><small>Estruturas só podem ser erguidas neste território após expansão ou conquista.</small></span>
+                <span><strong>Território sob controle de {owner?.short}</strong><small>Estruturas só podem ser erguidas neste território após expansão ou licença de operação.</small></span>
               </div>
             ) : null}
             <section className="build-list">

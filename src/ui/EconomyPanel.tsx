@@ -29,7 +29,7 @@ const SOURCE_LABELS: Record<string, string> = {
 const DEMAND_LABELS: Record<string, string> = {
   population: 'Consumo populacional',
   industry: 'Insumos industriais',
-  upkeep: 'Manutenção e exército',
+  upkeep: 'Manutenção e filiais',
 };
 
 const CHART_OPTIONS: ResourceKey[] = ['creditos', 'alimentos', 'energia', 'materias', 'influencia'];
