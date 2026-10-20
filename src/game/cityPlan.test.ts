@@ -86,6 +86,54 @@ describe('plano urbano 3D', () => {
     expect(sampleHeight(plan, -plan.size, -plan.size)).toBeGreaterThanOrEqual(0);
   });
 
+  it('mistura tipologias, coberturas e alturas na mesma cidade', () => {
+    const plan = getCityPlan('c1044', 0);
+    const kinds = new Set(plan.buildings.map((building) => building.kind));
+    const roofs = new Set(plan.buildings.map((building) => building.roof));
+    const styles = new Set(plan.buildings.map((building) => building.style));
+    expect(kinds.size).toBeGreaterThanOrEqual(7);
+    expect(roofs.size).toBeGreaterThanOrEqual(4);
+    expect(styles.size).toBeGreaterThanOrEqual(5);
+    for (const building of plan.buildings) {
+      expect(building.floors).toBeGreaterThanOrEqual(1);
+      expect(building.roofH).toBeGreaterThan(0);
+      expect(building.style).toBeGreaterThanOrEqual(0);
+      expect(building.style).toBeLessThanOrEqual(6);
+      expect(building.w).toBeGreaterThanOrEqual(6);
+      expect(building.h).toBeGreaterThanOrEqual(5);
+    }
+    const heights = plan.buildings.map((building) => building.h);
+    expect(Math.max(...heights)).toBeGreaterThan(80);
+    expect(heights.filter((height) => height < 12).length).toBeGreaterThan(1000);
+  });
+
+  it('não empilha edifícios uns sobre os outros', () => {
+    const plan = getCityPlan('c1039', 0);
+    // Confere num raio de 1,2 km, onde a densidade é maior.
+    const near = plan.buildings.filter((building) => Math.hypot(building.x, building.y) < 1200);
+    const buckets = new Map<string, typeof near>();
+    const key = (i: number, j: number) => `${i}:${j}`;
+    let overlaps = 0;
+    for (const building of near) {
+      const radius = Math.hypot(building.w, building.d) / 2;
+      const i = Math.floor(building.x / 20);
+      const j = Math.floor(building.y / 20);
+      for (let di = -1; di <= 1; di += 1) {
+        for (let dj = -1; dj <= 1; dj += 1) {
+          for (const other of buckets.get(key(i + di, j + dj)) ?? []) {
+            const distance = Math.hypot(other.x - building.x, other.y - building.y);
+            if (distance < (Math.hypot(other.w, other.d) / 2 + radius) * 0.45) overlaps += 1;
+          }
+        }
+      }
+      const bucket = buckets.get(key(i, j));
+      if (bucket) bucket.push(building);
+      else buckets.set(key(i, j), [building]);
+    }
+    expect(near.length).toBeGreaterThan(300);
+    expect(overlaps).toBe(0);
+  });
+
   it('liga cada cidade-sede a um país real do tabuleiro', () => {
     for (const id of SEAT_CITIES) {
       const city = CITY_BY_ID[id];

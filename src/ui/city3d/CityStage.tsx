@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCityPlan, type CityPlan, type CityPlot } from '../../game/cityPlan';
 import { cityLabel } from '../../game/names';
+import { Icon } from '../Icon';
 import { cx } from '../primitives';
 import { CityScene, type CityMode } from './CityScene';
 import { supportsWebGL } from '../globe/webgl';
@@ -9,6 +10,8 @@ export interface CityStageProps {
   cityId: string;
   mode: CityMode;
   plotId?: string | null;
+  /** Pisos visíveis no corte da sede (1–4). */
+  floor?: number;
   showMinimap?: boolean;
   onPickPlot?: (plot: CityPlot) => void;
   onEnterBuilding?: () => void;
@@ -52,6 +55,25 @@ export function CityPlan2D({
       .join(' ');
   }, [plan]);
 
+  // Tecido urbano em 2D: um único <path> por tipologia, sem rotação, para o
+  // fallback sem WebGL continuar leve mesmo com dezenas de milhares de casas.
+  const fabric = useMemo(() => {
+    if (compact) return [];
+    const byKind = new Map<string, string[]>();
+    const limit = 9000;
+    const ordered = plan.buildings.length > limit
+      ? [...plan.buildings].sort((a, b) => b.w * b.d - a.w * a.d).slice(0, limit)
+      : plan.buildings;
+    for (const building of ordered) {
+      const list = byKind.get(building.kind) ?? [];
+      const x = building.x - building.w / 2;
+      const y = -(building.y - building.d / 2);
+      list.push(`M${x.toFixed(0)} ${y.toFixed(0)}h${building.w}v${-building.d}h${-building.w}z`);
+      byKind.set(building.kind, list);
+    }
+    return [...byKind.entries()];
+  }, [plan, compact]);
+
   const half = plan.size / 2;
   return (
     <svg
@@ -71,6 +93,9 @@ export function CityPlan2D({
       {/* água aproximada pelas células: retângulos agrupados por linha */}
       {!compact && <WaterMask plan={plan} />}
       <path d={roads} fill="none" stroke="#454b4e" strokeWidth={compact ? 26 : 11} strokeLinecap="round" />
+      {fabric.map(([kind, path]) => (
+        <path key={kind} d={path.join('')} fill={PLAN2D_KINDS[kind] ?? '#6b6f66'} opacity={0.9} />
+      ))}
       {shore && <path d={shore} fill="none" stroke="#c9bd9a" strokeWidth={compact ? 30 : 13} opacity={0.55} />}
       {plan.plots.map((plot) => {
         const isHq = plot.id === plotId;
@@ -94,6 +119,18 @@ export function CityPlan2D({
     </svg>
   );
 }
+
+/** Cores do tecido urbano na planta 2D, por tipologia. */
+const PLAN2D_KINDS: Record<string, string> = {
+  casa: '#6d5f4c',
+  villa: '#77664f',
+  solar: '#7b786d',
+  predio: '#8a8a80',
+  comercial: '#7e9199',
+  torre: '#8fa9b3',
+  galpao: '#6f7a7c',
+  marco: '#9bb0b6',
+};
 
 function WaterMask({ plan }: { plan: CityPlan }) {
   const rows: React.ReactNode[] = [];
@@ -133,6 +170,7 @@ export function CityStage({
   onEnterBuilding,
   onFail,
   onHoverPlot,
+  floor = 4,
   children,
   className,
 }: CityStageProps) {
@@ -206,6 +244,10 @@ export function CityStage({
     sceneRef.current?.setMode(mode);
   }, [mode, active, selectedPlot]);
 
+  useEffect(() => {
+    sceneRef.current?.setFloor(floor);
+  }, [floor, active, selectedPlot]);
+
   return (
     <div className={cx('city-stage', className)}>
       <div ref={mountRef} className={cx('city-stage__canvas', !active && 'is-hidden')} aria-hidden={!active} />
@@ -225,6 +267,34 @@ export function CityStage({
       {showMinimap && active && (
         <div className="city-minimap" aria-hidden="true">
           <CityPlan2D plan={plan} plotId={plotId} compact />
+        </div>
+      )}
+      {active && (
+        <div className="city-nav" role="group" aria-label="Câmera">
+          <button
+            type="button"
+            onClick={() => sceneRef.current?.zoomBy(0.78)}
+            aria-label="Aproximar"
+            title="Aproximar"
+          >
+            <Icon name="Plus" size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={() => sceneRef.current?.zoomBy(1.28)}
+            aria-label="Afastar"
+            title="Afastar"
+          >
+            <Icon name="Minus" size={13} />
+          </button>
+          <button
+            type="button"
+            onClick={() => sceneRef.current?.resetView()}
+            aria-label="Recentrar a câmera"
+            title="Recentrar"
+          >
+            <Icon name="RotateCcw" size={13} />
+          </button>
         </div>
       )}
       {children}

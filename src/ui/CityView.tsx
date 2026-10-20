@@ -11,6 +11,14 @@ import { fmt, fmtRate, trendClass } from './format';
 import { Icon } from './Icon';
 import { Badge, cx, ProgressBar, SectionHeader } from './primitives';
 
+/** Pisos do corte da sede: o número visível mostra até onde a maquete está aberta. */
+const FLOOR_LABELS: Array<[number, string]> = [
+  [1, 'Térreo'],
+  [2, 'Escritório'],
+  [3, 'Reuniões'],
+  [4, 'Direção'],
+];
+
 export function CityView() {
   const game = useGameStore((s) => s.game);
   const cityMode = useGameStore((s) => s.cityMode);
@@ -18,6 +26,7 @@ export function CityView() {
   const setView = useGameStore((s) => s.setView);
   const openSeat = useGameStore((s) => s.openSeat);
   const [tab, setTab] = useState<'gestao' | 'sede'>('gestao');
+  const [floor, setFloor] = useState(1);
 
   const seat = game?.city ?? null;
   const plan = useMemo(() => (seat ? getCityPlan(seat.cityId, 0) : null), [seat]);
@@ -72,6 +81,7 @@ export function CityView() {
             cityId={seat.cityId}
             mode={cityMode}
             plotId={seat.plotId}
+            floor={floor}
             onEnterBuilding={() => setCityMode('interior')}
             onFail={() => setCityMode('overview')}
           >
@@ -112,8 +122,29 @@ export function CityView() {
 
             <div className="city-caption">
               <strong>{cityLabel(city.name)}</strong>
-              <span>{country?.name} · {seat.district} · lote {seat.plotId}</span>
+              <span>
+                {country?.name} · {seat.district} · lote {seat.plotId}
+                {cityMode === 'building' ? ' · corte aberto' : ''}
+              </span>
             </div>
+
+            {cityMode === 'building' && (
+              <div className="city-floors" role="group" aria-label="Pisos no corte da sede">
+                <span className="city-floors__label">Pisos</span>
+                {FLOOR_LABELS.map(([level, label]) => (
+                  <button
+                    key={level}
+                    type="button"
+                    className={cx('city-floors__button', floor === level && 'is-active')}
+                    aria-pressed={floor === level}
+                    title={`${label} — até ${level} ${level === 1 ? 'piso' : 'pisos'} visíveis`}
+                    onClick={() => setFloor(level)}
+                  >
+                    {level}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {cityMode === 'interior' && (
               <div className="city-inside">
@@ -252,7 +283,7 @@ export function CityView() {
                   <SectionHeader eyebrow="Câmera" title="Ver de perto" icon="Eye" />
                   <div className="city-camera">
                     <button type="button" className="button button--ghost" onClick={() => setCityMode('building')}>
-                      <Icon name="Building2" size={14} /> Orbitar a sede
+                      <Icon name="Building2" size={14} /> Abrir o corte da sede
                     </button>
                     <button type="button" className="button button--ghost" onClick={() => setCityMode('interior')}>
                       <Icon name="DoorOpen" size={14} /> Entrar no prédio

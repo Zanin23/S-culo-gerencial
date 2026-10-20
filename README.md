@@ -4,7 +4,7 @@ Jogo de estratégia territorial e gestão econômica para navegador. Quatro Casa
 
 O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e 1.203 cidades a partir de dados geográficos do Natural Earth.
 
-Antes de começar, você **funda a sede**: escolhe uma cidade real, vê a maquete 3D do terreno e das ruas e marca o lote onde a primeira construção será erguida. O distrito do lote altera permanentemente comércio, indústria ou defesa da capital — e dá para orbitar a cidade, girar em torno do prédio e entrar nele.
+Antes de começar, você **funda a sede**: escolhe uma cidade real, vê a maquete 3D do terreno e das ruas e marca o lote onde a primeira construção será erguida. O distrito do lote altera permanentemente comércio, indústria ou defesa da capital — e dá para orbitar a cidade, abrir o **corte da sede** como uma casa de bonecas e entrar nela.
 
 > MVP funcional e jogável. Todos os números da interface vêm do mesmo motor determinístico que move as Casas rivais. Não há telas simuladas nem jogadores fictícios.
 >
@@ -49,6 +49,8 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 | Escolher cidade-sede | Menu → Fundar Concórdia → lista de cidades |
 | Escolher lote | Clique num lote dourado na maquete |
 | Orbitar/zoom da cidade | Arrastar / roda do mouse; botão direito ou Shift para panorâmica |
+| Pisos do corte da sede | Botões **1–4** no canto superior esquerdo da maquete |
+| Câmera da cidade | Arrastar para orbitar, roda para zoom, **+ / − / recentrar** à direita da maquete |
 | Entrar no prédio | Aba Cidade → Interior (ou duplo clique na fachada) |
 | Girar o globo | Arrastar |
 | Aproximar/afastar | Roda do mouse, pinça ou botões `+` / `−` |
@@ -63,18 +65,20 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 | Voltar ao mapa | `Esc` |
 | Manual | `H` ou botão “Ajuda” |
 
-Telas: `1` Mapa · `2` Economia · `3` Obras · `4` Ciência · `5` Expansão · `6` Diplomacia · `7` Campanha · `8` Crônicas. Ajustes e saves ficam na engrenagem.
+Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6` Expansão · `7` Diplomacia · `8` Metas · `9` Registro. Ajustes e saves ficam na engrenagem.
 
 ---
 
 ## O que está implementado
 
 ### Cidade 3D e fundação da sede
-- **Maquete tridimensional** de 5,2 × 5,2 km em torno do centro real da cidade: relevo, água, quadras, ruas, parques, cerca de 3 mil edificações, árvores, sombra e atmosfera.
+- **Maquete tridimensional** de 6,8 × 6,8 km em torno do centro real da cidade: relevo, água, quadras, ruas, parques, **20 a 30 mil edificações**, árvores, sombra e atmosfera. A câmera abre com **58° de campo de visão**, enquadrando a mancha urbana inteira de uma vez.
+- **Variedade urbana de verdade**: oito tipologias (torre, comercial, prédio, solar, casa, quinta, galpão e marco) sorteadas por zona — centro denso em torres, periferia em casas e galpões. Cada edifício recebe cobertura (duas águas, quatro águas, laje, shed ou coroa), paleta de fachada, toldo, vitrine, casa de máquinas e antena; as janelas mudam de escala conforme o número de andares.
 - **Terreno real**: a linha de costa, os rios e os lagos vêm do recorte do Natural Earth 10m (Lisboa mostra o Tejo; Sevilha e Córdoba, o Guadalquivir; Funchal e Las Palmas, a orla).
 - **Ruas e quarteirões gerados** a partir dessa base: avenidas radiais a partir do centro, anéis viários, malha ortogonal por distrito e centros de bairro — sempre recortados pela água.
-- **Escolha do lote**: 16 lotes livres por cidade; o distrito (Centro / Expansão / Periferia) define o bônus permanente da capital (+10% comércio, +8% indústria/extração ou +14% defesa).
-- **Câmera**: órbita, zoom, panorâmica com botão direito/Shift; modos **Cidade**, **Sede** (fachada) e **Interior** (sala de comando com vista real para os prédios vizinhos pelas janelas).
+- **Escolha do lote**: 20 lotes livres por cidade; o distrito (Centro / Expansão / Periferia) define o bônus permanente da capital (+10% comércio, +8% indústria/extração ou +14% defesa).
+- **Corte da sede no estilo casa de bonecas**: a torre da sede vira uma maquete de quatro pisos empilhados, com planta mobiliada (átrio, escritório aberto, salas de reunião, direção), paredes envidraçadas e **paredes que somem quando ficam entre a câmera e o interior** — só o rodapé de corte continua, como em The Sims. Os botões de piso mostram do térreo até a direção, com a câmera reenquadrando o piso em foco; a luz e o mapa de sombras se aproximam junto.
+- **Câmera**: órbita, zoom, panorâmica com botão direito/Shift e controles `+` / `−` / recentrar; modos **Cidade**, **Sede** (corte) e **Interior** (sala de comando com vista real para os prédios vizinhos pelas janelas).
 - **Minimapa** e planta 2D determinística como fallback sem WebGL — o jogo continua jogável.
 
 ### Mapa-múndi em 3D
@@ -183,6 +187,7 @@ npm test
 - `src/ui/globe/globe.test.ts` — valida o atlas (referências de país/província/cidade e adjacência), o tabuleiro completo, a tesselação de todos os contornos em triângulos na esfera, o caso do antimeridiano (Fiji, Nova Zelândia, Rússia) e as cores de soberania.
 - `src/game/cityPlan.test.ts` — determinismo do gerador urbano, aderência à geografia real (água/orla/terra), ruas fora da água, lotes livres e relevo coerente em todas as cidades-sede.
 - `src/ui/FlatAtlas.test.tsx` — desenha a carta plana com todos os países, divisões internas e cidades, encaminha cliques de país/província/cidade, duplo clique e os controles de zoom/recentragem.
+- `src/ui/city3d/dollhouse.test.ts` — monta o corte da sede: quatro pisos mobiliados, piso em foco e paredes voltadas para a câmera reduzidas ao rodapé.
 - `src/ui/smoke.test.tsx` — renderiza o app em jsdom (sem WebGL, exercitando a carta plana), inicia campanha, percorre todas as telas, seleciona país/província/cidade, avança ciclos, executa obra, pesquisa, comércio, presente, expansão e resolve um evento pelo modal.
 
 O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carregado sob demanda num chunk separado (~500 kB); o pacote inicial fica em ~948 kB (329 kB gzip), incluindo o atlas mundial embutido. Dados geográficos: Natural Earth (domínio público), simplificados por `scripts/build-atlas.py`.
@@ -194,7 +199,7 @@ O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carreg
 - Uma única Casa jogável (Concórdia); a seleção de Casa e cenários alternativos são expansões naturais.
 - Sem áudio, sem animações de batalha quadro a quadro e sem campanha narrativa roteirizada.
 - Sem servidor, contas ou partidas assíncronas — apenas a arquitetura preparada descrita acima.
-- **Ruas e edifícios são sintetizados**, não copiados do OpenStreetMap: o ambiente de build não tem acesso à API do Overpass. A costa, os rios e o centro de cada cidade são reais; o tecido urbano é gerado de forma determinística a partir deles (padrão radial/ortogonal, densidade e gabarito).
+- **Ruas e edifícios são sintetizados**, não copiados do OpenStreetMap: o ambiente de build não tem acesso à API do Overpass. A costa, os rios e o centro de cada cidade são reais; o tecido urbano é gerado de forma determinística a partir deles (padrão radial/ortogonal, densidade e gabarito). A **variedade de prédios** segue um catálogo de tipologias com pesos por zona, não dados reais de lote.
 - Microestados e ilhas muito pequenas recebem um contorno mínimo gerado no build para continuarem visíveis e clicáveis; não há modelagem de relevo ou elevação real.
 - A malha provincial é carregada por país sob demanda; em conexões lentas o primeiro foco pode exibir o aviso de carregamento.
 - 13 das 4.502 províncias (ilhas e enclaves minúsculos na Espanha, Reino Unido e Irlanda) não têm polígono após a simplificação: continuam listadas no localizador e selecionáveis, mas não são desenhadas no globo.
