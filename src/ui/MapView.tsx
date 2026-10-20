@@ -306,6 +306,7 @@ export function MapView() {
           onSelectCountry={(id, focus) => selectCountry(id, focus)}
           onSelectProvince={(id) => selectProvince(id)}
           onSelectCity={(id) => selectCity(id)}
+          onHover={(next) => setHover(next)}
           onClear={() => clearSelection()}
         />
       )}
