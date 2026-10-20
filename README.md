@@ -95,6 +95,7 @@ Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6
 - **Leitura principal**: atlas ilustrado em SVG (equirretangular, 360×180 unidades) com lavagem de terreno hachurada, orla de areia, sombra de papel recortado, graticula, rosácea dos ventos e escala. Pan por arrasto, zoom por roda (1×–11×), foco automático no país e seleção de país, província e cidade.
 - **Detalhe sob demanda**: com um país em foco, as províncias reais são desenhadas e clicáveis; as cidades viram conjuntos urbanos ilustrados a partir de 1,35× e viram pinos discretos no mundo inteiro.
 - **Globo WebGL** (three.js) com países extrudados, atmosfera e estrelas, e **carta plana 2D** como alternativa acessível — os três modos compartilham o mesmo estado, a mesma seleção e o mesmo painel contextual.
+- **Arrasto e zoom sem re-render**: a câmera é escrita direto no `viewBox` do SVG e a terra é "assada" em ~15 caminhos (um por terreno, um por Casa) em vez de ~1.200. Só a camada de clique continua país a país, recortada pela viewport; o React re-renderiza a cada 110 ms, não a cada evento.
 - **231 países** como territórios; **4.502 províncias/estados** e **1.203 cidades** como camadas selecionáveis. A geometria do país é carregada sob demanda (`public/atlas/geo/{ISO}.json`), então a seleção nacional nunca depende de um único arquivo gigante.
 - Localizador com três seletores (país → província → cidade) resolve o problema de clicar em países minúsculos e serve de caminho acessível por teclado.
 - Tooltip com terreno ilustrado, dono, população, terreno e valor estratégico.

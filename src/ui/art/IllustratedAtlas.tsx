@@ -2,7 +2,9 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useCallback,
   useMemo,
+  useReducer,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -71,6 +73,8 @@ export interface IllustratedAtlasProps {
   onSelectCountry: (id: string, focus: boolean) => void;
   onSelectProvince: (id: string) => void;
   onSelectCity: (id: string) => void;
+  /** Tooltip do mapa: país sob o ponteiro, em coordenadas do contêiner. */
+  onHover?: (next: { kind: 'country'; id: string; x: number; y: number } | null) => void;
   onClear: () => void;
 }
 
@@ -233,28 +237,19 @@ function FactionPatterns() {
         <pattern
           key={faction.id}
           id={`atlas-hatch-${faction.id}`}
-          width={6}
-          height={6}
+          width={2.6}
+          height={2.6}
           patternUnits="userSpaceOnUse"
           /* Cada Casa tem inclinação própria: a soberania continua legível sem cor. */
           patternTransform={`rotate(${FACTION_HATCH_ANGLE[faction.id] ?? 38})`}
         >
-          <path d="M0 0v6" stroke={faction.color} strokeWidth={0.85} opacity={0.55} />
+          <path d="M0 0v2.6" stroke={faction.color} strokeWidth={0.42} opacity={0.55} />
         </pattern>
       ))}
-      <pattern id="atlas-claim" width={11} height={11} patternUnits="userSpaceOnUse" patternTransform="rotate(-32)">
-        <path d="M0 0v11" stroke="#c9a15a" strokeWidth={2.4} opacity={0.55} />
+      <pattern id="atlas-claim" width={2.2} height={2.2} patternUnits="userSpaceOnUse" patternTransform="rotate(-32)">
+        <path d="M0 0v2.2" stroke="#8a6a3a" strokeWidth={0.32} opacity={0.42} />
       </pattern>
-      <filter id="atlas-paper-shadow" x="-20%" y="-20%" width="140%" height="140%">
-        <feDropShadow dx="0.9" dy="1.4" stdDeviation="0.9" floodColor="#2b2318" floodOpacity="0.35" />
-      </filter>
-      <filter id="atlas-glow" x="-40%" y="-40%" width="180%" height="180%">
-        <feGaussianBlur stdDeviation="1.6" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
+      {/* Sem filtros SVG: sombra e brilho custam caro a cada quadro. */}
     </>
   );
 }
@@ -370,8 +365,16 @@ function SeaTraffic({ animate, k }: { animate: boolean; k: number }) {
   useEffect(() => {
     if (!animate) return;
     let frame = 0;
+    let last = 0;
     const start = performance.now();
     const place = (now: number) => {
+      frame = requestAnimationFrame(place);
+      // ~20 fps: barcos lentos não precisam de 60 quadros por segundo, e cada
+      // quadro obriga o SVG inteiro a repintar.
+      if (now - last < 48) return;
+      last = now;
+      if (document.hidden) return;
+      if (document.querySelector('.atlas-illustrated.is-panning')) return;
       const t = (now - start) / 1000;
       LANES.forEach((lane, index) => {
         const node = ships.current[index];
@@ -395,7 +398,6 @@ function SeaTraffic({ animate, k }: { animate: boolean; k: number }) {
         node.setAttribute('transform', `translate(${x.toFixed(3)} ${y.toFixed(3)}) rotate(${angle.toFixed(1)}) scale(${scale})`);
         node.setAttribute('opacity', progress < 0.02 || progress > 0.98 ? '0' : '0.9');
       });
-      frame = requestAnimationFrame(place);
     };
     frame = requestAnimationFrame(place);
     return () => cancelAnimationFrame(frame);
@@ -470,6 +472,85 @@ function CompassRose() {
   );
 }
 
+// ── Tinta da terra: poucos caminhos mesclados ──────────────────────────────
+//
+// Antes cada país era um grupo com até sete caminhos: o mundo somava ~1.200
+// <path> e 900 kB de marcação, reavaliados a cada evento de ponteiro. Agora a
+// terra é "assada" em um caminho por terreno e um por Casa, e só a camada de
+// clique continua país a país.
+
+interface LandPaint {
+  terrain: Array<{ key: TerrainKey; d: string }>;
+  tint: Array<{ id: string; color: string; d: string; own: boolean }>;
+  borders: string;
+  claim: string;
+}
+
+function push(map: Map<string, string[]>, key: string, value: string) {
+  const bucket = map.get(key);
+  if (bucket) bucket.push(value);
+  else map.set(key, [value]);
+}
+
+function buildLand(
+  paths: Record<string, string>,
+  tiles: Record<string, Tile>,
+  claimable: Set<string>,
+  playerId: FactionId,
+): LandPaint {
+  const terrain = new Map<string, string[]>();
+  const tint = new Map<string, string[]>();
+  const borders: string[] = [];
+  const claim: string[] = [];
+
+  for (const iso in paths) {
+    const tile = tiles[iso];
+    if (!tile) continue;
+    const d = paths[iso];
+    push(terrain, tile.terrain === 'agua' ? 'planicie' : tile.terrain, d);
+    borders.push(d);
+    if (tile.owner) push(tint, tile.owner, d);
+    if (claimable.has(iso)) claim.push(d);
+  }
+
+  const join = (list?: string[]) => (list && list.length ? list.join(' ') : '');
+  return {
+    terrain: [...terrain].map(([key, list]) => ({ key: key as TerrainKey, d: list.join(' ') })),
+    tint: [...tint].map(([id, list]) => ({
+      id,
+      color: FACTIONS[id as FactionId]?.color ?? '#8a8a8a',
+      d: list.join(' '),
+      own: id === playerId,
+    })),
+    borders: join(borders),
+    claim: join(claim),
+  };
+}
+
+// ── Cache de geometria ─────────────────────────────────────────────────────
+// A malha de 231 países é grande; converter para path e calcular caixas a cada
+// montagem do atlas custava uma pausa visível ao voltar ao mapa.
+
+const pathCache = new WeakMap<object, Record<string, string>>();
+const boundsCache = new WeakMap<object, ReturnType<typeof boundsOf>>();
+
+function pathsFor(shapes: Record<string, Shapes>): Record<string, string> {
+  const cached = pathCache.get(shapes);
+  if (cached) return cached;
+  const built: Record<string, string> = {};
+  for (const key in shapes) built[key] = shapesPath(shapes[key]);
+  pathCache.set(shapes, built);
+  return built;
+}
+
+function boundsFor(shapes: Shapes): ReturnType<typeof boundsOf> {
+  const cached = boundsCache.get(shapes);
+  if (cached !== undefined) return cached;
+  const bounds = boundsOf(shapes);
+  boundsCache.set(shapes, bounds);
+  return bounds;
+}
+
 // ── Componente principal ───────────────────────────────────────────────────
 
 export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAtlasProps>(function IllustratedAtlas({
@@ -487,23 +568,68 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
   onSelectCountry,
   onSelectProvince,
   onSelectCity,
+  onHover,
   onClear,
 }, ref) {
-  const [view, setView] = useState<ViewBoxState>({ x: 0, y: 0, k: 1 });
+  // O viewBox vive num ref e é escrito direto no SVG: arrastar e aproximar não
+  // disparam render do React. Um "commit" espaçado (110 ms) atualiza o que
+  // depende da escala (rótulos, conjuntos urbanos, recorte por viewport).
+  const live = useRef<ViewBoxState>({ x: 0, y: 0, k: 1 });
+  const [, bump] = useReducer((tick: number) => tick + 1, 0);
   const [aspect, setAspect] = useState(16 / 9);
+  const aspectRef = useRef(16 / 9);
+  const hoveredIso = useRef<string | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ x: number; y: number; viewX: number; viewY: number; moved: boolean } | null>(null);
+  const dragRef = useRef<{ x: number; y: number; viewX: number; viewY: number; width: number; height: number; moved: boolean } | null>(null);
   const suppress = useRef(false);
+  const commitTimer = useRef<number | null>(null);
 
+  /** Geometria do viewBox para uma câmera — sempre dentro dos limites da carta. */
+  const boxOf = (next: ViewBoxState) => {
+    const k = Math.max(1, Math.min(11, next.k));
+    const width = WORLD_W / k;
+    const height = width / Math.max(0.4, aspectRef.current);
+    return {
+      k,
+      width,
+      height,
+      x: Math.max(-WORLD_W * 0.25, Math.min(WORLD_W * 1.25 - width, next.x)),
+      y: Math.max(-WORLD_H * 0.5, Math.min(WORLD_H * 1.5 - height, next.y)),
+    };
+  };
+
+  /** Escreve a câmera no SVG; re-renderiza só quando o gesto assenta. */
+  const paint = useCallback((next: ViewBoxState, immediate = false) => {
+    const box = boxOf(next);
+    live.current = { x: box.x, y: box.y, k: box.k };
+    svgRef.current?.setAttribute('viewBox', `${box.x} ${box.y} ${box.width} ${box.height}`);
+    if (immediate) {
+      if (commitTimer.current !== null) {
+        window.clearTimeout(commitTimer.current);
+        commitTimer.current = null;
+      }
+      bump();
+      return;
+    }
+    if (commitTimer.current === null) {
+      commitTimer.current = window.setTimeout(() => {
+        commitTimer.current = null;
+        bump();
+      }, 110);
+    }
+  }, []);
+
+  useEffect(() => () => {
+    if (commitTimer.current !== null) window.clearTimeout(commitTimer.current);
+  }, []);
+
+  const paths = useMemo(() => pathsFor(shapes), [shapes]);
+  const land = useMemo(() => buildLand(paths, tiles, claimable, playerId), [paths, tiles, claimable, playerId]);
+  const view = live.current;
   const width = WORLD_W / view.k;
   const height = width / aspect;
   const unit = 1 / view.k;
-
-  const paths = useMemo(
-    () => Object.fromEntries(Object.entries(shapes).map(([iso, value]) => [iso, shapesPath(value)])),
-    [shapes],
-  );
 
   const provincePaths = useMemo(() => {
     if (!detail) return [];
@@ -513,7 +639,7 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
   // Enquadra o país focado (ou volta ao mundo).
   useEffect(() => {
     if (!focusCountryId) {
-      setView({ x: 0, y: 0, k: 1 });
+      paint({ x: 0, y: 0, k: 1 }, true);
       return;
     }
     const box = boundsOf(detail?.country ?? shapes[focusCountryId]);
@@ -523,19 +649,22 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
     const k = Math.max(1, Math.min(9, Math.min(300 / spanLon, (300 / aspect) / spanLat) * 0.86));
     const centerLon = (box.minLon + box.maxLon) / 2 + 180;
     const centerLat = 90 - (box.minLat + box.maxLat) / 2;
-    setView({
+    paint({
       k,
       x: centerLon - (WORLD_W / k) / 2,
       y: centerLat - (WORLD_W / k / aspect) / 2,
-    });
-  }, [focusCountryId, detail, shapes, aspect]);
+    }, true);
+  }, [focusCountryId, detail, shapes, aspect, paint]);
 
   useEffect(() => {
     const node = wrapRef.current;
     if (!node) return;
     const measure = () => {
       const rect = node.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) setAspect(rect.width / rect.height);
+      if (rect.width > 0 && rect.height > 0) {
+        aspectRef.current = rect.width / rect.height;
+        setAspect(aspectRef.current);
+      }
     };
     measure();
     // jsdom e navegadores antigos não trazem ResizeObserver: o atlas funciona
@@ -547,23 +676,35 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
   }, []);
 
   useImperativeHandle(ref, () => ({
-    zoom: (factor: number) => setView((current) => {
-      const k = Math.max(1, Math.min(11, current.k * factor));
+    zoom: (factor: number) => {
+      const current = live.current;
+      const nextK = Math.max(1, Math.min(11, current.k * factor));
       const centerLon = current.x + WORLD_W / current.k / 2;
-      const centerLat = current.y + WORLD_W / current.k / aspect / 2;
-      return {
-        k,
-        x: centerLon - WORLD_W / k / 2,
-        y: centerLat - WORLD_W / k / aspect / 2,
-      };
-    }),
-    reset: () => setView({ x: 0, y: 0, k: 1 }),
-  }), [aspect]);
+      const centerLat = current.y + WORLD_W / current.k / aspectRef.current / 2;
+      paint({
+        k: nextK,
+        x: centerLon - WORLD_W / nextK / 2,
+        y: centerLat - WORLD_W / nextK / aspectRef.current / 2,
+      }, true);
+    },
+    reset: () => paint({ x: 0, y: 0, k: 1 }, true),
+  }), [paint]);
 
   const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
-    dragRef.current = { x: event.clientX, y: event.clientY, viewX: view.x, viewY: view.y, moved: false };
+    const rect = event.currentTarget.getBoundingClientRect();
+    dragRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      viewX: live.current.x,
+      viewY: live.current.y,
+      width: Math.max(1, rect.width),
+      height: Math.max(1, rect.height),
+      moved: false,
+    };
     suppress.current = false;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (typeof event.currentTarget.setPointerCapture === 'function') {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   };
 
   const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -576,48 +717,74 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
       suppress.current = true;
     }
     if (!drag.moved) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    setView((current) => ({
-      ...current,
-      x: drag.viewX - (dx / Math.max(1, rect.width)) * width,
-      y: drag.viewY - (dy / Math.max(1, rect.height)) * height,
-    }));
+    // Modo de gesto: alivia o que é caro repintar enquanto o dedo/mouse corre.
+    wrapRef.current?.classList.add('is-panning');
+    paint({
+      k: live.current.k,
+      x: drag.viewX - (dx / drag.width) * (WORLD_W / live.current.k),
+      y: drag.viewY - (dy / drag.height) * (WORLD_W / live.current.k / aspectRef.current),
+    });
   };
 
   const endDrag = (event: ReactPointerEvent<SVGSVGElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (typeof event.currentTarget.hasPointerCapture === 'function' && event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
     dragRef.current = null;
     window.setTimeout(() => { suppress.current = false; }, 30);
+    wrapRef.current?.classList.remove('is-panning');
   };
 
   useEffect(() => {
     const node = svgRef.current;
     if (!node) return;
+    let settle = 0;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
+      const wrap = wrapRef.current;
+      if (wrap) {
+        wrap.classList.add('is-panning');
+        window.clearTimeout(settle);
+        settle = window.setTimeout(() => wrap.classList.remove('is-panning'), 140);
+      }
       const rect = node.getBoundingClientRect();
-      const px = (event.clientX - rect.left) / Math.max(1, rect.width);
-      const py = (event.clientY - rect.top) / Math.max(1, rect.height);
-      setView((current) => {
-        const factor = event.deltaY > 0 ? 0.86 : 1.16;
-        const nextK = Math.max(1, Math.min(11, current.k * factor));
-        const nodeWidth = WORLD_W / current.k;
-        const nodeHeight = nodeWidth / aspect;
-        const lon = current.x + px * nodeWidth;
-        const lat = current.y + py * nodeHeight;
-        const nextWidth = WORLD_W / nextK;
-        return {
-          k: nextK,
-          x: lon - px * nextWidth,
-          y: lat - py * (nextWidth / aspect),
-        };
-      });
+      const px = Math.min(1, Math.max(0, (event.clientX - rect.left) / Math.max(1, rect.width)));
+      const py = Math.min(1, Math.max(0, (event.clientY - rect.top) / Math.max(1, rect.height)));
+      const current = live.current;
+      // Passo contínuo: trackpads manda deltas pequenos e não sofrem saltos.
+      const factor = Math.exp(-event.deltaY * 0.0018);
+      const nextK = Math.max(1, Math.min(11, current.k * Math.max(0.72, Math.min(1.38, factor))));
+      const nodeWidth = WORLD_W / current.k;
+      const nodeHeight = nodeWidth / aspectRef.current;
+      const lon = current.x + px * nodeWidth;
+      const lat = current.y + py * nodeHeight;
+      const nextWidth = WORLD_W / nextK;
+      paint({ k: nextK, x: lon - px * nextWidth, y: lat - py * (nextWidth / aspectRef.current) });
     };
     node.addEventListener('wheel', onWheel, { passive: false });
     return () => node.removeEventListener('wheel', onWheel);
-  }, [aspect]);
+  }, [paint]);
+
+  /**
+   * Tooltip: só avisa o mapa quando o ponteiro muda de país. O realce do
+   * território é CSS puro, então mover o mouse não custa nenhum render.
+   */
+  const reportHover = (iso: string | null, event?: { clientX: number; clientY: number }) => {
+    if (hoveredIso.current === iso) return;
+    hoveredIso.current = iso;
+    if (!onHover) return;
+    if (!iso) {
+      onHover(null);
+      return;
+    }
+    const rect = wrapRef.current?.getBoundingClientRect();
+    onHover({
+      kind: 'country',
+      id: iso,
+      x: Math.max(0, (event?.clientX ?? 0) - (rect?.left ?? 0)),
+      y: Math.max(0, (event?.clientY ?? 0) - (rect?.top ?? 0)),
+    });
+  };
 
   // Cidades visíveis: prioriza capitais e população, descarta o que está fora.
   const cities = useMemo(() => {
@@ -626,7 +793,7 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
       ? CITIES.filter((city) => city.countryId === focusCountryId)
       : GLOBAL_CITIES;
     const ranked = [...pool].sort((a, b) => (b.capital ? 1 : 0) - (a.capital ? 1 : 0) || b.pop - a.pop);
-    const margin = 20 * view.k;
+    const margin = 24 / view.k;
     const minLon = view.x - margin;
     const maxLon = view.x + width + margin;
     const minLat = view.y - margin;
@@ -640,8 +807,8 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
       if (view.k < 1.6 && !focusCountryId) return Boolean(city.capital) && city.pop > 2_600_000;
       return true;
     });
-    // Despoluição: no mundo inteiro só um marcador a cada ~6 unidades.
     if (view.k > 1.9) return visible.slice(0, 160);
+    // Despoluição: no mundo inteiro só um marcador a cada ~5 unidades.
     const thin: typeof visible = [];
     for (const city of visible) {
       if (thin.some((other) => Math.abs(other.lon - city.lon) < 5.2 && Math.abs(other.lat - city.lat) < 3.4)) continue;
@@ -659,8 +826,26 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
       .slice(0, 34);
   }, [focusCountryId]);
 
-  const selectedBox = selectedCountryId ? boundsOf(shapes[selectedCountryId]) : null;
   const showClusters = view.k > 1.35;
+
+  // Só os países que tocam a tela recebem área de clique: no zoom o mundo
+  // inteiro sai do DOM e o ponteiro volta a responder na hora.
+  const hitCountries = useMemo(() => {
+    const keys = Object.keys(paths);
+    if (view.k < 1.45) return keys;
+    const padX = width * 0.3;
+    const padY = height * 0.3;
+    return keys.filter((iso) => {
+      const bounds = boundsFor(shapes[iso]);
+      if (!bounds) return false;
+      return (
+        bounds.maxLon + 180 > view.x - padX &&
+        bounds.minLon + 180 < view.x + width + padX &&
+        (90 - bounds.maxLat) < view.y + height + padY &&
+        (90 - bounds.minLat) > view.y - padY
+      );
+    });
+  }, [paths, shapes, view.x, view.y, view.k, width, height]);
 
   // Rótulos sem colisão: varre do mais importante para o menos, descartando o
   // que cairia perto de um rótulo já aceito. Evita a "sopa de nomes".
@@ -702,31 +887,24 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
           {(Object.keys(LAND) as TerrainKey[]).filter((terrain) => terrain !== 'agua').map((terrain) => (
             <TerrainPattern key={terrain} id={`atlas-terrain-${terrain}`} terrain={terrain} />
           ))}
-          <linearGradient id="atlas-vignette" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#3b3226" stopOpacity="0.18" />
-            <stop offset="16%" stopColor="#3b3226" stopOpacity="0" />
-            <stop offset="84%" stopColor="#3b3226" stopOpacity="0" />
-            <stop offset="100%" stopColor="#3b3226" stopOpacity="0.22" />
-          </linearGradient>
         </defs>
 
-        <rect x={view.x} y={view.y} width={width} height={height} fill="url(#atlas-sea-glow)" onClick={onClear} />
-        <rect x={view.x} y={view.y} width={width} height={height} fill="url(#atlas-sea-hatch)" pointerEvents="none" />
-        <rect x={view.x} y={view.y} width={width} height={height} fill="url(#atlas-sea-waves)" pointerEvents="none" opacity={0.7} />
+        {/* Mar: papel texturizado em CSS. Este retângulo é só a área clicável. */}
+        <rect x={-400} y={-320} width={1300} height={900} fill="transparent" onClick={onClear} />
 
-        {/* Linhas de rumo e graduação */}
+        {/* Graduação fixa: cobre qualquer enquadramento sem ser refeita no pan. */}
         <g className="atlas-graticule" pointerEvents="none">
-          {Array.from({ length: 8 }).map((_, index) => {
-            const y = (index + 1) * 20;
-            return <line key={`h${index}`} x1={view.x} x2={view.x + width} y1={y} y2={y} stroke="#5f8b83" strokeOpacity={0.3} strokeWidth={0.4} strokeDasharray="1 3" />;
+          {Array.from({ length: 21 }).map((_, index) => {
+            const x = -120 + index * 30;
+            return <line key={`v${index}`} x1={x} x2={x} y1={-90} y2={280} stroke="#5f8b83" strokeOpacity={0.3} strokeWidth={0.4} strokeDasharray="1 3" />;
           })}
-          {Array.from({ length: 12 }).map((_, index) => {
-            const x = (index + 1) * 30;
-            return <line key={`v${index}`} x1={x} x2={x} y1={view.y} y2={view.y + height} stroke="#5f8b83" strokeOpacity={0.3} strokeWidth={0.4} strokeDasharray="1 3" />;
+          {Array.from({ length: 19 }).map((_, index) => {
+            const y = -90 + index * 20;
+            return <line key={`h${index}`} x1={-120} x2={500} y1={y} y2={y} stroke="#5f8b83" strokeOpacity={0.3} strokeWidth={0.4} strokeDasharray="1 3" />;
           })}
           {[0, 1, 2, 3].map((index) => {
             const x = 60 + index * 90;
-            return <line key={`rh${index}`} x1={x} y1={view.y} x2={x + 40} y2={view.y + height} className="atlas-rhumb" stroke="#4f7b74" strokeOpacity={0.16} strokeWidth={0.5} />;
+            return <line key={`rh${index}`} x1={x} y1={-90} x2={x + 130} y2={280} className="atlas-rhumb" stroke="#4f7b74" strokeOpacity={0.16} strokeWidth={0.5} />;
           })}
         </g>
 
@@ -747,93 +925,95 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
           ))}
         </g>
 
-        {/* Sombra de papel: a terra parece recortada e colada sobre o mar. */}
-        <g className="atlas-papercut" pointerEvents="none" transform={`translate(${(0.11 * unit).toFixed(3)} ${(0.26 * unit).toFixed(3)})`}>
-          {Object.keys(shapes).map((iso) => (
-            <path key={`cut-${iso}`} d={paths[iso]} fill="#3a2c1c" fillOpacity={0.28} fillRule="evenodd" />
+        {/* Terra achatada em poucos caminhos: sombra de papel, orla, terrenos. */}
+        {land.borders && (
+          <>
+            <g className="atlas-papercut" pointerEvents="none" transform={`translate(${(0.1 * unit).toFixed(3)} ${(0.24 * unit).toFixed(3)})`}>
+              <path d={land.borders} fill="#3a2c1c" fillOpacity={0.26} fillRule="evenodd" />
+            </g>
+            <path
+              className="atlas-shore"
+              d={land.borders}
+              fill="none"
+              stroke="#e8d6ae"
+              strokeOpacity={0.9}
+              strokeWidth={7}
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              pointerEvents="none"
+            />
+          </>
+        )}
+
+        <g className="atlas-land" pointerEvents="none">
+          {land.terrain.map((entry) => (
+            <path key={entry.key} d={entry.d} fill={`url(#atlas-terrain-${entry.key})`} fillRule="evenodd" />
+          ))}
+          {land.tint.map((entry) => (
+            <path key={`tint-${entry.id}`} d={entry.d} fill={entry.color} fillOpacity={entry.own ? 0.4 : 0.26} fillRule="evenodd" />
+          ))}
+          {land.tint.map((entry) => (
+            <path
+              key={`hatch-${entry.id}`}
+              d={entry.d}
+              fill={`url(#atlas-hatch-${entry.id})`}
+              fillRule="evenodd"
+              opacity={entry.own ? 0.82 : 0.44}
+            />
+          ))}
+          {land.claim && (
+            <path className="atlas-claim" d={land.claim} fill="url(#atlas-claim)" fillRule="evenodd" opacity={0.8} />
+          )}
+          <path
+            d={land.borders}
+            fill="none"
+            stroke="#3f3323"
+            strokeOpacity={0.45}
+            strokeWidth={0.9}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          {land.tint.map((entry) => (
+            <path
+              key={`stroke-${entry.id}`}
+              d={entry.d}
+              fill="none"
+              stroke={entry.color}
+              strokeOpacity={0.92}
+              strokeWidth={2.2}
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
           ))}
         </g>
 
-        {/* Orla: halo de areia e espuma sob cada país antes da lavagem. */}
-        <g className="atlas-shore" pointerEvents="none">
-          {Object.keys(shapes).map((iso) => (
-            <path key={`halo-${iso}`} d={paths[iso]} fill="none" stroke="#e8d6ae" strokeWidth={2.4 * unit} strokeOpacity={0.8} strokeLinejoin="round" fillRule="evenodd" />
+        {/* Camada de clique: um caminho por país visível. */}
+        <g className="atlas-hits">
+          {hitCountries.map((iso) => (
+            <path
+              key={iso}
+              d={paths[iso]}
+              fill="transparent"
+              fillRule="evenodd"
+              className={cx('atlas-country', 'atlas-country__hit', iso === selectedCountryId && 'is-selected')}
+              onClick={(event) => {
+                if (suppress.current) return;
+                event.stopPropagation();
+                onSelectCountry(iso, false);
+              }}
+              onDoubleClick={(event) => {
+                event.stopPropagation();
+                onSelectCountry(iso, true);
+              }}
+              onPointerEnter={(event) => reportHover(iso, event)}
+              onPointerLeave={(event) => {
+                // Só limpa quando o ponteiro sai da carta (não ao trocar de país).
+                const next = event.relatedTarget as Element | null;
+                if (next?.classList?.contains('atlas-country__hit')) return;
+                reportHover(null);
+              }}
+            />
           ))}
-        </g>
-
-        {/* Terra: cada país recebe o padrão do terreno e um banho de tinta da Casa. */}
-        <g className="atlas-land">
-          {Object.keys(shapes).map((iso) => {
-            const tile = tiles[iso];
-            if (!tile) return null;
-            const owner = tile.owner;
-            const faction = owner ? FACTIONS[owner] : null;
-            const selected = iso === selectedCountryId;
-            const claim = claimable.has(iso);
-            const terrain = tile.terrain === 'agua' ? 'planicie' : tile.terrain;
-            return (
-              <g key={iso} className={cx('atlas-country', selected && 'is-selected', owner === playerId && 'is-own', claim && 'is-claimable')}>
-                <path d={paths[iso]} fill={`url(#atlas-terrain-${terrain})`} fillRule="evenodd" stroke="none" pointerEvents="none" />
-                {faction && (
-                  <path d={paths[iso]} fill={faction.color} fillOpacity={owner === playerId ? 0.4 : 0.26} fillRule="evenodd" pointerEvents="none" />
-                )}
-                {faction && (
-                  <path
-                    d={paths[iso]}
-                    fill={`url(#atlas-hatch-${faction.id})`}
-                    fillRule="evenodd"
-                    pointerEvents="none"
-                    opacity={owner === playerId ? 0.8 : 0.42}
-                  />
-                )}
-                {claim && (
-                  <path className="atlas-claim" d={paths[iso]} fill="url(#atlas-claim)" fillRule="evenodd" pointerEvents="none" opacity={0.5} />
-                )}
-                {/* Contorno de tinta; quem tem dono ganha traço na cor da Casa. */}
-                <path
-                  d={paths[iso]}
-                  fill="none"
-                  fillRule="evenodd"
-                  stroke="#3f3323"
-                  strokeOpacity={0.45}
-                  strokeWidth={0.45 * unit}
-                  strokeLinejoin="round"
-                  pointerEvents="none"
-                />
-                {faction && (
-                  <path
-                    d={paths[iso]}
-                    fill="none"
-                    fillRule="evenodd"
-                    stroke={faction.color}
-                    strokeOpacity={0.92}
-                    strokeWidth={1.0 * unit}
-                    strokeLinejoin="round"
-                    pointerEvents="none"
-                  />
-                )}
-                <path
-                  d={paths[iso]}
-                  fill="transparent"
-                  fillRule="evenodd"
-                  stroke="transparent"
-                  strokeWidth={1.4 * unit}
-                  className="atlas-country__hit"
-                  onClick={(event) => {
-                    if (suppress.current) return;
-                    event.stopPropagation();
-                    onSelectCountry(iso, false);
-                  }}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation();
-                    onSelectCountry(iso, true);
-                  }}
-                >
-                  <title>{tile.name}</title>
-                </path>
-              </g>
-            );
-          })}
         </g>
 
         {/* Províncias do país em foco */}
@@ -846,18 +1026,17 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
                 fill={index % 2 === 0 ? '#f6ecd4' : '#e8d8b6'}
                 fillOpacity={province.id === selectedProvinceId ? 0.4 : 0.16}
                 stroke="#3f3323"
-                strokeWidth={0.34 * unit}
-                strokeDasharray={`${1.2 * unit} ${0.9 * unit}`}
+                strokeWidth={0.8}
+                strokeDasharray="2.4 1.8"
                 strokeOpacity={0.55}
+                vectorEffect="non-scaling-stroke"
                 className={cx('atlas-province', province.id === selectedProvinceId && 'is-selected')}
                 onClick={(event) => {
                   if (suppress.current) return;
                   event.stopPropagation();
                   onSelectProvince(province.id);
                 }}
-              >
-                <title>{PROVINCE_BY_ID[province.id]?.name ?? province.id}</title>
-              </path>
+              />
             ))}
           </g>
         )}
@@ -865,7 +1044,7 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
         {/* Motivos de terreno nas províncias em foco */}
         {provinces.length > 0 && (
           <g className="atlas-motifs" pointerEvents="none">
-            {provinces.map((province, index) => {
+            {provinces.map((province) => {
               const terrain = tiles[province.countryId]?.terrain ?? 'planicie';
               const x = province.lon + 180;
               const y = 90 - province.lat;
@@ -950,34 +1129,31 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
         )}
 
         {/* Destaque do território selecionado */}
-        {selectedBox && (
+        {selectedCountryId && paths[selectedCountryId] && (
           <g className="atlas-selection" pointerEvents="none">
             <path
-              d={paths[selectedCountryId ?? '']}
+              d={paths[selectedCountryId]}
               fill="none"
               stroke="#f6dca6"
               strokeOpacity={0.85}
-              strokeWidth={2.6 * unit}
+              strokeWidth={2.6}
               strokeLinejoin="round"
-              fillRule="evenodd"
+              vectorEffect="non-scaling-stroke"
             />
             <path
-              d={paths[selectedCountryId ?? '']}
+              d={paths[selectedCountryId]}
               fill="none"
               stroke="#7a4a1f"
               strokeOpacity={0.85}
-              strokeWidth={0.75 * unit}
-              strokeDasharray={`${2.6 * unit} ${2.0 * unit}`}
+              strokeWidth={1.1}
+              strokeDasharray="3.2 2.4"
               strokeLinejoin="round"
-              fillRule="evenodd"
+              vectorEffect="non-scaling-stroke"
             />
-
           </g>
         )}
 
         <SeaTraffic animate={!reducedMotion} k={view.k} />
-
-        <rect x={view.x} y={view.y} width={width} height={height} fill="url(#atlas-vignette)" pointerEvents="none" />
       </svg>
       <div className="atlas-paper" aria-hidden="true" />
       <CompassRose />
@@ -992,4 +1168,3 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
     </div>
   );
 });
-
