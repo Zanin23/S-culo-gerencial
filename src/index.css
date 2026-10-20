@@ -8328,6 +8328,80 @@ button.quick-stat:hover {
   color: var(--ink-3);
 }
 
+.city-nav {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 9px;
+  background: rgba(6, 13, 16, 0.86);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+
+.city-nav button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--ink-3);
+  transition: background 0.15s, color 0.15s;
+}
+
+.city-nav button:hover {
+  background: rgba(47, 179, 154, 0.16);
+  color: var(--teal-bright);
+}
+
+.city-floors {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px 5px 9px;
+  border-radius: 10px;
+  background: rgba(6, 13, 16, 0.86);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+}
+
+.city-floors__label {
+  margin-right: 3px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.city-floors__button {
+  min-width: 25px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.03);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.city-floors__button:hover {
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.city-floors__button.is-active {
+  background: rgba(47, 179, 154, 0.18);
+  border-color: rgba(47, 179, 154, 0.5);
+  color: var(--teal-bright);
+}
+
 .city-inside {
   position: absolute;
   left: 50%;
