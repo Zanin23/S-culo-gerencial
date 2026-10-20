@@ -107,6 +107,7 @@ const HELP_CARDS = [
   { icon: 'Map', title: 'Leia a praça', body: 'Solo, depósito, população, estruturas e valor estratégico determinam o que cada mercado pode render. Clique para abrir a ficha completa.' },
   { icon: 'Play', title: 'Decida no ciclo', body: 'Produção, consumo, manutenção e projetos só mudam quando um ciclo fecha. Avance manualmente ou deixe o autoplay correr.' },
   { icon: 'Store', title: 'Abra unidades', body: 'Cidades grandes sustentam mercados maiores. Cada unidade disputa participação com as rivais: comprar mais unidades na mesma cidade aumenta a sua fatia.' },
+  { icon: 'Blocks', title: 'Cresça no lugar', body: 'No módulo Construção (U), cada filial compra expansões de construção e de ramo, e a sede sobe de escritório compacto a complexo matriz. Ampliar rende mais receita e presença, mas pesa na manutenção.' },
   { icon: 'Handshake', title: 'Negocie acordos', body: 'Acordos comerciais, tréguas de concorrência e parcerias estratégicas geram receita e estabilidade. Presentes e propostas custam caixa e melhoram a relação.' },
   { icon: 'FlaskConical', title: 'Escolha um caminho', body: 'São quatro ramos de pesquisa com pré-requisitos claros. Nenhuma tecnologia é obrigatória; cada uma troca custo por uma vantagem concreta.' },
   { icon: 'Award', title: 'Lidere o mercado', body: `${VICTORY_TARGET} pontos de relevância encerram a partida. Perder a sede, ficar sem praças ou entrar em insolvência é derrota.` },
