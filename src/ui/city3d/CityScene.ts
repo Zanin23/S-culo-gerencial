@@ -844,17 +844,23 @@ export class CityScene {
     }
 
     // ── Heliponto ─────────────────────────────────────────────────────────
+    // Na torre ele fica no terraço; na matriz, o mastro ocupa o topo e o
+    // heliponto desce para a praça, como em um campus corporativo.
     if (spec.pad) {
-      const padRadius = Math.min(topW * 0.3, 9);
-      const pad = new THREE.Mesh(new THREE.CylinderGeometry(padRadius, padRadius, 0.7, 28), ground(0x2f3436, 0.95));
-      pad.position.set(plot.x, topY + 0.35, plot.y);
+      const onPlaza = spec.crown === 'spire';
+      const padRadius = onPlaza ? Math.min(5.4, plot.w * 0.13) : Math.min(topW * 0.3, 9);
+      const padX = onPlaza ? plot.x + Math.cos(-2.2) * plot.w * 0.7 : plot.x;
+      const padZ = onPlaza ? plot.y + Math.sin(-2.2) * plot.w * 0.7 : plot.y;
+      const padY = onPlaza ? groundY + 0.6 : topY + 0.35;
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(padRadius, padRadius, onPlaza ? 1 : 0.7, 28), ground(0x2f3436, 0.95));
+      pad.position.set(padX, padY, padZ);
       pad.receiveShadow = true;
       this.hqGroup.add(pad);
       const mark = new THREE.Mesh(new THREE.TorusGeometry(padRadius * 0.7, 0.28, 4, 32), ground(0xe6dcc0, 0.8));
       mark.rotation.x = Math.PI / 2;
-      mark.position.set(plot.x, topY + 0.74, plot.y);
+      mark.position.set(padX, padY + (onPlaza ? 0.56 : 0.39), padZ);
       this.hqGroup.add(mark);
-      topY += 0.4;
+      if (!onPlaza) topY += 0.4;
     }
 
     // ── Entrada: porta de vidro, toldo e faixa iluminada ──────────────────
