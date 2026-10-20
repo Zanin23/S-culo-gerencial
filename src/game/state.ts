@@ -7,7 +7,7 @@ import {
   STARTING_MILITARY,
   STARTING_STOCKS,
 } from './constants';
-import { CITY_BY_ID, COUNTRY_BY_ID } from './atlas';
+import { CITY_BY_ID, COUNTRY_BY_ID, cityById } from './atlas';
 import { EMPTY_RELATION, RELATION_SEED, relationKey } from './diplomacy';
 import { createTiles, START_SEATS } from './map';
 import { Rng } from './rng';
@@ -153,7 +153,7 @@ export function createInitialState(seed = Date.now() % 1000000, now = Date.now()
   };
 
   if (seat) {
-    const city = CITY_BY_ID[seat.cityId];
+    const city = cityById(seat.cityId);
     if (city) {
       state.city = {
         cityId: city.id,

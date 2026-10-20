@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ATLAS_STATS,
   CITIES,
-  CITY_BY_ID,
+  cityById,
   COUNTRIES,
   COUNTRY_BY_ID,
   GLOBAL_CITIES,
@@ -230,13 +231,13 @@ export function MapView() {
         claim: false,
       };
     }
-    const city = CITY_BY_ID[hover.id];
+    const city = cityById(hover.id);
     if (!city) return null;
     return {
       x: hover.x,
       y: hover.y,
       title: cityLabel(city.name),
-      subtitle: `${CITY_BY_ID[city.id]?.countryId ? tiles[city.countryId]?.name ?? '' : ''}${city.capital ? ' · capital nacional' : ''}`,
+      subtitle: `${tiles[city.countryId]?.name ?? ''}${city.capital ? ' · capital nacional' : ''}`,
       accent: '#7bb2e8',
       meta: `${fmt(city.pop)} hab`,
       text: 'Cidade',
@@ -266,7 +267,7 @@ export function MapView() {
   };
 
   const provinceInfo = selectedProvinceId ? PROVINCE_BY_ID[selectedProvinceId] : null;
-  const cityInfo = selectedCityId ? CITY_BY_ID[selectedCityId] : null;
+  const cityInfo = selectedCityId ? cityById(selectedCityId) ?? null : null;
   const drill = provinceInfo ?? cityInfo;
   const drillName = provinceInfo ? provinceInfo.name : cityLabel(cityInfo?.name);
 
@@ -343,7 +344,7 @@ export function MapView() {
         <strong>{GAME.world}</strong>
         <span>
           {mode === '3d' ? 'Globo interativo' : mode === '2d' ? 'Carta plana' : 'Atlas ilustrado'} · {fmt(Object.keys(tiles).length)} países ·{' '}
-          {fmt(PROVINCES.length)} províncias · {fmt(CITIES.length)} cidades
+          {fmt(PROVINCES.length)} províncias · {fmt(ATLAS_STATS.cities)} cidades
         </span>
       </div>
 

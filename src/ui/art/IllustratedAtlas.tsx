@@ -9,7 +9,11 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { CITIES, GLOBAL_CITIES, PROVINCES, PROVINCE_BY_ID, type AtlasCity, type CountryDetail, type Shapes } from '../../game/atlas';
+import {
+  CITIES, GLOBAL_CITIES, PROVINCES, PROVINCE_BY_ID, cityById, citiesOf, detailCitiesIn, detailCitiesLoaded,
+  sortedCities, type AtlasCity, type CountryDetail, type Shapes,
+} from '../../game/atlas';
+import { loadDetailCities, subscribeDetailCities } from '../../game/detailCities';
 import { FACTIONS, TERRAIN } from '../../game/constants';
 import { cityLabel } from '../../game/names';
 import type { FactionId, TerrainKey, Tile } from '../../game/types';
@@ -541,6 +545,21 @@ function pathsFor(shapes: Record<string, Shapes>): Record<string, string> {
   return built;
 }
 
+/** Junta duas listas já ordenadas (capital, população) sem reordenar. */
+function mergeCities(a: AtlasCity[], b: AtlasCity[]): AtlasCity[] {
+  const out: AtlasCity[] = [];
+  let i = 0;
+  let j = 0;
+  const before = (x: AtlasCity, y: AtlasCity) => (x.capital ? 1 : 0) - (y.capital ? 1 : 0) || x.pop - y.pop;
+  while (i < a.length && j < b.length) {
+    if (before(b[j], a[i]) > 0) out.push(a[i++]);
+    else out.push(b[j++]);
+  }
+  while (i < a.length) out.push(a[i++]);
+  while (j < b.length) out.push(b[j++]);
+  return out;
+}
+
 function boundsFor(shapes: Shapes): ReturnType<typeof boundsOf> {
   const cached = boundsCache.get(shapes);
   if (cached !== undefined) return cached;
@@ -631,12 +650,24 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
     if (frame.current) cancelAnimationFrame(frame.current);
   }, []);
 
+  // Cidades de detalhe: o lote extra só é buscado quando faz diferença (zoom
+  // próximo ou país em foco). Enquanto não chega, o mapa é o de sempre.
+  const [detailReady, setDetailReady] = useState(detailCitiesLoaded);
+  useEffect(() => subscribeDetailCities(() => setDetailReady(detailCitiesLoaded())), []);
+
   const paths = useMemo(() => pathsFor(shapes), [shapes]);
   const land = useMemo(() => buildLand(paths, tiles, claimable, playerId), [paths, tiles, claimable, playerId]);
   const view = live.current;
   const width = WORLD_W / view.k;
   const height = width / aspect;
   const unit = 1 / view.k;
+
+  // O lote extra só é buscado quando faz diferença (zoom próximo ou país em
+  // foco). Enquanto não chega, o mapa é o de sempre.
+  useEffect(() => {
+    if (detailReady || !showCities) return;
+    if (focusCountryId || view.k >= 1.7) void loadDetailCities();
+  }, [detailReady, focusCountryId, showCities, view.k]);
 
   const provincePaths = useMemo(() => {
     if (!detail) return [];
@@ -797,36 +828,54 @@ export const IllustratedAtlas = forwardRef<IllustratedAtlasHandle, IllustratedAt
   // Cidades visíveis: prioriza capitais e população, descarta o que está fora.
   const cities = useMemo(() => {
     if (!showCities) return [];
-    const pool = focusCountryId
-      ? CITIES.filter((city) => city.countryId === focusCountryId)
-      : GLOBAL_CITIES;
-    const ranked = [...pool].sort((a, b) => (b.capital ? 1 : 0) - (a.capital ? 1 : 0) || b.pop - a.pop);
     const margin = 24 / view.k;
     const minLon = view.x - margin;
     const maxLon = view.x + width + margin;
     const minLat = view.y - margin;
     const maxLat = view.y + height + margin;
-    const visible = ranked.filter((city) => {
+
+    // Ordem de prioridade: capital primeiro, depois população. As listas já
+    // vêm ordenadas; no mundo inteiro a base é só de capitais e metrópoles.
+    let ranked: AtlasCity[];
+    if (focusCountryId) {
+      ranked = sortedCities(citiesOf(focusCountryId));
+    } else if (detailReady && view.k > 2) {
+      const extras = detailCitiesIn({
+        minLon: minLon - 180, maxLon: maxLon - 180, minLat: 90 - maxLat, maxLat: 90 - minLat,
+      });
+      ranked = mergeCities(GLOBAL_CITIES, extras);
+    } else {
+      ranked = GLOBAL_CITIES;
+    }
+
+    const visible: AtlasCity[] = [];
+    for (const city of ranked) {
       const x = city.lon + 180;
       const y = 90 - city.lat;
-      if (x < minLon || x > maxLon || y < minLat || y > maxLat) return false;
-      // No mundo inteiro só entram capitais grandes e metrópoles; aproximando,
-      // todas as cidades do país focado aparecem.
+      if (x < minLon || x > maxLon || y < minLat || y > maxLat) continue;
       // No mundo inteiro só as capitais realmente grandes; o resto aparece
       // quando se aproxima. Menos pinos = carta mais legível.
-      if (view.k < 1.7 && !focusCountryId) return Boolean(city.capital) && city.pop > 6_500_000;
-      return true;
-    });
-    if (view.k > 1.9) return visible.slice(0, 120);
+      if (view.k < 1.7 && !focusCountryId) {
+        if (!city.capital || city.pop <= 6_500_000) continue;
+      }
+      visible.push(city);
+      if (visible.length >= 160) break;
+    }
+    // A cidade selecionada nunca desaparece, mesmo fora do recorte.
+    if (selectedCityId && !visible.some((city) => city.id === selectedCityId)) {
+      const chosen = cityById(selectedCityId);
+      if (chosen) visible.unshift(chosen);
+    }
+    if (view.k > 1.9) return visible;
     // Despoluição: no mundo inteiro só um marcador a cada ~5 unidades.
-    const thin: typeof visible = [];
+    const thin: AtlasCity[] = [];
     for (const city of visible) {
       if (thin.some((other) => Math.abs(other.lon - city.lon) < 7.5 && Math.abs(other.lat - city.lat) < 4.6)) continue;
       thin.push(city);
       if (thin.length >= 34) break;
     }
     return thin;
-  }, [focusCountryId, showCities, view.x, view.y, view.k, width, height]);
+  }, [detailReady, focusCountryId, selectedCityId, showCities, view.x, view.y, view.k, width, height]);
 
   const provinces = useMemo(() => {
     if (!focusCountryId) return [];

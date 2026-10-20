@@ -1,4 +1,4 @@
-import { CITY_BY_ID, COUNTRY_BY_ID } from './atlas';
+import { COUNTRY_BY_ID, cityById } from './atlas';
 import geoRaw from './city/geo.json';
 import { Rng } from './rng';
 import type { TerrainKey } from './types';
@@ -413,7 +413,7 @@ export function plotCenter(plot: CityPlot): Pt {
 }
 
 export function generateCityPlan(cityId: string, seed = 0): CityPlan {
-  const city = CITY_BY_ID[cityId];
+  const city = cityById(cityId);
   const geo = GEO[cityId];
   const country = city ? COUNTRY_BY_ID[city.countryId] : null;
   const terrain: TerrainKey = country?.terrain ?? 'planicie';

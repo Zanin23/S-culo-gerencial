@@ -3,7 +3,7 @@ import { createInitialState, exportSave, importSave, loadState, saveState } from
 import { advanceCycle } from '../game/cycle';
 import { chooseEvent } from '../game/events';
 import { FACTIONS } from '../game/constants';
-import { CITY_BY_ID, PROVINCE_BY_ID } from '../game/atlas';
+import { CITY_BY_ID, PROVINCE_BY_ID, cityById } from '../game/atlas';
 import { scoreOf } from '../game/progress';
 import type { CommandResult, CycleReport, FactionId, GameState, MarketKey, ResourceKey, TechId, BuildingKey } from '../game/types';
 import {
@@ -340,7 +340,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
         set({ selectedCityId: null });
         return;
       }
-      const city = CITY_BY_ID[cityId];
+      const city = cityById(cityId);
       set({
         selectedCityId: cityId,
         selectedProvinceId: null,

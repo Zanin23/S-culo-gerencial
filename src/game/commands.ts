@@ -22,7 +22,7 @@ import {
 } from './economy';
 import { applyTradeImpact, buyUnitPrice, sellUnitPrice } from './market';
 import { getRelation, offerLabel, proposeCost, relationKey, relationRequirement } from './diplomacy';
-import { CITY_BY_ID, COUNTRY_BY_ID } from './atlas';
+import { COUNTRY_BY_ID, cityById } from './atlas';
 import { neighborsOf, tilesOfFaction } from './map';
 import { logEntry } from './state';
 import type {
@@ -638,7 +638,7 @@ export function foundSeat(
   district: CityDistrict,
 ): CommandResult {
   return withState(state, (next) => {
-    const city = CITY_BY_ID[cityId];
+    const city = cityById(cityId);
     if (!city) fail('Cidade desconhecida no atlas.');
     const host = next.tiles[city.countryId];
     if (!host) fail('O país da cidade não faz parte do tabuleiro.');

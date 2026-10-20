@@ -2,7 +2,7 @@
 
 Jogo de estratégia territorial e gestão econômica para navegador. Quatro Casas disputam **a Terra partilhada**; você governa **Concórdia** a partir de Lisboa e precisa transformar Portugal e Espanha em uma potência global — por economia, obras, ciência, diplomacia ou força.
 
-O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e 1.203 cidades a partir de dados geográficos do Natural Earth.
+O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e **5.759 cidades** a partir de dados geográficos do Natural Earth. As 1.203 principais viajam no pacote; as outras 4.556 chegam sob demanda quando você aproxima o mapa, sem pesar no carregamento.
 
 Antes de começar, você **funda a sede**: escolhe uma cidade real, vê a maquete 3D do terreno e das ruas e marca o lote onde a primeira construção será erguida. O distrito do lote altera permanentemente comércio, indústria ou defesa da capital — e dá para orbitar a cidade, abrir o **corte da sede** como uma casa de bonecas e entrar nela.
 
@@ -214,5 +214,6 @@ O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carreg
 - **Ruas e edifícios são sintetizados**, não copiados do OpenStreetMap: o ambiente de build não tem acesso à API do Overpass. A costa, os rios e o centro de cada cidade são reais; o tecido urbano é gerado de forma determinística a partir deles (padrão radial/ortogonal, densidade e gabarito). A **variedade de prédios** segue um catálogo de tipologias com pesos por zona, não dados reais de lote.
 - Microestados e ilhas muito pequenas recebem um contorno mínimo gerado no build para continuarem visíveis e clicáveis; não há modelagem de relevo ou elevação real.
 - A malha provincial é carregada por país sob demanda; em conexões lentas o primeiro foco pode exibir o aviso de carregamento.
+- As 4.556 cidades de detalhe ficam em `/atlas/cities-detail.json` (229 kB) e só são baixadas ao aproximar ou focar um país. O arquivo é indexado uma vez (~16 ms) numa grade de 6°; cada consulta de viewport leva ~1,5 µs. Nenhum byte desse lote entra no pacote JS inicial.
 - 13 das 4.502 províncias (ilhas e enclaves minúsculos na Espanha, Reino Unido e Irlanda) não têm polígono após a simplificação: continuam listadas no localizador e selecionáveis, mas não são desenhadas no globo.
 - Balanceamento calibrado por simulação, não por playtest humano extenso. Ajustes ficam concentrados em `constants.ts`, `commands.ts` e `progress.ts`.
