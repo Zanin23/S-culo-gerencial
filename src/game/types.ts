@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// TESSERA — Domain model
+// MANAGEMENT CENTURY — Domain model
 // The engine is deliberately framework-free: it can run in the browser today and
 // behind an authoritative server later without changing any rule.
 // ─────────────────────────────────────────────────────────────────────────────

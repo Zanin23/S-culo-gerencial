@@ -37,7 +37,11 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
           <span />
         </span>
         <span className="brand__type">
-          <span className="brand__name">{GAME.name}</span>
+          <span className="brand__name">
+            {GAME.name.split(' ').map((word) => (
+              <span key={word}>{word}</span>
+            ))}
+          </span>
           <span className="brand__world">{GAME.world}</span>
         </span>
       </button>

@@ -24,7 +24,9 @@ import type {
 } from './types';
 
 
-export const SAVE_KEY = 'tessera.save.v2';
+export const SAVE_KEY = 'management-century.save.v2';
+/** Chaves de versões anteriores do jogo: lidas uma vez e migradas. */
+export const LEGACY_SAVE_KEYS = ['tessera.save.v2'];
 export const SAVE_VERSION = GAME.saveVersion;
 
 const AI_START: Stocks = {
@@ -268,14 +270,36 @@ export function saveState(state: GameState, storage: Storage | null = typeof loc
 export function loadState(storage: Storage | null = typeof localStorage !== 'undefined' ? localStorage : null): LoadResult {
   if (!storage) return { state: null, error: 'Armazenamento local indisponível.' };
   let text: string | null = null;
+  let legacyKey: string | null = null;
   try {
     text = storage.getItem(SAVE_KEY);
+    if (!text) {
+      // Campanhas salvas antes da troca de nome continuam abrindo.
+      for (const key of LEGACY_SAVE_KEYS) {
+        const previous = storage.getItem(key);
+        if (previous) {
+          text = previous;
+          legacyKey = key;
+          break;
+        }
+      }
+    }
   } catch {
     return { state: null, error: 'Não foi possível ler o armazenamento local.' };
   }
   if (!text) return { state: null, error: null };
   try {
-    return validateState(JSON.parse(text));
+    const result = validateState(JSON.parse(text));
+    if (result.state && legacyKey) {
+      // Migra para a chave nova e libera a antiga.
+      try {
+        storage.setItem(SAVE_KEY, text);
+        storage.removeItem(legacyKey);
+      } catch {
+        // Se o storage estiver cheio, a campanha segue legível na chave antiga.
+      }
+    }
+    return result;
   } catch {
     return { state: null, error: 'O save está ilegível e não pôde ser carregado.' };
   }
@@ -284,6 +308,7 @@ export function loadState(storage: Storage | null = typeof localStorage !== 'und
 export function clearSave(storage: Storage | null = typeof localStorage !== 'undefined' ? localStorage : null): void {
   try {
     storage?.removeItem(SAVE_KEY);
+    for (const key of LEGACY_SAVE_KEYS) storage?.removeItem(key);
   } catch {
     // Storage may be blocked; nothing else to do.
   }

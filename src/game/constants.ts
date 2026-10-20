@@ -15,8 +15,8 @@ import type {
 // ── Identity ────────────────────────────────────────────────────────────────
 
 export const GAME = {
-  id: 'tessera',
-  name: 'TESSERA',
+  id: 'management-century',
+  name: 'MANAGEMENT CENTURY',
   subtitle: 'Crônicas da Partilha',
   world: 'Terra · A Partilha',
   tagline: 'Toda fronteira é uma decisão.',

@@ -1,4 +1,4 @@
-# TESSERA — Crônicas da Partilha
+# MANAGEMENT CENTURY — Crônicas da Partilha
 
 Jogo de estratégia territorial e gestão econômica para navegador. Quatro Casas disputam **a Terra partilhada**; você governa **Concórdia** a partir de Lisboa e precisa transformar Portugal e Espanha em uma potência global — por economia, obras, ciência, diplomacia ou força.
 
@@ -83,7 +83,7 @@ Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6
 - **Minimapa** e planta 2D determinística como fallback sem WebGL — o jogo continua jogável.
 
 ### Direção de arte — atlas de atelier
-- **Identidade**: TESSERA é jogado sobre uma **carta ilustrada de papel** pousada numa mesa de couro. Nada de painéis translúcidos, brilhos ou gradientes futuristas — a interface imita **gravura, nanquim e latão**.
+- **Identidade**: MANAGEMENT CENTURY é jogado sobre uma **carta ilustrada de papel** pousada numa mesa de couro. Nada de painéis translúcidos, brilhos ou gradientes futuristas — a interface imita **gravura, nanquim e latão**.
 - **Tipografia**: títulos em **Fraunces Variable** (serifa editorial, eixos SOFT/WONK), dados e rótulos em **Inter Variable** com algarismos tabulares. Toda a hierarquia vem dos tokens `--display`, `--serif`, `--sans`.
 - **Paleta**: papel `#efe2c4` / `#f6ecd4`, tinta `#3b3226`, mar `#9dbfb4`, terra em cinco lavagens naturais (planície, floresta, colina, montanha, deserto), latão `#a97b3f`, verdete `#4c7f6f` e selo `#b4553c`. Fundos neutros escuros (couro) para o papel respirar.
 - **Glifos desenhados no projeto** (`src/ui/art/Glyph.tsx`): um conjunto único de 32×32 para os sete recursos, os seis terrenos e as nove construções, além do selo de cera da Casa — sem emojis nem bibliotecas misturadas.
@@ -128,7 +128,7 @@ Telas: `1` Mapa · `2` Cidade · `3` Economia · `4` Obras · `5` Ciência · `6
 - Tutorial de onboarding, manual, confirmações para ações destrutivas, estados vazios, erros de validação e feedback por toast.
 - Layout responsivo (desktop, tablet e celular); atlas ilustrado, globo WebGL e carta plana SVG sob o mesmo tema de atelier (Fraunces + Inter).
 - Nomes de capitais e grandes cidades em português (`names.ts`) sobre os nomes originais do Natural Earth.
-- Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício.
+- Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício. A chave é `management-century.save.v2`; campanhas gravadas antes da troca de nome (`tessera.save.v2`) são migradas na primeira abertura, sem perder o mundo.
 
 ---
 
@@ -202,7 +202,7 @@ npm test
 - `src/ui/city3d/dollhouse.test.ts` — monta o corte da sede: quatro pisos mobiliados, piso em foco e paredes voltadas para a câmera reduzidas ao rodapé.
 - `src/ui/smoke.test.tsx` — renderiza o app em jsdom (sem WebGL, exercitando a carta plana), inicia campanha, percorre todas as telas, seleciona país/província/cidade, avança ciclos, executa obra, pesquisa, comércio, presente, expansão e resolve um evento pelo modal.
 
-O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carregado sob demanda num chunk separado (~500 kB); o pacote inicial fica em ~948 kB (329 kB gzip), incluindo o atlas mundial embutido. Dados geográficos: Natural Earth (domínio público), simplificados por `scripts/build-atlas.py`.
+O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carregado sob demanda num chunk separado (~500 kB); o pacote inicial fica em ~1,0 MB (358 kB gzip), incluindo o atlas mundial embutido. Dados geográficos: Natural Earth (domínio público), simplificados por `scripts/build-atlas.py`.
 
 ---
 

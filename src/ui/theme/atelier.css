@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TESSERA — ATELIER
+   MANAGEMENT CENTURY — ATELIER
    Segunda pele visual: mesa de couro, carta de papel, tinta ferrogálica e
    latão. Substitui o "painel futurista" por superfícies impressas.
    Carregado depois de index.css — só sobrescreve, nunca remove regra.
@@ -149,22 +149,36 @@ h1, h2, h3, h4,
 }
 
 .brand__name {
-  font-size: 22px;
+  /* Nome longo vira um pequeno masthead em duas linhas: "MANAGEMENT" /
+     "CENTURY" ocupa 108px, menos que a antiga TESSERA, e mantém o corpo
+     legível na barra superior. */
+  display: grid;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.13em;
+  line-height: 1.05;
+  white-space: nowrap;
   color: var(--paper);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
 }
 
+.brand__name span + span {
+  color: var(--gold);
+  opacity: 0.92;
+}
+
 .brand__world {
+  /* Respira abaixo do nome de duas linhas: sem isso os versos encostam. */
+  margin-top: 3px;
   color: var(--gold);
   letter-spacing: 0.2em;
-  font-size: 8.5px;
+  font-size: 8px;
+  line-height: 1.1;
   opacity: 0.85;
 }
 
 .brand::before {
-  content: 'T';
+  content: 'M';
   display: grid;
   place-items: center;
   width: 30px;
@@ -1533,7 +1547,11 @@ thead th {
 .start-hero h1 {
   font-family: var(--display);
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.045em;
+  line-height: 0.96;
+  /* A quebra natural em "MANAGEMENT / CENTURY" forma o nameplate; nenhuma
+     palavra é cortada porque cada uma cabe no corpo máximo. */
+  text-wrap: balance;
 }
 
 .start-hero__subtitle {
@@ -1710,4 +1728,24 @@ thead th {
 .atlas-illustrated.is-panning .atlas-graticule line,
 .atlas-illustrated.is-zooming .atlas-graticule line {
   stroke-opacity: 0.12;
+}
+
+
+/* ------------------------------------------------- nome longo: ajustes finos */
+
+.boot-screen h1 {
+  font-size: 27px;
+  letter-spacing: 0.1em;
+  line-height: 1.08;
+  text-align: center;
+  text-wrap: balance;
+  max-width: 14em;
+  margin-inline: auto;
+}
+
+@media (max-width: 760px) {
+  .brand__name {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+  }
 }

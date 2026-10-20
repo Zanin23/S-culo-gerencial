@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FACTIONS, RESOURCES, RESOURCE_KEYS } from './game/constants';
+import { FACTIONS, GAME, RESOURCES, RESOURCE_KEYS } from './game/constants';
 import { eventById, type EventEffect } from './game/events';
 import { rankOf, scoreParts, VICTORY_TARGET } from './game/progress';
 import type { CycleReport, ResourceKey } from './game/types';
@@ -144,7 +144,7 @@ export function App() {
   if (!booted) {
     return (
       <div className="boot-screen">
-        <h1>TESSERA</h1>
+        <h1>{GAME.name}</h1>
         <p className="eyebrow">Crônicas do mundo</p>
         <div className="boot-screen__bar"><span /></div>
       </div>
