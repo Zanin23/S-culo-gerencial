@@ -8,7 +8,7 @@ import {
   STARTING_STOCKS,
 } from './constants';
 import { EMPTY_RELATION, RELATION_SEED, relationKey } from './diplomacy';
-import { createTiles, tileId } from './map';
+import { createTiles, START_SEATS } from './map';
 import { Rng } from './rng';
 import { scoreOf } from './progress';
 import type {
@@ -23,7 +23,7 @@ import type {
 } from './types';
 
 
-export const SAVE_KEY = 'tessera.save.v1';
+export const SAVE_KEY = 'tessera.save.v2';
 export const SAVE_VERSION = GAME.saveVersion;
 
 const AI_START: Stocks = {
@@ -89,10 +89,10 @@ export function createInitialState(seed = Date.now() % 1000000, now = Date.now()
   const tiles = createTiles(rng);
 
   const factions: Record<FactionId, Faction> = {
-    concordia: newFaction('concordia', tileId(-2, 1), { ...STARTING_STOCKS }),
-    aurelia: newFaction('aurelia', tileId(3, -2), { ...AI_START }),
-    kestrel: newFaction('kestrel', tileId(-1, -4), { ...AI_START }),
-    vantor: newFaction('vantor', tileId(2, 4), { ...AI_START }),
+    concordia: newFaction('concordia', START_SEATS.concordia.capital, { ...STARTING_STOCKS }),
+    aurelia: newFaction('aurelia', START_SEATS.aurelia.capital, { ...AI_START }),
+    kestrel: newFaction('kestrel', START_SEATS.kestrel.capital, { ...AI_START }),
+    vantor: newFaction('vantor', START_SEATS.vantor.capital, { ...AI_START }),
   };
 
   const diplomacy: Record<string, Relation> = {};
@@ -133,8 +133,8 @@ export function createInitialState(seed = Date.now() % 1000000, now = Date.now()
   };
 
   state.history.push(snapshot(state));
-  logEntry(state, 'sistema', 'O Conselho de Concórdia assume o governo de Porto Lúmen.');
-  logEntry(state, 'sistema', 'Quatro Casas disputam o Cinturão de Vesper. A partida começa.');
+  logEntry(state, 'sistema', 'O Conselho de Concórdia assume o governo de Lisboa.');
+  logEntry(state, 'sistema', 'Quatro Casas disputam a Terra. A Partilha começa.');
   logEntry(state, 'economia', 'Ciclo 1: o tesouro inicial financia as primeiras decisões.');
   return state;
 }

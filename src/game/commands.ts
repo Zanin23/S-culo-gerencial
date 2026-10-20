@@ -22,7 +22,7 @@ import {
 } from './economy';
 import { applyTradeImpact, buyUnitPrice, sellUnitPrice } from './market';
 import { getRelation, offerLabel, proposeCost, relationKey, relationRequirement } from './diplomacy';
-import { neighborsOf, tileId, tilesOfFaction } from './map';
+import { neighborsOf, tilesOfFaction } from './map';
 import { logEntry } from './state';
 import type {
   BuildingKey,
@@ -217,7 +217,7 @@ function expansionAnchor(state: GameState, factionId: FactionId, tile: Tile): Ti
 }
 
 export function requiredDevelopment(tile: Tile): number {
-  return 18 + tile.strategic * 5;
+  return 14 + tile.strategic * 4;
 }
 
 export function startExpansion(state: GameState, factionId: FactionId, targetId: string): CommandResult {
@@ -611,10 +611,6 @@ export function expansionPreview(state: GameState, factionId: FactionId, tile: T
 
 export function findTileNeighbor(state: GameState, factionId: FactionId, tile: Tile): Tile | null {
   return expansionAnchor(state, factionId, tile);
-}
-
-export function tileKey(q: number, r: number): string {
-  return tileId(q, r);
 }
 
 export function buildingLevels(tile: Tile): number {

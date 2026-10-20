@@ -5,6 +5,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { App } from '../App';
+import { CITIES, PROVINCES } from '../game/atlas';
 import { eventById } from '../game/events';
 import { useGameStore } from '../store/gameStore';
 
@@ -137,7 +138,7 @@ it('runs the core actions and resolves an event through the modal', async () => 
   await act(async () => {
     useGameStore.getState().setView('economy');
   });
-  expect(text()).toContain('Mercado de Vesper');
+  expect(text()).toContain('Mercado Global');
 
   await act(async () => {
     expect(useGameStore.getState().gift('aurelia')).toBe(true);
@@ -224,4 +225,64 @@ it('clicking the primary UI actions mutates the world', async () => {
     expandButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
   expect(useGameStore.getState().game!.projects.some((project) => project.kind === 'expansao')).toBe(true);
+});
+
+it('selects countries, provinces and cities on the world map', async () => {
+  await act(async () => {
+    root = createRoot(container);
+    root.render(<App />);
+  });
+  await act(async () => {
+    useGameStore.getState().startNewGame(2024);
+    useGameStore.getState().finishTutorial();
+  });
+
+  const countries = Array.from(container.querySelectorAll('path.flat-country')) as SVGPathElement[];
+  expect(countries.length).toBeGreaterThan(200);
+  expect(container.querySelector('.map-fallback-note')).toBeTruthy();
+
+  await act(async () => {
+    countries[4].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  const picked = useGameStore.getState().selectedTileId;
+  expect(picked).toBeTruthy();
+
+  await act(async () => {
+    countries[4].dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  });
+  expect(useGameStore.getState().focusCountryId).toBe(picked);
+
+  const province = PROVINCES.find((item) => item.countryId === picked)!;
+  await act(async () => {
+    useGameStore.getState().selectProvince(province.id);
+  });
+  expect(useGameStore.getState().selectedProvinceId).toBe(province.id);
+  expect(container.querySelector('.map-drill')?.textContent).toContain(province.name);
+
+  const city = CITIES.find((item) => item.countryId === picked)!;
+  await act(async () => {
+    useGameStore.getState().selectCity(city.id);
+  });
+  expect(useGameStore.getState().selectedCityId).toBe(city.id);
+  expect(container.querySelector('.map-drill')?.textContent).toContain(city.name);
+  expect(useGameStore.getState().selectedProvinceId).toBeNull();
+
+  const firstCountry = useGameStore.getState().game!.factions.concordia.capitalId;
+
+  const locate = container.querySelector('select[aria-label="Localizar país"]') as HTMLSelectElement | null;
+  expect(locate).toBeTruthy();
+  await act(async () => {
+    if (locate) {
+      locate.value = 'FRA';
+      locate.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  });
+  expect(useGameStore.getState().selectedTileId).toBe('FRA');
+  expect(useGameStore.getState().focusCountryId).toBe('FRA');
+
+  await act(async () => {
+    useGameStore.getState().clearSelection();
+  });
+  expect(useGameStore.getState().selectedTileId).toBeNull();
+  expect(firstCountry).toBeTruthy();
 });

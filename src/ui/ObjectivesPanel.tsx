@@ -31,7 +31,7 @@ export function ObjectivesPanel() {
 
   return (
     <ViewShell
-      eyebrow="Campanha do Cinturão"
+      eyebrow="Campanha da Partilha"
       title="Objetivos e hegemonia"
       subtitle={`A campanha termina quando uma Casa alcança ${VICTORY_TARGET} de hegemonia. Territórios, desenvolvimento, tecnologia e acordos constroem sua pontuação — não apenas exércitos.`}
       icon="Award"
@@ -46,7 +46,7 @@ export function ObjectivesPanel() {
         </div>
         <div className="victory-hero__body">
           <div className="eyebrow">{faction.name} · {rank.name}</div>
-          <h2>{victory.isLeader ? 'Concórdia lidera o Cinturão' : `${victory.leader.name} lidera a corrida`}</h2>
+          <h2>{victory.isLeader ? 'Concórdia lidera o mundo' : `${victory.leader.name} lidera a corrida`}</h2>
           <p>{rank.note} {victory.rivalClose ? 'A liderança rival está próxima do objetivo — cada ciclo conta.' : 'Use os próximos ciclos para consolidar desenvolvimento, tecnologia e alianças.'}</p>
           <div className="victory-hero__score">
             <strong>{fmt(victory.playerScore)}</strong>

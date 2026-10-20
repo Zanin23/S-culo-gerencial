@@ -345,7 +345,7 @@ export function EconomyPanel() {
 
         <aside className="economy-side">
           <section className="view-card" id="market">
-            <SectionHeader eyebrow="Ponto de troca" title="Mercado de Vesper" icon="Store" action={<Badge tone="gold">volátil</Badge>} />
+            <SectionHeader eyebrow="Ponto de troca" title="Mercado Global" icon="Store" action={<Badge tone="gold">volátil</Badge>} />
             <div className="market-list">
               {MARKET_KEYS.map((resource) => <MarketCard key={resource} resource={resource} />)}
             </div>

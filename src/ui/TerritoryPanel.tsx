@@ -295,7 +295,7 @@ export function TerritoryPanel() {
     })).filter((row) => Math.abs(row.production) > 0.05 || Math.abs(row.consumption) > 0.05);
   }, [prod]);
 
-  const strategicText = tile.strategic === 3 ? 'Coração estratégico do Cinturão' : tile.strategic === 2 ? 'Posição estratégica relevante' : 'Posição comum';
+  const strategicText = tile.strategic === 3 ? 'Coração estratégico do mundo' : tile.strategic === 2 ? 'Posição estratégica relevante' : 'Posição comum';
 
   const relationBadge = relation ? relationStatus(relation) : null;
 
@@ -315,6 +315,8 @@ export function TerritoryPanel() {
             <span>{NODES[tile.node].name}</span>
             <span className="tile-subline__sep">·</span>
             <span>{tile.strategic}/3 estratégico</span>
+            <span className="tile-subline__sep">·</span>
+            <span>{tile.provinceCount} províncias · {tile.cityCount} cidades</span>
           </div>
         </div>
         {owner ? (

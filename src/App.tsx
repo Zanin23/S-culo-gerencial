@@ -36,11 +36,11 @@ const VIEWS = {
 
 const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'economy' | 'construction' | 'tech' | 'diplomacy' | 'objectives'; hint: string }> = [
   {
-    title: 'Sua Casa, seu território',
-    body: 'Você governa a Casa de Concórdia, dona de duas células no coração do Cinturão de Vesper. Cada hexágono tem solo, depósito natural, população e estruturas próprias — clique em qualquer território para ler a ficha completa antes de decidir.',
-    icon: 'Hexagon',
+    title: 'Sua Casa, seu mundo',
+    body: 'Você governa a Casa Concórdia, dona de Portugal e Espanha no coração da Terra. Cada país tem solo, depósito natural, população e estruturas próprias — clique para ler a ficha antes de decidir. Aproxime para explorar províncias e cidades.',
+    icon: 'Globe2',
     view: 'map',
-    hint: 'Clique nos hexágonos e use a roda do mouse ou os botões de zoom. Arraste o mapa para navegar.',
+    hint: 'Arraste para girar o globo, use a roda ou os botões para aproximar e clique em países, províncias e cidades. Duplo clique foca o país.',
   },
   {
     title: 'O ciclo move o mundo',
@@ -80,7 +80,7 @@ const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: '
 ];
 
 const HELP_CARDS = [
-  { icon: 'Map', title: 'Leia o território', body: 'Solo, depósito, população, estruturas e valor estratégico determinam o que cada hexágono pode render. Clique para abrir a ficha completa.' },
+  { icon: 'Map', title: 'Leia o território', body: 'Solo, depósito, população, estruturas e valor estratégico determinam o que cada país pode render. Clique para abrir a ficha completa.' },
   { icon: 'Play', title: 'Decida no ciclo', body: 'Produção, consumo, manutenção e projetos só mudam quando um ciclo fecha. Avance manualmente ou deixe o autoplay correr.' },
   { icon: 'Hammer', title: 'Desenvolver ou avançar', body: 'Um território rico e construído pode valer mais que dois pobres recém-reivindicados. O capital desenvolvido é a âncora da expansão.' },
   { icon: 'Handshake', title: 'Negocie antes de lutar', body: 'Acordos geram receita e segurança. Guerra custa caro, exige preparação e desestabiliza a região — mas resolve disputas que a diplomacia não resolve.' },
@@ -135,7 +135,7 @@ export function App() {
     return (
       <div className="boot-screen">
         <h1>TESSERA</h1>
-        <p className="eyebrow">Crônicas do Cinturão</p>
+        <p className="eyebrow">Crônicas do mundo</p>
         <div className="boot-screen__bar"><span /></div>
       </div>
     );
@@ -186,7 +186,7 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Como governar o Cinturão"
+      title="Como governar o mundo"
       eyebrow="Manual de campo"
       icon="BookOpen"
       subtitle="Tudo o que o MVP oferece, sem letras miúdas."
@@ -434,7 +434,7 @@ function EndGameModal() {
   return (
     <Modal
       open
-      title={victory ? 'O Cinturão reconhece sua hegemonia' : 'A Casa perdeu o Cinturão'}
+      title={victory ? 'O mundo reconhece sua hegemonia' : 'A Casa perdeu o mundo'}
       eyebrow={victory ? 'Campanha vencida' : 'Campanha encerrada'}
       icon={victory ? 'Crown' : 'Flame'}
       size="md"
@@ -452,7 +452,7 @@ function EndGameModal() {
         <h3>{victory ? 'Hegemonia consolidada' : 'Fim da linhagem'}</h3>
         <p>
           {victory
-            ? `O conselho encerra a disputa com ${score} pontos. As Casas restantes reconhecem a nova ordem do Cinturão.`
+            ? `O conselho encerra a disputa com ${score} pontos. As Casas restantes reconhecem a nova ordem do mundo.`
             : 'O capital caiu e a campanha termina aqui. Um novo mundo pode ser fundado nas configurações ou na tela inicial.'}
         </p>
       </div>

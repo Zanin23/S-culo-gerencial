@@ -78,7 +78,7 @@ export function ChroniclePanel() {
   return (
     <ViewShell
       eyebrow="Arquivo da campanha"
-      title="Crônicas do Cinturão"
+      title="Crônicas da Partilha"
       subtitle="Cada decisão relevante fica registrada aqui — o mesmo log que um servidor autoritativo usaria para auditar a partida."
       icon="ScrollText"
       actions={<button className="button button--ghost button--small" onClick={download} type="button"><Icon name="Download" size={14} /> Exportar .txt</button>}

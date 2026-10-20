@@ -69,7 +69,7 @@ export function OverviewPanel() {
             <span><Icon name="Award" size={13} /> {rank.name}</span>
             <span className={leader.isPlayer ? 'tone-teal' : 'tone-gold'}>
               <Icon name={leader.isPlayer ? 'TrendingUp' : 'Target'} size={13} />
-              {leader.isPlayer ? 'Você lidera o Cinturão' : `${leader.name} lidera com ${fmt(leader.score)}`}
+              {leader.isPlayer ? 'Você lidera o mundo' : `${leader.name} lidera com ${fmt(leader.score)}`}
             </span>
           </div>
         </section>
@@ -79,7 +79,7 @@ export function OverviewPanel() {
             <Icon name="Handshake" size={18} />
             <span>
               <strong>{offers.length} proposta{offers.length > 1 ? 's' : ''} diplomática{offers.length > 1 ? 's' : ''}</strong>
-              <small>Uma resposta pode mudar as relações do Cinturão.</small>
+              <small>Uma resposta pode mudar as relações do mundo.</small>
             </span>
             <Icon name="ChevronRight" size={15} />
           </button>
@@ -168,7 +168,7 @@ export function OverviewPanel() {
         <section className="card">
           <SectionHeader
             eyebrow="Corrida pela hegemonia"
-            title="Casas do Cinturão"
+            title="Casas da Partilha"
             icon="Crown"
             action={<button className="text-button" onClick={() => setView('objectives')} type="button">Ranking <Icon name="ChevronRight" size={13} /></button>}
           />

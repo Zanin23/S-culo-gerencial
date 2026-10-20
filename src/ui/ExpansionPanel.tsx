@@ -47,7 +47,7 @@ export function ExpansionPanel() {
     <ViewShell
       eyebrow="Gabinete de fronteiras"
       title="Expansão territorial"
-      subtitle="Reivindique territórios neutros adjacentes aos seus. A base de partida precisa de desenvolvimento suficiente, e o custo cresce com o tamanho da nação."
+      subtitle="Reivindique países neutros que fazem fronteira com os seus. O país de partida precisa de desenvolvimento suficiente, e o custo cresce com o tamanho da nação."
       icon="Target"
       actions={<Badge tone="teal" icon="Crown">{fmt(player.stocks.influencia)} influência</Badge>}
     >
@@ -62,7 +62,7 @@ export function ExpansionPanel() {
           <span className="summary-card__label"><Icon name="Target" size={14} /> Fronteiras livres</span>
           <strong>{targets.length}</strong>
           <span className="summary-card__delta">{readyCount} prontas para expedição</span>
-          <small>Todos os vizinhos neutros dos seus territórios</small>
+          <small>Países neutros vizinhos dos seus</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Coins" size={14} /> Influência</span>
@@ -115,20 +115,20 @@ export function ExpansionPanel() {
       ) : null}
 
       <section>
-        <SectionHeader eyebrow="Fronteira continental" title="Alvos de expansão" icon="Map" action={<Badge tone="neutral">{targets.length} territórios</Badge>} />
+        <SectionHeader eyebrow="Fronteira global" title="Alvos de expansão" icon="Map" action={<Badge tone="neutral">{targets.length} países</Badge>} />
         {targets.length ? (
           <div className="claim-grid">
             {targets.map(({ tile }) => <ClaimCard key={tile.id} tile={tile} game={game} />)}
           </div>
         ) : (
-          <EmptyState icon="Map" title="Nenhuma fronteira livre">Todos os territórios vizinhos têm soberano. Considere diplomacia, desenvolvimento interno ou uma campanha militar.</EmptyState>
+          <EmptyState icon="Map" title="Nenhuma fronteira livre">Todos os países vizinhos têm soberano. Considere diplomacia, desenvolvimento interno ou uma campanha militar.</EmptyState>
         )}
       </section>
 
       <section className="view-card expansion-rules">
         <SectionHeader eyebrow="Doutrina" title="Como funciona a expansão" icon="Info" />
         <div className="rules-grid">
-          <div><span>1</span><strong>Fronteira</strong><p>O alvo precisa ser vizinho de um território seu.</p></div>
+          <div><span>1</span><strong>Fronteira</strong><p>O alvo precisa fazer fronteira com um país seu.</p></div>
           <div><span>2</span><strong>Base desenvolvida</strong><p>O território de partida precisa atingir o desenvolvimento exigido pelo alvo.</p></div>
           <div><span>3</span><strong>Custo crescente</strong><p>Créditos, matérias-primas e influência aumentam com o número de territórios.</p></div>
           <div><span>4</span><strong>Proclamação</strong><p>A soberania chega em 2 ciclos e gera desordem inicial. Se outro poder chegar antes, parte do custo é reembolsada.</p></div>

@@ -57,7 +57,7 @@ export const EVENTS: GameEvent[] = [
     title: 'Colheita Excepcional',
     category: 'Clima',
     icon: 'Wheat',
-    description: 'As chuvas chegaram na medida exata e os celeiros do Cinturão transbordam. Uma rara janela de abundância se abre.',
+    description: 'As chuvas chegaram na medida exata e os celeiros do planeta transbordam. Uma rara janela de abundância se abre.',
     minCycle: 4,
     weight: 10,
     choices: [
@@ -97,7 +97,7 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'seca',
-    title: 'Seca no Cinturão',
+    title: 'Seca no mundo',
     category: 'Clima',
     icon: 'Sun',
     description: 'Três meses sem chuva. Os rios baixaram e os produtores rurais de todas as Casas alertam para perdas severas.',
@@ -149,7 +149,7 @@ export const EVENTS: GameEvent[] = [
     title: 'Auge da Demanda Industrial',
     category: 'Mercado',
     icon: 'Factory',
-    description: 'Os mercados do leste pagam qualquer preço por bens industriais. A demanda supera a oferta em todo o Cinturão.',
+    description: 'Os mercados do leste pagam qualquer preço por bens industriais. A demanda supera a oferta em todo o mundo.',
     minCycle: 10,
     weight: 9,
     choices: [
@@ -237,7 +237,7 @@ export const EVENTS: GameEvent[] = [
     title: 'Greve nas Fundições',
     category: 'Crise',
     icon: 'Hammer',
-    description: 'Os operários das fundições cruzaram os braços. A produção industrial de todo o Cinturão cai enquanto o impasse durar.',
+    description: 'Os operários das fundições cruzaram os braços. A produção industrial de todo o mundo cai enquanto o impasse durar.',
     minCycle: 12,
     weight: 8,
     choices: [
@@ -272,7 +272,7 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'esperar',
         label: 'Deixar o impasse se resolver',
-        description: 'Sem custos e sem riscos imediatos. A indústria do Cinturão segue paralisada.',
+        description: 'Sem custos e sem riscos imediatos. A indústria global segue paralisada.',
         tone: 'neutral',
         effect: {
           log: 'Concórdia aguardou o fim da greve sem intervir.',
@@ -285,7 +285,7 @@ export const EVENTS: GameEvent[] = [
     title: 'Comboio de Refugiados',
     category: 'Política',
     icon: 'Users',
-    description: 'Famílias deslocadas por uma disputa regional chegam às portas do Cinturão pedindo abrigo.',
+    description: 'Famílias deslocadas por uma disputa regional chegam às portas das cidades pedindo abrigo.',
     minCycle: 8,
     weight: 7,
     choices: [
@@ -327,10 +327,10 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'inovacao',
-    title: 'Feira de Inovação de Vesper',
+    title: 'Feira de Inovação Global',
     category: 'Ciência',
     icon: 'Lightbulb',
-    description: 'Engenheiros, arquivistas e inventores reúnem-se no Coração de Vesper. O conhecimento circula como moeda.',
+    description: 'Engenheiros, arquivistas e inventores reúnem-se no Coração do Mundo. O conhecimento circula como moeda.',
     minCycle: 10,
     weight: 7,
     choices: [
@@ -343,12 +343,12 @@ export const EVENTS: GameEvent[] = [
           cost: { creditos: 70 },
           stockDelta: { conhecimento: 5 },
           modifier: {
-            label: 'Instituto de Vesper',
+            label: 'Instituto Global',
             description: 'Bolsas e laboratórios reduzem o custo das pesquisas.',
             cycles: 4,
             researchDiscount: 0.25,
           },
-          log: 'Concórdia financiou o Instituto de Vesper.',
+          log: 'Concórdia financiou o Instituto Global.',
         },
       },
       {
@@ -458,7 +458,7 @@ export const EVENTS: GameEvent[] = [
     title: 'Conselho das Casas',
     category: 'Política',
     icon: 'Landmark',
-    description: 'As quatro Casas enviam enviados ao Coração de Vesper. A pauta é a segurança das rotas e o futuro do Cinturão.',
+    description: 'As quatro Casas enviam enviados ao Coração do Mundo. A pauta é a segurança das rotas e o futuro da Partilha.',
     minCycle: 15,
     weight: 6,
     choices: [
@@ -499,10 +499,10 @@ export const EVENTS: GameEvent[] = [
   },
   {
     id: 'eclipse',
-    title: 'O Eclipse de Vesper',
+    title: 'O Eclipse',
     category: 'Ciência',
     icon: 'Moon',
-    description: 'Uma sombra dupla cruza o Cinturão. Arquivistas preveem um fenômeno raro; a população vê um presságio.',
+    description: 'Uma sombra dupla cruza o mundo. Arquivistas preveem um fenômeno raro; a população vê um presságio.',
     minCycle: 9,
     weight: 5,
     choices: [

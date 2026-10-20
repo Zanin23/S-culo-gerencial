@@ -17,11 +17,11 @@ import type {
 export const GAME = {
   id: 'tessera',
   name: 'TESSERA',
-  subtitle: 'Crônicas do Cinturão',
-  world: 'Cinturão de Vesper',
+  subtitle: 'Crônicas da Partilha',
+  world: 'Terra · A Partilha',
   tagline: 'Toda fronteira é uma decisão.',
-  version: 1,
-  saveVersion: 1,
+  version: 2,
+  saveVersion: 2,
   baseProjectSlots: 2,
   baseAdminCapacity: 4,
   maxBuildingLevel: 3,
@@ -53,7 +53,7 @@ export interface ResourceMeta {
 export const RESOURCES: Record<ResourceKey, ResourceMeta> = {
   creditos: {
     key: 'creditos', label: 'Créditos', short: 'Cr', icon: 'Coins', color: '#e4bd72',
-    description: 'Moeda do Cinturão. Financia obras, tropas, acordos e expansão.',
+    description: 'Moeda de reserva do sistema. Financia obras, tropas, acordos e expansão.',
   },
   alimentos: {
     key: 'alimentos', label: 'Alimentos', short: 'Al', icon: 'Wheat', color: '#82c97c',
@@ -127,7 +127,7 @@ export const TERRAIN: Record<TerrainKey, TerrainDef> = {
     baseFood: 0.15, baseMaterials: 0.7, baseEnergy: 0.2, slots: 0, color: '#8b7553', texture: 'desert',
   },
   agua: {
-    key: 'agua', name: 'Mar de Vesper', description: 'Águas profundas. Fora das fronteiras terrestres.',
+    key: 'agua', name: 'Oceano aberto', description: 'Águas profundas. Fora das fronteiras terrestres.',
     baseFood: 0, baseMaterials: 0, baseEnergy: 0, slots: 0, color: '#0d1828', texture: 'sea',
   },
 };
@@ -340,7 +340,7 @@ export const TECHS: Record<TechId, TechDef> = {
   },
   ec4: {
     id: 'ec4', branch: 'economia', tier: 4, name: 'Comércio Global', icon: 'Ship',
-    description: 'Rotas marítimas conectam o Cinturão aos mercados além do horizonte.',
+    description: 'Rotas marítimas conectam sua rede aos mercados além do horizonte.',
     cost: { conhecimento: 68, creditos: 290 }, requires: ['ec3'],
     effects: { tradeMult: 0.18, sellMult: 0.08 },
     benefits: ['+18% de receita comercial', '+8% preço de venda'],
@@ -384,7 +384,7 @@ export const TECHS: Record<TechId, TechDef> = {
     benefits: ['+8% produção em todos os territórios'],
   },
   lg2: {
-    id: 'lg2', branch: 'logistica', tier: 2, name: 'Ferrovias do Cinturão', icon: 'TrainFront',
+    id: 'lg2', branch: 'logistica', tier: 2, name: 'Ferrovias Continentais', icon: 'TrainFront',
     description: 'Trens de carga ligam a capital às fronteiras e reduzem o custo de integração.',
     cost: { conhecimento: 25, creditos: 110 }, requires: ['lg1'],
     effects: { expansionCostMult: -0.25, maxProjects: 1 },
@@ -393,7 +393,7 @@ export const TECHS: Record<TechId, TechDef> = {
   },
   lg3: {
     id: 'lg3', branch: 'logistica', tier: 3, name: 'Portos Livres', icon: 'Anchor',
-    description: 'Entrepostos francos atraem mercadores de todo o Cinturão.',
+    description: 'Entrepostos francos atraem mercadores de todo o mundo.',
     cost: { conhecimento: 40, creditos: 175 }, requires: ['lg2'],
     effects: { tradeMult: 0.1, sellMult: 0.06 },
     benefits: ['+10% receita comercial', '+6% preço de venda'],
@@ -472,33 +472,33 @@ export interface FactionDef {
 export const FACTIONS: Record<FactionId, FactionDef> = {
   concordia: {
     id: 'concordia', name: 'Casa Concórdia', short: 'Concórdia', epithet: 'A Casa do Equilíbrio',
-    leader: 'Conselho de Concórdia', motto: 'Nada se conquista sem sustentar.',
-    description: 'Uma federação de cidades portuárias que trocou a guerra pela engenharia. Sua força é a capacidade de transformar acordos em infraestrutura.',
-    color: '#3fd6c2', colorSoft: '#14685f', personality: 'mercantil', capitalName: 'Porto Lúmen',
+    leader: 'Conselho de Lisboa', motto: 'Nada se conquista sem sustentar.',
+    description: 'Uma casa de mercadores e engenheiros nascida no estuário do Tejo. Troca a força bruta por infraestrutura, crédito e acordos que sobrevivem a governos.',
+    color: '#3fd6c2', colorSoft: '#14685f', personality: 'mercantil', capitalName: 'Lisboa',
     aggression: 0.3, expansionBias: 0.7, industryBias: 0.7, techBias: 0.75, tradeBias: 0.9,
     diplomacyBias: 0.8, relationBaseline: 0, emblem: 'compass',
   },
   aurelia: {
     id: 'aurelia', name: 'Liga Aureliana', short: 'Aurelia', epithet: 'A Casa do Ouro',
     leader: 'Chanceler Otávia Rhen', motto: 'Todo acordo tem seu preço justo.',
-    description: 'Casas bancárias e dinastias mercantis que controlam as rotas de crédito do sul. Preferem comprar influência a derramar sangue.',
-    color: '#e4b566', colorSoft: '#6a5226', personality: 'mercantil', capitalName: 'Ourovil',
-    aggression: 0.22, expansionBias: 0.55, industryBias: 0.55, techBias: 0.6, tradeBias: 0.95,
+    description: 'Bancos, arquivos e institutos de cálculo de Roma. Compra influência com crédito e transforma informação em vantagem antes que as outras Casas percebam.',
+    color: '#e4b566', colorSoft: '#6a5226', personality: 'tecnocrata', capitalName: 'Roma',
+    aggression: 0.22, expansionBias: 0.55, industryBias: 0.55, techBias: 0.95, tradeBias: 0.95,
     diplomacyBias: 0.9, relationBaseline: 14, emblem: 'coin',
   },
   kestrel: {
     id: 'kestrel', name: 'Consórcio Kestrel', short: 'Kestrel', epithet: 'A Casa da Forja',
     leader: 'Diretor Soren Vask', motto: 'O futuro é fundido, não herdado.',
-    description: 'Um consórcio de fundições e engenheiros do leste. Mede poder em toneladas de aço e aceita qualquer acordo que mantenha suas forjas acesas.',
-    color: '#a78cf8', colorSoft: '#4b3b82', personality: 'industrial', capitalName: 'Ferroalto',
+    description: 'Um consórcio de fundições e engenheiros sediado em Londres. Mede poder em toneladas de aço e aceita qualquer acordo que mantenha suas forjas acesas.',
+    color: '#a78cf8', colorSoft: '#4b3b82', personality: 'industrial', capitalName: 'Londres',
     aggression: 0.4, expansionBias: 0.72, industryBias: 0.95, techBias: 0.85, tradeBias: 0.55,
     diplomacyBias: 0.55, relationBaseline: 2, emblem: 'anvil',
   },
   vantor: {
     id: 'vantor', name: 'Domínio Vantor', short: 'Vantor', epithet: 'A Casa do Punho',
     leader: 'Generalíssima Iska Vantor', motto: 'A fronteira é onde a força termina.',
-    description: 'Um domínio militar forjado na última guerra, que ainda considera a diplomacia um intervalo entre campanhas.',
-    color: '#e36d63', colorSoft: '#6b2e2b', personality: 'militar', capitalName: 'Bastião Cindro',
+    description: 'Um domínio militar que nasceu controlando o Bósforo e ainda considera a diplomacia um intervalo entre campanhas.',
+    color: '#e36d63', colorSoft: '#6b2e2b', personality: 'militar', capitalName: 'Ancara',
     aggression: 0.85, expansionBias: 0.82, industryBias: 0.6, techBias: 0.45, tradeBias: 0.35,
     diplomacyBias: 0.25, relationBaseline: -12, emblem: 'sword',
   },
@@ -526,13 +526,13 @@ export const OBJECTIVES: ObjectiveDef[] = [
     hint: 'Construa e melhore estruturas na capital. Logística e administração valorizam o território.',
   },
   {
-    id: 'territorios', title: 'Presença continental', target: 5, unit: 'territórios',
-    description: 'Administre ao menos 5 territórios.',
+    id: 'territorios', title: 'Presença global', target: 8, unit: 'países',
+    description: 'Administre ao menos 8 países.',
     icon: 'Map',
-    hint: 'Reivindique territórios neutros adjacentes aos seus. Cada expansão exige créditos e influência.',
+    hint: 'Reivindique países neutros que fazem fronteira com os seus. Cada expansão exige créditos e influência.',
   },
   {
-    id: 'industria', title: 'A forja de Vesper', target: 30, unit: 'bens/ciclo',
+    id: 'industria', title: 'A forja global', target: 30, unit: 'bens/ciclo',
     description: 'Produza 30 bens industriais em um único ciclo.',
     icon: 'Factory',
     hint: 'Complexos industriais convertem matérias-primas e energia em bens. Cuide das cadeias de suprimento.',
@@ -579,7 +579,7 @@ export const STARTING_MILITARY = 45;
 
 export const RANKS = [
   { min: 0, name: 'Casa Emergente', note: 'Ainda uma voz entre muitas.' },
-  { min: 120, name: 'Potência Regional', note: 'O Cinturão começa a ouvir você.' },
+  { min: 120, name: 'Potência Regional', note: 'O mundo começa a ouvir você.' },
   { min: 220, name: 'Potência Continental', note: 'Seu nome pesa nas negociações.' },
-  { min: 330, name: 'Hegemon', note: 'A ordem de Vesper se escreve em sua capital.' },
+  { min: 330, name: 'Hegemon', note: 'A ordem do mundo se escreve em sua capital.' },
 ];

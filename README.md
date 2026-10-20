@@ -1,8 +1,12 @@
-# TESSERA — Crônicas do Cinturão
+# TESSERA — Crônicas da Partilha
 
-Jogo de estratégia territorial e gestão econômica para navegador. Quatro Casas disputam o Cinturão de Vesper; você governa **Concórdia** a partir de Porto Lúmen e precisa transformar dois territórios em uma hegemonia continental — por economia, obras, ciência, diplomacia ou força.
+Jogo de estratégia territorial e gestão econômica para navegador. Quatro Casas disputam **a Terra partilhada**; você governa **Concórdia** a partir de Lisboa e precisa transformar Portugal e Espanha em uma potência global — por economia, obras, ciência, diplomacia ou força.
+
+O tabuleiro é o **mapa-múndi real em 3D**: cada país soberano é um território jogável, com províncias/estados e cidades navegáveis dentro dele. São 231 países, 4.502 províncias e 1.203 cidades a partir de dados geográficos do Natural Earth.
 
 > MVP funcional e jogável. Todos os números da interface vêm do mesmo motor determinístico que move as Casas rivais. Não há telas simuladas nem jogadores fictícios.
+>
+> O globo exige WebGL. Sem ele — ou a pedido — o mesmo estado é exibido na **carta plana 2D**, com a mesma seleção de países, províncias e cidades.
 
 ---
 
@@ -30,16 +34,20 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 1. **Fundar Concórdia** no menu (ou retomar uma campanha salva no navegador).
 2. Leia o tutorial de seis passos. Ele explica o ciclo, a economia, obras, expansão, diplomacia e a condição de vitória.
 3. O relógio do ciclo roda a cada 14 segundos quando você está no mapa. Você pode pausar, avançar manualmente ou simplesmente tomar decisões.
-4. Clique em um território para ver população, desenvolvimento, produção local, desordem, estruturas e ações.
+4. Gire o globo até o país desejado e clique nele para abrir o painel do território. Aproxime para revelar **províncias/estados** e **cidades**; duplo clique foca o país e carrega a malha interna.
 5. Vença alcançando **360 de hegemonia** antes de uma Casa rival. Hegemonia soma territórios, desenvolvimento, tecnologias, força militar, influência, acordos e uma fração limitada do tesouro.
 
 ### Controles
 
 | Ação | Como |
 | --- | --- |
-| Mover o mapa | Arrastar |
-| Aproximar/afastar | Roda do mouse ou botões `+` / `−` |
-| Selecionar território | Clique (ou `Enter` com foco no hexágono) |
+| Girar o globo | Arrastar |
+| Aproximar/afastar | Roda do mouse, pinça ou botões `+` / `−` |
+| Selecionar país | Clique no país; duplo clique foca e carrega províncias |
+| Selecionar província/estado | Clique na divisão interna do país focado |
+| Selecionar cidade | Clique no marcador de cidade (camada “Mostrar cidades”) |
+| Alternar globo 3D / carta plana | Botão de camada no canto superior direito |
+| Localizar país, província ou cidade | Seletores no canto superior esquerdo (também acessíveis por teclado) |
 | Painel da nação | Clique no fundo do mapa / botão “Painel da nação” |
 | Trocar de tela | Barra lateral; teclas `1`–`8` |
 | Encerrar ciclo | Botão “Avançar” ou `Espaço` |
@@ -52,9 +60,13 @@ Telas: `1` Mapa · `2` Economia · `3` Obras · `4` Ciência · `5` Expansão ·
 
 ## O que está implementado
 
-### Mapa e território
-- Mapa hexagonal de 63 territórios com fronteiras por soberania, capitais, depósitos naturais, desordem e projetos em andamento.
-- Pan, zoom (0,82×–2,5×), tooltip contextual, legenda, bússola, escala, rótulos e destaque de fronteiras reivindicáveis.
+### Mapa-múndi em 3D
+- Globo em WebGL (three.js) com países extrudados sobre a esfera, atmosfera, campo de estrelas e grade lat/lon.
+- **231 países** como territórios; **4.502 províncias/estados** e **1.203 cidades** como camadas selecionáveis. A geometria do país é carregada sob demanda (`public/atlas/geo/{ISO}.json`), então a seleção nacional nunca depende de um único arquivo gigante.
+- Clique no país, na província (com o país focado) ou na cidade. Duplo clique aproxima e troca o detalhe interno; o painel contextual mostra a ficha do território.
+- Localizador com três seletores (país → província → cidade) resolve o problema de clicar em países minúsculos e serve de caminho acessível por teclado.
+- Órbita com arrastar, zoom por roda/pinça (1,32×–4,2×), rótulos de cidades em HTML projetados, destaque de reivindicáveis e tooltip com dono, população, terreno e valor estratégico.
+- **Carta plana 2D** (projeção equirretangular, SVG) como fallback automático sem WebGL e como alternativa acessível; usa o mesmo estado, as mesmas cores e a mesma seleção.
 - Cada território possui terreno, nó de recurso, população, desordem, valor estratégico, espaços construíveis, estruturas (níveis 0–3), defesa, produção e consumo locais.
 - Painel de território com abas **Resumo / Estruturas / Ações**, recrutamento, expansão, guerra e negociação.
 
@@ -81,7 +93,8 @@ Telas: `1` Mapa · `2` Economia · `3` Obras · `4` Ciência · `5` Expansão ·
 ### Interface e persistência
 - Barra superior com recursos, saldo, ciclo, hegemonia e alertas; navegação lateral; painel contextual; notificações; crônicas completas.
 - Tutorial de onboarding, manual, confirmações para ações destrutivas, estados vazios, erros de validação e feedback por toast.
-- Layout responsivo (desktop, tablet e celular), tipografia Inter + Spectral, mapa SVG vetorial.
+- Layout responsivo (desktop, tablet e celular), tipografia Inter + Spectral, globo WebGL + carta plana SVG.
+- Nomes de capitais e grandes cidades em português (`names.ts`) sobre os nomes originais do Natural Earth.
 - Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício.
 
 ---
@@ -94,7 +107,9 @@ src/
     constants.ts   dados de terreno, nós, edifícios, tecnologias, objetivos, mercado
     types.ts       contratos do estado, comandos, relatórios e log
     rng.ts         RNG determinístico (mulberry32 + fluxo LCG do mundo)
-    map.ts         geração e utilidades do mapa hexagonal
+    atlas.ts       carregador do atlas (países, províncias, cidades, adjacência, detalhe lazy)
+    atlas/         world.json (231 países), outline.json e geo/{ISO}.json gerados por scripts/build-atlas.py
+    map.ts         tabuleiro-múndi: assentos iniciais, terreno, população de jogo, vizinhos e reivindicáveis
     state.ts       criação do mundo, save/load versionado, validação, log
     economy.ts     produção, consumo, manutenção, capacidade, população e desordem
     market.ts      preços, tendências, impacto de volume e atualização
@@ -107,6 +122,9 @@ src/
   store/
     gameStore.ts   Zustand: estado da sessão, comandos, toasts, saves, tutorial
   ui/              componentes React de apresentação
+    globe/globe.ts globo three.js imperativo (geometria esférica, raycast, câmera, rótulos)
+    FlatAtlas.tsx  carta plana 2D com a mesma seleção e dados
+    MapView.tsx    orquestra globo/carta, detalhe por país, tooltip, controles e drill-down
   App.tsx          shell, roteamento de telas, modais, toasts e atalhos
 ```
 
@@ -139,9 +157,11 @@ npm test
 ```
 
 - `src/game/engine.test.ts` — criação coerente do mundo, economia inicial sã, simulação de 60 ciclos com jogador conduzido pela IA, validação de comandos inválidos, eventos e integridade de estoques/população.
-- `src/ui/smoke.test.tsx` — renderiza o app em jsdom, inicia campanha, percorre todas as telas, avança ciclos, executa obra, pesquisa, comércio, presente, expansão e resolve um evento pelo modal.
+- `src/ui/globe/globe.test.ts` — valida o atlas (referências de país/província/cidade e adjacência), o tabuleiro completo, a tesselação de todos os contornos em triângulos na esfera, o caso do antimeridiano (Fiji, Nova Zelândia, Rússia) e as cores de soberania.
+- `src/ui/FlatAtlas.test.tsx` — desenha a carta plana com todos os países, divisões internas e cidades, encaminha cliques de país/província/cidade, duplo clique e os controles de zoom/recentragem.
+- `src/ui/smoke.test.tsx` — renderiza o app em jsdom (sem WebGL, exercitando a carta plana), inicia campanha, percorre todas as telas, seleciona país/província/cidade, avança ciclos, executa obra, pesquisa, comércio, presente, expansão e resolve um evento pelo modal.
 
-O typecheck é parte do build (`tsc -b`). Build atual: ~423 kB de JS (124 kB gzip) e ~101 kB de CSS (18 kB gzip), fontes locais.
+O typecheck é parte do build (`tsc -b`). O pacote do globo (three.js) é carregado sob demanda num chunk separado (~500 kB); o pacote inicial fica em ~948 kB (329 kB gzip), incluindo o atlas mundial embutido. Dados geográficos: Natural Earth (domínio público), simplificados por `scripts/build-atlas.py`.
 
 ---
 
@@ -150,4 +170,6 @@ O typecheck é parte do build (`tsc -b`). Build atual: ~423 kB de JS (124 kB gzi
 - Uma única Casa jogável (Concórdia); a seleção de Casa e cenários alternativos são expansões naturais.
 - Sem áudio, sem animações de batalha quadro a quadro e sem campanha narrativa roteirizada.
 - Sem servidor, contas ou partidas assíncronas — apenas a arquitetura preparada descrita acima.
+- Microestados e ilhas muito pequenas recebem um contorno mínimo gerado no build para continuarem visíveis e clicáveis; não há modelagem de relevo ou elevação real.
+- A malha provincial é carregada por país sob demanda; em conexões lentas o primeiro foco pode exibir o aviso de carregamento.
 - Balanceamento calibrado por simulação, não por playtest humano extenso. Ajustes ficam concentrados em `constants.ts`, `commands.ts` e `progress.ts`.

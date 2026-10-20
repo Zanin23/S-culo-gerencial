@@ -64,10 +64,16 @@ export type GamePhase = 'playing' | 'victory' | 'defeat';
 export type ProjectKind = 'construcao' | 'expansao' | 'operacao' | 'pesquisa';
 
 export interface Tile {
+  /** ISO 3166-1 alpha-3 (Natural Earth ADM0_A3). */
   id: string;
-  q: number;
-  r: number;
   name: string;
+  continent: string;
+  capitalCity: string;
+  lat: number;
+  lon: number;
+  area: number;
+  provinceCount: number;
+  cityCount: number;
   terrain: TerrainKey;
   node: ResourceNode;
   pop: number;
