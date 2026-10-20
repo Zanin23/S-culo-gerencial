@@ -108,7 +108,7 @@ export interface Faction {
 /**
  * Filial da companhia numa cidade real. Cada operação disputa o mercado local
  * com as rivais: a receita depende da população da cidade e da participação
- * conquistada.
+ * de mercado da filial.
  */
 export interface Operation {
   id: string;
