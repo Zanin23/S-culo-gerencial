@@ -3,6 +3,7 @@ import { createInitialState, exportSave, importSave, loadState, saveState } from
 import { advanceCycle } from '../game/cycle';
 import { chooseEvent } from '../game/events';
 import { FACTIONS } from '../game/constants';
+import { CITY_BY_ID, PROVINCE_BY_ID } from '../game/atlas';
 import { scoreOf } from '../game/progress';
 import type { CommandResult, CycleReport, FactionId, GameState, MarketKey, ResourceKey, TechId, BuildingKey } from '../game/types';
 import {
@@ -59,6 +60,9 @@ interface GameStore {
   loadError: string | null;
   view: ViewKey;
   selectedTileId: string | null;
+  selectedProvinceId: string | null;
+  selectedCityId: string | null;
+  focusCountryId: string | null;
   autoPlay: boolean;
   secondsLeft: number;
   digest: CycleReport | null;
@@ -75,6 +79,11 @@ interface GameStore {
   continueGame: () => void;
   goToMenu: () => void;
   selectTile: (tileId: string | null) => void;
+  selectCountry: (tileId: string | null, focus?: boolean) => void;
+  selectProvince: (provinceId: string | null) => void;
+  selectCity: (cityId: string | null) => void;
+  focusCountry: (tileId: string | null) => void;
+  clearSelection: () => void;
   setView: (view: ViewKey) => void;
   setAutoPlay: (playing: boolean) => void;
   toggleAutoPlay: () => void;
@@ -150,6 +159,9 @@ export const useGameStore = create<GameStore>()((set, get) => {
     loadError: null,
     view: 'map',
     selectedTileId: null,
+    selectedProvinceId: null,
+    selectedCityId: null,
+    focusCountryId: null,
     autoPlay: false,
     secondsLeft: CYCLE_SECONDS,
     digest: null,
@@ -169,7 +181,8 @@ export const useGameStore = create<GameStore>()((set, get) => {
         savedAt: result.state ? Date.now() : null,
       });
       if (result.state) {
-        set({ selectedTileId: result.state.factions[result.state.playerFactionId].capitalId });
+        const capital = result.state.factions[result.state.playerFactionId].capitalId;
+        set({ selectedTileId: capital, focusCountryId: null });
       }
     },
 
@@ -182,6 +195,9 @@ export const useGameStore = create<GameStore>()((set, get) => {
         screen: 'game',
         view: 'map',
         selectedTileId: game.factions[game.playerFactionId].capitalId,
+        focusCountryId: null,
+        selectedProvinceId: null,
+        selectedCityId: null,
         autoPlay: false,
         secondsLeft: CYCLE_SECONDS,
         digest: null,
@@ -190,7 +206,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
         savedAt: Date.now(),
         eventDismissed: false,
       });
-      notify('info', 'Nova campanha', 'Porto Lúmen aguarda suas decisões. Leia o tutorial para começar.');
+      notify('info', 'Nova campanha', 'Lisboa aguarda suas decisões. Leia o tutorial para começar.');
     },
 
     continueGame: () => {
@@ -204,6 +220,9 @@ export const useGameStore = create<GameStore>()((set, get) => {
         screen: 'game',
         view: 'map',
         selectedTileId: saved.factions[saved.playerFactionId].capitalId,
+        focusCountryId: null,
+        selectedProvinceId: null,
+        selectedCityId: null,
         autoPlay: false,
         secondsLeft: CYCLE_SECONDS,
         digest: null,
@@ -226,7 +245,44 @@ export const useGameStore = create<GameStore>()((set, get) => {
       });
     },
 
-    selectTile: (tileId) => set({ selectedTileId: tileId }),
+    selectTile: (tileId) => set({
+      selectedTileId: tileId,
+      selectedProvinceId: null,
+      selectedCityId: null,
+      focusCountryId: tileId ?? null,
+    }),
+    selectCountry: (tileId, focus = false) => set((state) => ({
+      selectedTileId: tileId,
+      selectedProvinceId: null,
+      selectedCityId: null,
+      focusCountryId: focus ? tileId ?? null : (tileId ? state.focusCountryId : null),
+    })),
+    selectProvince: (provinceId) => {
+      if (!provinceId) {
+        set({ selectedProvinceId: null });
+        return;
+      }
+      const province = PROVINCE_BY_ID[provinceId];
+      set({
+        selectedProvinceId: provinceId,
+        selectedCityId: null,
+        selectedTileId: province?.countryId ?? get().selectedTileId,
+      });
+    },
+    selectCity: (cityId) => {
+      if (!cityId) {
+        set({ selectedCityId: null });
+        return;
+      }
+      const city = CITY_BY_ID[cityId];
+      set({
+        selectedCityId: cityId,
+        selectedProvinceId: null,
+        selectedTileId: city?.countryId ?? get().selectedTileId,
+      });
+    },
+    focusCountry: (tileId) => set({ focusCountryId: tileId }),
+    clearSelection: () => set({ selectedTileId: null, selectedProvinceId: null, selectedCityId: null }),
     setView: (view) => set({ view }),
     setAutoPlay: (playing) => set({ autoPlay: playing }),
     toggleAutoPlay: () => set((state) => ({ autoPlay: !state.autoPlay })),
@@ -384,6 +440,9 @@ export const useGameStore = create<GameStore>()((set, get) => {
         screen: 'game',
         view: 'map',
         selectedTileId: result.state.factions[result.state.playerFactionId].capitalId,
+        focusCountryId: null,
+        selectedProvinceId: null,
+        selectedCityId: null,
         autoPlay: false,
         tutorialStep: null,
         digest: null,

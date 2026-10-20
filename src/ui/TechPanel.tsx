@@ -136,7 +136,7 @@ export function TechPanel() {
           <span className="summary-card__label"><Icon name="Lightbulb" size={14} /> Desconto de pesquisa</span>
           <strong>{Math.round(discount * 100)}%</strong>
           <span className="summary-card__delta">modificadores ativos</span>
-          <small>Eventos e o Instituto de Vesper reduzem custos</small>
+          <small>Eventos e o Instituto Global reduzem custos</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Shield" size={14} /> Poder científico</span>

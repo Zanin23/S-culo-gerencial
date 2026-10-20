@@ -59,7 +59,7 @@ function eliminate(state: GameState, factionId: FactionId): void {
       tile.unrest = clamp(tile.unrest + 10, 0, 100);
     }
   }
-  logEntry(state, 'militar', `${FACTIONS[factionId].name} foi eliminada do Cinturão.`, factionId);
+  logEntry(state, 'militar', `${FACTIONS[factionId].name} foi eliminada do mundo.`, factionId);
 }
 
 function resolveBattle(state: GameState, project: Project): BattleReport | null {
@@ -253,7 +253,7 @@ function checkEnd(state: GameState): void {
   if (scoreOf(state, playerId) >= VICTORY_TARGET) {
     state.phase = 'victory';
     state.victoryCycle = state.cycle;
-    logEntry(state, 'sistema', `Hegemonia consolidada no ciclo ${state.cycle}. ${FACTIONS[playerId].name} lidera o Cinturão.`, playerId);
+    logEntry(state, 'sistema', `Hegemonia consolidada no ciclo ${state.cycle}. ${FACTIONS[playerId].name} lidera o mundo.`, playerId);
     return;
   }
   for (const id of Object.keys(state.factions) as FactionId[]) {
@@ -261,7 +261,7 @@ function checkEnd(state: GameState): void {
     if (scoreOf(state, id) >= VICTORY_TARGET) {
       state.phase = 'defeat';
       state.victoryCycle = state.cycle;
-      logEntry(state, 'sistema', `${FACTIONS[id].name} alcançou a hegemonia do Cinturão antes de Concórdia.`, id);
+      logEntry(state, 'sistema', `${FACTIONS[id].name} alcançou a hegemonia do mundo antes de Concórdia.`, id);
       return;
     }
   }

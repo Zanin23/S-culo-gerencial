@@ -6,3 +6,6 @@ coverage/
 *.local
 .vite/
 .arena/
+
+# build scripts cache (Natural Earth downloads)
+scripts/.cache/

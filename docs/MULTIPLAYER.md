@@ -33,7 +33,7 @@ cliente C ─┘                       │
 3. **Comandos** — o cliente envia `{ matchId, commandId, type, payload, expectedCycle }`. O servidor carrega o estado, verifica a fase, aplica o comando correspondente e responde com `{ ok, message, logEntries, stateHash, cycle }`.
 4. **Ciclo** — apenas o servidor decide quando um ciclo fecha. Para partidas assíncronas, um job agenda o fechamento; para partidas em tempo real, o servidor mantém o relógio e emite `cycle.completed`.
 5. **Sincronização** — difusão do log e de um patch de estado por ciclo. Clientes que reconectam recebem o snapshot mais recente + log desde o último ciclo confirmado; o `stateHash` detecta divergência.
-6. **Persistência** — snapshot integral após cada ciclo (pequeno: ~63 territórios e poucas dezenas de projetos) e log append-only para auditoria. Um snapshot por ciclo também limita o custo de reconexão.
+6. **Persistência** — snapshot integral após cada ciclo (algumas centenas de territórios e poucas dezenas de projetos) e log append-only para auditoria. Um snapshot por ciclo também limita o custo de reconexão.
 
 ## Anti-abuso
 

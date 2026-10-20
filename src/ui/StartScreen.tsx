@@ -21,7 +21,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
     if (saved) {
       requestConfirm({
         title: 'Fundar um novo mundo',
-        body: 'A campanha salva será substituída por um novo Cinturão de Vesper. Exporte o save atual nas configurações se quiser preservá-lo.',
+        body: 'A campanha salva será substituída por um novo Terra. Exporte o save atual nas configurações se quiser preservá-lo.',
         confirmLabel: 'Iniciar nova campanha',
         tone: 'danger',
         onConfirm: () => startNewGame(),
@@ -49,13 +49,13 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
             <div>
               <div className="eyebrow">Estratégia territorial · {GAME.world}</div>
               <h1>{GAME.name}</h1>
-              <p className="start-hero__subtitle">Crônicas do Cinturão</p>
+              <p className="start-hero__subtitle">Crônicas da Partilha</p>
             </div>
           </div>
           <p className="start-hero__lede">
             Quatro Casas disputam um continente partido entre jazidas, rotas e antigas capitais.
             Construa uma economia, negocie com rivais e transforme um porto pequeno na potência que
-            dita a ordem de Vesper.
+            dita a ordem do mundo.
           </p>
           <div className="start-hero__tagline">
             <span className="rule" />
@@ -98,7 +98,7 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
           <div className="briefing__top">
             <div>
               <div className="eyebrow">Briefing do Conselho</div>
-              <h2>{saved ? 'Campanha em andamento' : 'O Cinturão aguarda'}</h2>
+              <h2>{saved ? 'Campanha em andamento' : 'O mundo aguarda'}</h2>
             </div>
             <span className={`briefing__seal ${saved ? 'is-live' : ''}`}>{saved ? 'ATIVA' : 'NOVO'}</span>
           </div>
@@ -120,14 +120,14 @@ export function StartScreen({ onHelp }: { onHelp: () => void }) {
               <div className="briefing__stats">
                 <span><b>{cycle}</b> ciclo</span>
                 <span><b>{fmt(player.stocks.creditos)}</b> créditos</span>
-                <span><b>{Object.values(saved.tiles).filter((t) => t.owner === saved.playerFactionId).length}</b> territórios</span>
+                <span><b>{Object.values(saved.tiles).filter((t) => t.owner === saved.playerFactionId).length}</b> países</span>
                 <span><b>{player.techs.length}</b> tecnologias</span>
               </div>
             </div>
           ) : (
             <div className="briefing__campaign briefing__campaign--intro">
               <p>
-                Você governa a <strong>Casa Concórdia</strong>: dois territórios, um porto e uma dívida de
+                Você governa a <strong>Casa Concórdia</strong>: Portugal e Espanha, a rota do Atlântico e uma dívida de
                 confiança com as outras Casas. O caminho até a hegemonia passa por escolhas — não por um único exército.
               </p>
               <div className="briefing__pills">

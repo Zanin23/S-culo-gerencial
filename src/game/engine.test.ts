@@ -3,7 +3,7 @@ import { chooseEvent, eventById } from './events';
 import { runAITurn } from './ai';
 import { advanceCycle } from './cycle';
 import { computeEconomy, developmentOf, techEffects } from './economy';
-import { tilesOfFaction } from './map';
+import { neighborsOf, tilesOfFaction } from './map';
 import { createInitialState, exportSave, importSave, validateState } from './state';
 import { buildingCost, startConstruction, startResearch, startExpansion, sellResource } from './commands';
 import { objectivesOf, scoreOf } from './progress';
@@ -24,7 +24,7 @@ function resolvePending(state: GameState): GameState {
 describe('TESSERA engine', () => {
   it('creates a coherent world', () => {
     const state = createInitialState(123456, 1);
-    expect(Object.keys(state.tiles).length).toBeGreaterThan(50);
+    expect(Object.keys(state.tiles).length).toBeGreaterThan(200);
     expect(tilesOfFaction(state.tiles, 'concordia')).toHaveLength(2);
     for (const id of Object.keys(state.factions) as FactionId[]) {
       expect(state.tiles[state.factions[id].capitalId]).toBeTruthy();
@@ -120,13 +120,9 @@ describe('TESSERA engine', () => {
     const research = startResearch(state, 'concordia', 'ec4');
     expect(research.ok).toBe(false);
     const capital = state.tiles[state.factions.concordia.capitalId];
-    const adjacentNeutral = Object.values(state.tiles).find(
-      (t) => t.owner === null && Math.max(
-        Math.abs(t.q - capital.q),
-        Math.abs(t.r - capital.r),
-        Math.abs(-t.q - t.r - (-capital.q - capital.r)),
-      ) === 1,
-    )!;
+    const adjacentNeutral = tilesOfFaction(state.tiles, 'concordia')
+      .flatMap((tile) => neighborsOf(tile, state.tiles))
+      .find((tile) => tile.owner === null)!;
     const expansion = startExpansion(state, 'concordia', adjacentNeutral.id);
     expect(expansion.ok).toBe(true);
     const ownedExpansion = startExpansion(state, 'concordia', capital.id);
