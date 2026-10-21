@@ -48,10 +48,19 @@ describe('MANAGEMENT CENTURY engine', () => {
     const state = createInitialState(777, 1);
     const player = state.factions.concordia;
     player.stocks.conhecimento = 0;
-    player.stocks.creditos = 600;
+    player.stocks.creditos = 4_000_000;
     const result = startResearch(state, 'concordia', 'ec1');
     expect(result.ok).toBe(true);
-    expect(result.state.factions.concordia.stocks.creditos).toBeLessThan(600);
+    expect(result.state.factions.concordia.stocks.creditos).toBeLessThan(4_000_000);
+  });
+
+  it('credits event payouts in cash without the old stock ceiling', () => {
+    const state = createInitialState(99, 1);
+    state.factions.concordia.stocks.creditos = 5_000_000;
+    state.pendingEventId = 'jazida';
+    const result = chooseEvent(state, 'concordia', 'explorar');
+    expect(result.ok).toBe(true);
+    expect(result.state.factions.concordia.stocks.creditos).toBe(7_400_000);
   });
 
   it('routes operation revenue into the company cash flow', () => {
@@ -59,7 +68,7 @@ describe('MANAGEMENT CENTURY engine', () => {
     const countryId = state.factions.concordia.capitalId;
     const city = citiesOf(countryId)[0];
     expect(city).toBeTruthy();
-    state.factions.concordia.stocks.creditos = 5000;
+    state.factions.concordia.stocks.creditos = 6_000_000;
     const result = openOperation(state, 'concordia', city.id, 'varejo');
     expect(result.ok).toBe(true);
     const eco = computeEconomy(result.state, 'concordia');
@@ -77,8 +86,11 @@ describe('MANAGEMENT CENTURY engine', () => {
     }
     const eco = computeEconomy(state, 'concordia');
     expect(eco.production.alimentos).toBeGreaterThan(eco.demand.alimentos);
-    expect(eco.net.creditos).toBeGreaterThan(0);
-    expect(Number.isFinite(eco.production.creditos)).toBe(true);
+    // A companhia inicial já cobre a folha com a operação das praças; o resultado
+    // do ciclo é positivo e medido em reais.
+    expect(eco.finance.income).toBeGreaterThan(1_000_000);
+    expect(eco.finance.net).toBeGreaterThan(0);
+    expect(Number.isFinite(eco.net.creditos)).toBe(true);
     expect(objectivesOf(state).filter((objective) => objective.done)).toHaveLength(0);
   });
 

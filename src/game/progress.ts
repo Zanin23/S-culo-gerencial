@@ -5,6 +5,7 @@ import { tilesOfFaction } from './map';
 import { buildLevel, cityCapacity, operationWeight, rangeLevel } from './operations';
 import type { FactionId, GameState, ObjectiveState } from './types';
 import { clamp } from './rng';
+import { reaisShort } from './money';
 
 export const VICTORY_TARGET = 360;
 
@@ -36,10 +37,10 @@ export function scoreParts(state: GameState, factionId: FactionId): ScorePart[] 
   return [
     { label: 'Praças', value: Math.round(tiles.length * 2.5), detail: `${tiles.length} praças licenciadas` },
     { label: 'Unidades', value: units * 3 + Math.round(share * 20), detail: `${units} unidades · ${Math.round(share * 100)}% de participação` },
-    { label: 'Receita', value: Math.round(eco.operationRevenue * 0.28), detail: `R$ ${Math.round(eco.operationRevenue)}/ciclo em unidades` },
+    { label: 'Receita', value: Math.round(eco.operationRevenue / 250_000), detail: `${reaisShort(eco.operationRevenue)}/ciclo em unidades` },
     { label: 'Estrutura', value: Math.round(devSum * 0.22), detail: `${devSum} de desenvolvimento` },
     { label: 'Tecnologia', value: faction.techs.length * 8, detail: `${faction.techs.length} × 8` },
-    { label: 'Caixa', value: Math.min(10, Math.round(faction.stocks.creditos * 0.004)), detail: `R$ ${Math.round(faction.stocks.creditos)} (máx. 10)` },
+    { label: 'Caixa', value: Math.min(10, Math.round(faction.stocks.creditos / 2_500_000)), detail: `${reaisShort(faction.stocks.creditos)} (máx. 10)` },
     { label: 'Parcerias', value: pacts * 6, detail: `${pacts} acordos ativos` },
   ];
 }

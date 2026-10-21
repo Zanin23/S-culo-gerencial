@@ -1,3 +1,4 @@
+import { START_CASH } from './money';
 import type {
   BuildingKey,
   FactionId,
@@ -21,8 +22,8 @@ export const GAME = {
   subtitle: 'Companhias, mercado e relevância',
   world: 'Terra · Mercado global',
   tagline: 'Todo mercado é uma decisão.',
-  version: 5,
-  saveVersion: 5,
+  version: 6,
+  saveVersion: 6,
   baseProjectSlots: 2,
   baseAdminCapacity: 4,
   maxBuildingLevel: 3,
@@ -190,78 +191,78 @@ export const BUILDINGS: Record<BuildingKey, BuildingDef> = {
     key: 'fazenda', name: 'Agroindústria', short: 'Agro', icon: 'Wheat',
     category: 'Agro', accent: '#82c97c',
     description: 'Unidades agrícolas que abastecem as cidades e sustentam a operação.',
-    levels: [b(45, 6, 1, 0, 2), b(85, 16, 4, 0, 3), b(150, 30, 9, 0, 4)],
-    production: { alimentos: 8 }, consumption: {}, upkeep: { creditos: 0.5 }, jobs: 7,
+    levels: [b(3_200_000, 6, 3, 0, 2), b(5_800_000, 11, 5, 0, 3), b(9_600_000, 18, 9, 0, 4)],
+    production: { alimentos: 8 }, consumption: {}, upkeep: { creditos: 42_000 }, jobs: 7,
     terrainBonus: { nodes: ['fertil'], terrains: ['planicie'], label: 'produção agrícola', multiplier: 0.5 },
-    techUnlock: { 3: 'ec2' }, effect: '≈ R$ 7/ciclo por nível (produção agrícola).',
+    techUnlock: { 3: 'ec2' }, effect: '≈ R$ 230 mil/ciclo por nível em alimentos.',
   },
   extratora: {
     key: 'extratora', name: 'Unidades de Extração', short: 'Extração', icon: 'Pickaxe',
     category: 'Insumos', accent: '#c7a17b',
     description: 'Minas e serrarias mecanizadas que transformam o subsolo em insumo produtivo.',
-    levels: [b(50, 10, 2, 0, 2), b(95, 22, 5, 0, 3), b(165, 40, 10, 0, 4)],
-    production: { materias: 7 }, consumption: {}, upkeep: { creditos: 0.8 }, jobs: 8,
+    levels: [b(5_400_000, 10, 5, 0, 2), b(9_400_000, 18, 9, 0, 3), b(15_000_000, 29, 14, 0, 4)],
+    production: { materias: 7 }, consumption: {}, upkeep: { creditos: 74_000 }, jobs: 8,
     terrainBonus: { nodes: ['minerio'], terrains: ['montanha', 'colina'], label: 'insumos', multiplier: 0.4 },
-    techUnlock: { 3: 'in1' }, effect: '≈ R$ 12/ciclo por nível (extração).',
+    techUnlock: { 3: 'in1' }, effect: '≈ R$ 365 mil/ciclo por nível em insumos.',
   },
   usina: {
     key: 'usina', name: 'Centro de Distribuição', short: 'Distribuição', icon: 'Truck',
     category: 'Distribuição', accent: '#b7b3a1',
     description: 'Armazém, frota e pátio próprios: colocam a produção da praça no mercado.',
-    levels: [b(60, 15, 0, 0, 2), b(110, 28, 0, 0, 3), b(190, 48, 0, 0, 4)],
-    production: { creditos: 9 }, consumption: {}, upkeep: { creditos: 1.1 }, jobs: 6,
+    levels: [b(4_200_000, 8, 4, 0, 2), b(7_600_000, 15, 7, 0, 3), b(12_400_000, 24, 11, 0, 4)],
+    production: { creditos: 240_000 }, consumption: {}, upkeep: { creditos: 58_000 }, jobs: 6,
     terrainBonus: { terrains: ['costa'], label: 'receita local', multiplier: 0.3 },
-    techUnlock: { 3: 'in2' }, effect: '≈ R$ 9/ciclo por nível; bônus na costa.',
+    techUnlock: { 3: 'in2' }, effect: '≈ R$ 240 mil/ciclo por nível; bônus na costa.',
   },
   industria: {
     key: 'industria', name: 'Complexo Industrial', short: 'Indústria', icon: 'Factory',
     category: 'Indústria', accent: '#c6a5ea',
     description: 'Linhas de montagem que convertem insumos comprados no mercado em produtos de alto valor.',
-    levels: [b(105, 30, 10, 0, 3), b(190, 55, 20, 0, 4), b(320, 95, 35, 0, 5)],
-    production: { bens: 7 }, consumption: { materias: 5 }, upkeep: { creditos: 2.5 }, jobs: 11,
+    levels: [b(11_500_000, 22, 10, 0, 3), b(19_500_000, 38, 18, 0, 4), b(31_000_000, 60, 28, 0, 5)],
+    production: { bens: 7 }, consumption: { materias: 5 }, upkeep: { creditos: 195_000 }, jobs: 11,
     terrainBonus: { terrains: ['colina', 'planicie'], label: 'produção industrial', multiplier: 0.12 },
-    techUnlock: { 3: 'in3' }, effect: '≈ R$ 24/ciclo por nível; insumos comprados no mercado.',
+    techUnlock: { 3: 'in3' }, effect: '≈ R$ 830 mil/ciclo em bens, com insumos comprados no mercado.',
   },
   entreposto: {
     key: 'entreposto', name: 'Rede de Varejo', short: 'Varejo', icon: 'Store',
     category: 'Comércio', accent: '#e4bd72',
     description: 'Lojas e centros de distribuição que vendem bens e geram caixa conforme o mercado.',
-    levels: [b(70, 16, 4, 0, 2), b(130, 30, 8, 0, 3), b(220, 52, 14, 0, 4)],
-    production: { creditos: 12 }, consumption: { bens: 1.5 }, upkeep: { creditos: 1.4 }, jobs: 6,
+    levels: [b(5_200_000, 10, 5, 0, 2), b(9_000_000, 17, 8, 0, 3), b(14_500_000, 28, 13, 0, 4)],
+    production: { creditos: 360_000 }, consumption: { bens: 1.5 }, upkeep: { creditos: 82_000 }, jobs: 6,
     terrainBonus: { terrains: ['costa'], label: 'receita local', multiplier: 0.3 },
-    techUnlock: { 3: 'ec1' }, effect: '≈ R$ 12/ciclo por nível (varia com o mercado).',
+    techUnlock: { 3: 'ec1' }, effect: '≈ R$ 360 mil/ciclo por nível (varia com o mercado).',
   },
   administrativo: {
     key: 'administrativo', name: 'Escritório Central', short: 'Administração', icon: 'Landmark',
     category: 'Administração', accent: '#9fc2b4',
     description: 'Estrutura de gestão: amplia a capacidade administrativa e reduz a desordem local.',
-    levels: [b(75, 14, 3, 0, 3), b(140, 28, 8, 0, 3), b(240, 50, 14, 0, 4)],
-    production: { influencia: 2.5, creditos: 2 }, consumption: {}, upkeep: { creditos: 2 }, jobs: 5,
-    techUnlock: { 3: 'es1' }, effect: '≈ R$ 15/ciclo e +0,5 capacidade administrativa por nível.',
+    levels: [b(6_800_000, 13, 6, 0, 3), b(12_200_000, 23, 11, 0, 3), b(19_500_000, 38, 18, 0, 4)],
+    production: { influencia: 2.5, creditos: 95_000 }, consumption: {}, upkeep: { creditos: 128_000 }, jobs: 5,
+    techUnlock: { 3: 'es1' }, effect: '≈ R$ 300 mil/ciclo e +0,5 capacidade administrativa por nível.',
   },
   pesquisa: {
     key: 'pesquisa', name: 'Centro de P&D', short: 'P&D', icon: 'FlaskConical',
     category: 'Pesquisa', accent: '#93b7f4',
     description: 'Laboratórios aplicados que transformam pesquisa em novas tecnologias.',
-    levels: [b(90, 22, 8, 0, 3), b(165, 42, 16, 0, 4), b(280, 75, 28, 0, 5)],
-    production: { conhecimento: 3.5 }, consumption: {}, upkeep: { creditos: 2.8 }, jobs: 8,
+    levels: [b(9_200_000, 18, 8, 0, 3), b(16_500_000, 32, 15, 0, 4), b(26_500_000, 51, 24, 0, 5)],
+    production: { conhecimento: 3.5 }, consumption: {}, upkeep: { creditos: 186_000 }, jobs: 8,
     terrainBonus: { terrains: ['planicie'], label: 'pesquisa', multiplier: 0.1 },
-    techUnlock: { 3: 'es4' }, effect: '≈ R$ 28/ciclo por nível em P&D.',
+    techUnlock: { 3: 'es4' }, effect: '≈ R$ 600 mil/ciclo por nível em P&D.',
   },
   defesa: {
     key: 'defesa', name: 'Segurança Patrimonial', short: 'Segurança', icon: 'Shield',
     category: 'Segurança', accent: '#e39a80',
     description: 'Vigilância, seguro e controle de perdas: protege ativos e segura a desordem.',
-    levels: [b(60, 26, 2, 0, 2), b(115, 48, 8, 0, 3), b(200, 85, 18, 0, 4)],
-    production: {}, consumption: {}, upkeep: { creditos: 1.8 }, jobs: 3, defense: 18,
+    levels: [b(3_400_000, 7, 3, 0, 2), b(6_200_000, 12, 6, 0, 3), b(10_400_000, 20, 9, 0, 4)],
+    production: {}, consumption: {}, upkeep: { creditos: 62_000 }, jobs: 3, defense: 18,
     techUnlock: { 3: 'es3' }, effect: '+18 de proteção e −0,8 de desordem/ciclo por nível.',
   },
   logistica: {
     key: 'logistica', name: 'Malha Logística', short: 'Logística', icon: 'Truck',
     category: 'Logística', accent: '#b7b3a1',
     description: 'Estradas, armazéns e ferrovias: mais espaço construível e produção local mais eficiente.',
-    levels: [b(55, 14, 3, 0, 2), b(105, 26, 6, 0, 3), b(175, 44, 12, 0, 4)],
-    production: {}, consumption: {}, upkeep: { creditos: 1.2 }, jobs: 3,
+    levels: [b(3_100_000, 6, 3, 0, 2), b(5_600_000, 11, 5, 0, 3), b(9_200_000, 18, 8, 0, 4)],
+    production: {}, consumption: {}, upkeep: { creditos: 54_000 }, jobs: 3,
     slotsBonus: 2, localProductionBonus: 0.05,
     techUnlock: { 3: 'lg2' }, effect: '+2 espaços e +5% produção local por nível.',
   },
@@ -319,7 +320,7 @@ export const TECHS: Record<TechId, TechDef> = {
   ec1: {
     id: 'ec1', branch: 'economia', tier: 1, name: 'Mercados Abertos', icon: 'Coins',
     description: 'Feiras permanentes e câmaras de comércio dão liquidez à economia.',
-    cost: { conhecimento: 12, creditos: 55 }, requires: [],
+    cost: { conhecimento: 12, creditos: 900_000 }, requires: [],
     effects: { tradeMult: 0.12, production: { creditos: 0.04 } },
     unlocks: [{ building: 'entreposto', level: 3 }],
     benefits: ['+12% de receita comercial', '+4% de receita urbana', 'Entreposto nível III'],
@@ -327,7 +328,7 @@ export const TECHS: Record<TechId, TechDef> = {
   ec2: {
     id: 'ec2', branch: 'economia', tier: 2, name: 'Agricultura Intensiva', icon: 'Wheat',
     description: 'Irrigação planejada e rotação de culturas elevam a produtividade rural.',
-    cost: { conhecimento: 26, creditos: 105 }, requires: ['ec1'],
+    cost: { conhecimento: 26, creditos: 1_800_000 }, requires: ['ec1'],
     effects: { production: { alimentos: 0.2 } },
     unlocks: [{ building: 'fazenda', level: 3 }],
     benefits: ['+20% receita agrícola', 'Fazendas nível III'],
@@ -335,21 +336,21 @@ export const TECHS: Record<TechId, TechDef> = {
   ec3: {
     id: 'ec3', branch: 'economia', tier: 3, name: 'Crédito Corporativo', icon: 'Landmark',
     description: 'Linhas de crédito e câmbio estável reduzem o custo de crescer.',
-    cost: { conhecimento: 44, creditos: 180 }, requires: ['ec2'],
+    cost: { conhecimento: 44, creditos: 3_050_000 }, requires: ['ec2'],
     effects: { production: { creditos: 0.12 }, expansionCostMult: -0.12 },
     benefits: ['+12% de receita urbana', '−12% custo de expansão'],
   },
   ec4: {
     id: 'ec4', branch: 'economia', tier: 4, name: 'Comércio Global', icon: 'Ship',
     description: 'Rotas marítimas conectam sua rede aos mercados além do horizonte.',
-    cost: { conhecimento: 68, creditos: 290 }, requires: ['ec3'],
+    cost: { conhecimento: 68, creditos: 4_950_000 }, requires: ['ec3'],
     effects: { tradeMult: 0.18, operationsMult: 0.04 },
     benefits: ['+18% de receita comercial', '+4% receita de unidades'],
   },
   in1: {
     id: 'in1', branch: 'industria', tier: 1, name: 'Metalurgia Avançada', icon: 'Flame',
     description: 'Fornalhas de alta temperatura multiplicam o rendimento das jazidas.',
-    cost: { conhecimento: 14, creditos: 65 }, requires: [],
+    cost: { conhecimento: 14, creditos: 1_100_000 }, requires: [],
     effects: { production: { materias: 0.15 } },
     unlocks: [{ building: 'extratora', level: 3 }],
     benefits: ['+15% receita de mineração', 'Extração nível III'],
@@ -357,7 +358,7 @@ export const TECHS: Record<TechId, TechDef> = {
   in2: {
     id: 'in2', branch: 'industria', tier: 2, name: 'Redes Inteligentes', icon: 'Zap',
     description: 'Distribuição elétrica adaptativa reduz perdas e aumenta a oferta.',
-    cost: { conhecimento: 28, creditos: 120 }, requires: ['in1'],
+    cost: { conhecimento: 28, creditos: 2_050_000 }, requires: ['in1'],
     effects: { production: { creditos: 0.06 } },
     unlocks: [{ building: 'usina', level: 3 }],
     benefits: ['+6% receita urbana', 'Centro de distribuição nível III'],
@@ -365,7 +366,7 @@ export const TECHS: Record<TechId, TechDef> = {
   in3: {
     id: 'in3', branch: 'industria', tier: 3, name: 'Automação Pesada', icon: 'Bot',
     description: 'Braços mecânicos e controle de processos elevam a escala industrial.',
-    cost: { conhecimento: 46, creditos: 205 }, requires: ['in2'],
+    cost: { conhecimento: 46, creditos: 3_500_000 }, requires: ['in2'],
     effects: { production: { bens: 0.22 } },
     unlocks: [{ building: 'industria', level: 3 }],
     benefits: ['+22% receita industrial', 'Indústria nível III'],
@@ -373,21 +374,21 @@ export const TECHS: Record<TechId, TechDef> = {
   in4: {
     id: 'in4', branch: 'industria', tier: 4, name: 'Complexos Siderúrgicos', icon: 'Blocks',
     description: 'Cadeias integradas de aço e polímeros reduzem perdas e ampliam a oferta.',
-    cost: { conhecimento: 70, creditos: 310 }, requires: ['in3'],
+    cost: { conhecimento: 70, creditos: 5_300_000 }, requires: ['in3'],
     effects: { production: { materias: 0.14, bens: 0.1 } },
     benefits: ['+14% receita de mineração', '+10% receita industrial'],
   },
   lg1: {
     id: 'lg1', branch: 'logistica', tier: 1, name: 'Estradas Troncais', icon: 'Route',
     description: 'Uma rede viária contínua encurta distâncias entre as praças.',
-    cost: { conhecimento: 13, creditos: 60 }, requires: [],
+    cost: { conhecimento: 13, creditos: 1_000_000 }, requires: [],
     effects: { globalProduction: 0.08 },
     benefits: ['+8% de produção em todas as praças'],
   },
   lg2: {
     id: 'lg2', branch: 'logistica', tier: 2, name: 'Ferrovias Continentais', icon: 'TrainFront',
     description: 'Trens de carga ligam a capital às fronteiras e reduzem o custo de integração.',
-    cost: { conhecimento: 25, creditos: 110 }, requires: ['lg1'],
+    cost: { conhecimento: 25, creditos: 1_850_000 }, requires: ['lg1'],
     effects: { expansionCostMult: -0.25, maxProjects: 1 },
     unlocks: [{ building: 'logistica', level: 3 }],
     benefits: ['−25% custo de expansão', '+1 projeto simultâneo', 'Logística nível III'],
@@ -395,21 +396,21 @@ export const TECHS: Record<TechId, TechDef> = {
   lg3: {
     id: 'lg3', branch: 'logistica', tier: 3, name: 'Portos Livres', icon: 'Anchor',
     description: 'Entrepostos francos atraem mercadores de todo o mundo.',
-    cost: { conhecimento: 40, creditos: 175 }, requires: ['lg2'],
+    cost: { conhecimento: 40, creditos: 3_000_000 }, requires: ['lg2'],
     effects: { tradeMult: 0.1, operationsMult: 0.05 },
     benefits: ['+10% receita comercial', '+5% receita de unidades'],
   },
   lg4: {
     id: 'lg4', branch: 'logistica', tier: 4, name: 'Malha Integrada', icon: 'Network',
     description: 'Uma malha única de transporte e dados torna toda a praça mais produtiva.',
-    cost: { conhecimento: 66, creditos: 275 }, requires: ['lg3'],
+    cost: { conhecimento: 66, creditos: 4_700_000 }, requires: ['lg3'],
     effects: { globalProduction: 0.1, slotsBonus: 1 },
     benefits: ['+10% de produção global', '+1 espaço construível por praça'],
   },
   es1: {
     id: 'es1', branch: 'estado', tier: 1, name: 'Gestão Integrada', icon: 'Scale',
     description: 'Processos unificados e equipes treinadas dão alcance à companhia.',
-    cost: { conhecimento: 15, creditos: 70 }, requires: [],
+    cost: { conhecimento: 15, creditos: 1_200_000 }, requires: [],
     effects: { unrestReduction: 0.2, adminCapacity: 1 },
     unlocks: [{ building: 'administrativo', level: 3 }],
     benefits: ['−20% desordem', '+1 capacidade administrativa', 'Administração nível III'],
@@ -417,14 +418,14 @@ export const TECHS: Record<TechId, TechDef> = {
   es2: {
     id: 'es2', branch: 'estado', tier: 2, name: 'Relações Institucionais', icon: 'Handshake',
     description: 'Uma mesa de relações habilidosa transforma concessões pequenas em acordos duradouros.',
-    cost: { conhecimento: 30, creditos: 130 }, requires: ['es1'],
+    cost: { conhecimento: 30, creditos: 2_200_000 }, requires: ['es1'],
     effects: { relationGainMult: 0.5, expansionCostMult: -0.1 },
     benefits: ['+50% ganho de relações', '−10% custo de expansão'],
   },
   es3: {
     id: 'es3', branch: 'estado', tier: 3, name: 'Gestão de Risco', icon: 'Shield',
     description: 'Auditoria, seguro e compliance reduzem perdas e protegem a receita.',
-    cost: { conhecimento: 48, creditos: 215 }, requires: ['es2'],
+    cost: { conhecimento: 48, creditos: 3_650_000 }, requires: ['es2'],
     effects: { defenseMult: 0.25, unrestReduction: 0.12, operationsMult: 0.06 },
     unlocks: [{ building: 'defesa', level: 3 }],
     benefits: ['+25% proteção patrimonial', '−12% desordem', '+6% receita operacional', 'Segurança nível III'],
@@ -432,7 +433,7 @@ export const TECHS: Record<TechId, TechDef> = {
   es4: {
     id: 'es4', branch: 'estado', tier: 4, name: 'Conselho de Administração', icon: 'Crown',
     description: 'O mercado reconhece sua governança. A companhia vira instituição global.',
-    cost: { conhecimento: 72, creditos: 320 }, requires: ['es3'],
+    cost: { conhecimento: 72, creditos: 5_450_000 }, requires: ['es3'],
     effects: { operationsMult: 0.04, adminCapacity: 1 },
     unlocks: [{ building: 'pesquisa', level: 3 }],
     benefits: ['+4% receita de unidades', '+1 capacidade administrativa', 'P&D nível III'],
@@ -545,8 +546,8 @@ export const OBJECTIVES: ObjectiveDef[] = [
     hint: 'Abra licença em países vizinhos. Cada praça exige dinheiro e estrutura na base.',
   },
   {
-    id: 'receita', title: 'Receita consolidada', target: 260, unit: 'R$/ciclo',
-    description: 'Alcance R$ 260 de receita em um ciclo.',
+    id: 'receita', title: 'Receita consolidada', target: 15_000_000, unit: 'R$/ciclo',
+    description: 'Alcance R$ 15 milhões de receita em um ciclo.',
     icon: 'Coins',
     hint: 'Some unidades, infraestrutura e acordos. Cidades grandes e participação alta rendem mais.',
   },
@@ -573,16 +574,16 @@ export const OBJECTIVES: ObjectiveDef[] = [
 /** Valor de referência de cada insumo dentro do caixa da companhia. */
 export const RESOURCE_VALUE: Record<ResourceKey, number> = {
   creditos: 1,
-  alimentos: 0.9,
-  energia: 1.25,
-  materias: 1.7,
-  bens: 3.4,
-  influencia: 5,
-  conhecimento: 8,
+  alimentos: 28_000,
+  energia: 44_000,
+  materias: 52_000,
+  bens: 118_000,
+  influencia: 80_000,
+  conhecimento: 170_000,
 };
 
 export const MARKET_BASE: Record<MarketKey, number> = {
-  alimentos: 1.4, energia: 2.6, materias: 2.4, bens: 5.8,
+  alimentos: 26_000, energia: 42_000, materias: 50_000, bens: 115_000,
 };
 
 export const MARKET_LABELS: Record<MarketKey, string> = {
@@ -590,7 +591,7 @@ export const MARKET_LABELS: Record<MarketKey, string> = {
 };
 
 export const STARTING_STOCKS: Stocks = {
-  creditos: 380,
+  creditos: START_CASH,
   alimentos: 0,
   energia: 0,
   materias: 0,
@@ -624,8 +625,14 @@ export interface SectorDef {
   networkBonus?: number;
   /** Bônus de receita para as demais unidades no mesmo país (porto). */
   portBonus?: number;
-  /** Custo de abertura da primeira unidade, em dinheiro. */
+  /** Custo de abertura da primeira unidade (imóvel e implantação), em R$. */
   cost: number;
+  /**
+   * Margem operacional sobre a receita bruta, já descontados mercadorias e
+   * pessoal (antes da manutenção do imóvel). Mantém a rentabilidade dos
+   * ativos em faixa realista: 20–40%.
+   */
+  margin: number;
   /** Relevância mínima da companhia para abrir. */
   relevance: number;
 }
@@ -634,32 +641,32 @@ export const SECTORS: Record<SectorKey, SectorDef> = {
   fazenda: {
     key: 'fazenda', name: 'Fazenda', short: 'Fazenda', icon: 'Wheat', color: '#82c97c',
     description: 'Produção agrícola e pecuária. Entrada barata, caixa previsível e pouca relevância.',
-    revenue: 0.85, cost: 60, relevance: 0,
+    revenue: 0.95, cost: 2_800_000, relevance: 0, margin: 0.22,
   },
   varejo: {
     key: 'varejo', name: 'Rede de varejo', short: 'Varejo', icon: 'Store', color: '#e4bd72',
     description: 'Lojas de rua e franquias. Receita rápida, escala junto com a população da cidade.',
-    revenue: 1, cost: 80, relevance: 8,
+    revenue: 1, cost: 3_400_000, relevance: 8, margin: 0.26,
   },
   porto: {
     key: 'porto', name: 'Porto', short: 'Porto', icon: 'Ship', color: '#74b7c7',
     description: 'Terminal marítimo. Além da receita própria, melhora o escoamento das outras unidades no país.',
-    revenue: 1.15, portBonus: 0.05, cost: 120, relevance: 18,
+    revenue: 1.7, portBonus: 0.05, cost: 12_000_000, relevance: 18, margin: 0.34,
   },
   industria: {
     key: 'industria', name: 'Indústria', short: 'Indústria', icon: 'Factory', color: '#c6a5ea',
     description: 'Planta de manufatura. Compra insumos e vende produtos de maior valor.',
-    revenue: 1.4, supplyCost: 0.16, cost: 150, relevance: 32,
+    revenue: 1.45, supplyCost: 0.05, cost: 10_000_000, relevance: 32, margin: 0.38,
   },
   fabrica: {
     key: 'fabrica', name: 'Fábrica de automóveis', short: 'Automóveis', icon: 'Car', color: '#e39a80',
     description: 'Linha de montagem de veículos. Alto investimento, margem alta e vitrine de marca.',
-    revenue: 1.95, supplyCost: 0.3, cost: 240, relevance: 60,
+    revenue: 3, supplyCost: 0.09, cost: 30_000_000, relevance: 60, margin: 0.36,
   },
   financas: {
     key: 'financas', name: 'Finanças', short: 'Finanças', icon: 'Landmark', color: '#93b7f4',
     description: 'Crédito, câmbio e seguros. Cresce com o tamanho da rede de unidades.',
-    revenue: 0.95, networkBonus: 0.06, cost: 170, relevance: 45,
+    revenue: 1.05, networkBonus: 0.06, cost: 9_500_000, relevance: 45, margin: 0.4,
   },
 };
 
@@ -702,9 +709,9 @@ export const UNIT_BUILD_STEPS: UnitExpansionDef[] = [
 ];
 
 /** Custo base das expansões físicas, como múltiplo do custo de abertura. */
-export const UNIT_BUILD_COST = [0.8, 1.8, 3.4];
+export const UNIT_BUILD_COST = [0.1, 0.2, 0.36];
 /** Custo base das expansões de negócio, como múltiplo do custo de abertura. */
-export const UNIT_RANGE_COST = [0.7, 1.5, 2.8];
+export const UNIT_RANGE_COST = [0.06, 0.12, 0.22];
 
 /**
  * Expansões do ramo de negócio: cada linha acrescenta uma fonte de receita
@@ -773,17 +780,17 @@ export const HQ_STAGES: HqStageDef[] = [
   {
     key: 'corporativa', name: 'Sede corporativa',
     description: 'Pisos próprios, recepção e sala de diretoria para receber parceiros.',
-    floors: 8, height: 34, commerce: 0.08, admin: 0, cost: 320,
+    floors: 8, height: 34, commerce: 0.08, admin: 0, cost: 7_000_000,
   },
   {
     key: 'torre', name: 'Torre administrativa',
     description: 'Torre com fachada de vidro, auditório e central de operações.',
-    floors: 14, height: 66, commerce: 0.14, admin: 1, cost: 780,
+    floors: 14, height: 66, commerce: 0.14, admin: 1, cost: 26_000_000,
   },
   {
     key: 'matriz', name: 'Complexo matriz',
     description: 'Campus matriz com heliponto, jardins e o centro de comando do grupo.',
-    floors: 20, height: 98, commerce: 0.22, admin: 1, cost: 1500,
+    floors: 20, height: 98, commerce: 0.22, admin: 1, cost: 68_000_000,
   },
 ];
 

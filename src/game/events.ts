@@ -63,10 +63,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'estoque',
         label: 'Comprar o excedente',
-        description: 'Garanta insumo barato para os próximos ciclos: R$ 40 do caixa e +6 de relações com os fornecedores.',
+        description: 'Garanta insumo barato para os próximos ciclos: R$ 800 mil do caixa e +6 de relações com os fornecedores.',
         tone: 'good',
         effect: {
-          cost: { creditos: 40 },
+          cost: { creditos: 800_000 },
           relations: 6,
           log: 'A companhia comprou o excedente agrícola e fechou contratos de fornecimento.',
         },
@@ -74,10 +74,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'vender',
         label: 'Vender a produção no atacado',
-        description: 'Liquidez imediata: +R$ 90 em caixa.',
+        description: 'Liquidez imediata: +R$ 1,8 mi em caixa.',
         tone: 'neutral',
         effect: {
-          stockDelta: { creditos: 90 },
+          stockDelta: { creditos: 1_800_000 },
           log: 'A companhia vendeu a produção no atacado e reforçou o caixa.',
         },
       },
@@ -106,10 +106,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'importar',
         label: 'Importar suprimentos',
-        description: 'Compre de outro continente: R$ 90 e +6 de relações com os fornecedores.',
+        description: 'Compre de outro continente: R$ 1,8 mi e +6 de relações com os fornecedores.',
         tone: 'neutral',
         effect: {
-          cost: { creditos: 90 },
+          cost: { creditos: 1_800_000 },
           relations: 6,
           log: 'A companhia importou suprimentos para atravessar a seca.',
         },
@@ -117,10 +117,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'pocos',
         label: 'Financiar irrigação',
-        description: 'R$ 60 em obras próprias: −20% no custo de pesquisa por 3 ciclos, com processo mais enxuto.',
+        description: 'R$ 1,2 mi em obras próprias: −20% no custo de pesquisa por 3 ciclos, com processo mais enxuto.',
         tone: 'good',
         effect: {
-          cost: { creditos: 60 },
+          cost: { creditos: 1_200_000 },
           modifier: {
             label: 'Irrigação própria',
             description: 'A produção irrigada estabilizou o abastecimento.',
@@ -154,10 +154,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'acelerar',
         label: 'Acelerar as linhas',
-        description: 'R$ 50 em turnos extras: +8% na produção de créditos por 3 ciclos.',
+        description: 'R$ 1 mi em turnos extras: +8% na produção de créditos por 3 ciclos.',
         tone: 'neutral',
         effect: {
-          cost: { creditos: 50 },
+          cost: { creditos: 1_000_000 },
           modifier: {
             label: 'Turnos extras',
             description: 'As linhas de montagem rodam em três turnos.',
@@ -170,10 +170,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'exportar',
         label: 'Priorizar exportações',
-        description: 'Venda a produção à vista: +R$ 85 em caixa e +3 de relações.',
+        description: 'Venda a produção à vista: +R$ 1,7 mi em caixa e +3 de relações.',
         tone: 'neutral',
         effect: {
-          stockDelta: { creditos: 85 },
+          stockDelta: { creditos: 1_700_000 },
           relations: 3,
           log: 'A companhia embarcou veículos para o leste e elevou o caixa.',
         },
@@ -203,10 +203,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'explorar',
         label: 'Explorar imediatamente',
-        description: 'Extraia e venda rápido: +R$ 120 em caixa, mas +6 de desordem nas praças vizinhas.',
+        description: 'Extraia e venda rápido: +R$ 2,4 mi em caixa, mas +6 de desordem nas praças vizinhas.',
         tone: 'neutral',
         effect: {
-          stockDelta: { creditos: 120 },
+          stockDelta: { creditos: 2_400_000 },
           unrest: 6,
           log: 'A mineração emergencial rendeu caixa rápido, com custo social local.',
         },
@@ -214,10 +214,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'estudar',
         label: 'Financiar estudos geológicos',
-        description: 'R$ 30 em estudos: −15% no custo de pesquisa por 4 ciclos.',
+        description: 'R$ 600 mil em estudos: −15% no custo de pesquisa por 4 ciclos.',
         tone: 'good',
         effect: {
-          cost: { creditos: 30 },
+          cost: { creditos: 600_000 },
           modifier: {
             label: 'Mapa geológico',
             description: 'O levantamento do subsolo orienta novas plantas industriais.',
@@ -251,10 +251,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'negociar',
         label: 'Negociar aumentos',
-        description: 'Pague R$ 80 e garanta +20% de produção de créditos por 3 ciclos.',
+        description: 'Pague R$ 1,6 mi e garanta +20% de produção de créditos por 3 ciclos.',
         tone: 'good',
         effect: {
-          cost: { creditos: 80 },
+          cost: { creditos: 1_600_000 },
           modifier: {
             label: 'Acordo das montadoras',
             description: 'Salários melhores restauraram a produtividade.',
@@ -267,10 +267,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'seguranca',
         label: 'Contratar segurança temporária',
-        description: 'Pague R$ 60 para conter os piquetes: −10 de desordem, +3 de relações.',
+        description: 'Pague R$ 1,2 mi para conter os piquetes: −10 de desordem, +3 de relações.',
         tone: 'bad',
         effect: {
-          cost: { creditos: 60 },
+          cost: { creditos: 1_200_000 },
           unrest: -10,
           relations: 3,
           log: 'Segurança contratada reabriu as linhas; o custo foi financeiro e reputacional.',
@@ -299,10 +299,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'acolher',
         label: 'Instalar uma planta',
-        description: 'R$ 110 de investimento: +8 de relações com a região e −5 de desordem.',
+        description: 'R$ 2,2 mi de investimento: +8 de relações com a região e −5 de desordem.',
         tone: 'good',
         effect: {
-          cost: { creditos: 110 },
+          cost: { creditos: 2_200_000 },
           relations: 8,
           unrest: -5,
           log: 'A companhia inaugurou uma planta no novo polo industrial.',
@@ -311,10 +311,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'ajuda',
         label: 'Financiar fornecedores locais',
-        description: 'Gaste R$ 60 sem abrir unidade: +6 de relações com todas as companhias.',
+        description: 'Gaste R$ 1,2 mi sem abrir unidade: +6 de relações com todas as companhias.',
         tone: 'good',
         effect: {
-          cost: { creditos: 60 },
+          cost: { creditos: 1_200_000 },
           relations: 6,
           log: 'O financiamento a fornecedores locais foi reconhecido pelas outras companhias.',
         },
@@ -343,10 +343,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'instituto',
         label: 'Financiar o instituto',
-        description: 'Pague R$ 70: −25% no custo de pesquisa por 4 ciclos.',
+        description: 'Pague R$ 1,4 mi: −25% no custo de pesquisa por 4 ciclos.',
         tone: 'good',
         effect: {
-          cost: { creditos: 70 },
+          cost: { creditos: 1_400_000 },
           modifier: {
             label: 'Instituto próprio',
             description: 'Bolsas e laboratórios reduzem o custo das pesquisas.',
@@ -359,10 +359,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'artesaos',
         label: 'Contratar os projetistas',
-        description: 'Converta o evento em caixa: +R$ 60 e +3 de relações.',
+        description: 'Converta o evento em caixa: +R$ 1,2 mi e +3 de relações.',
         tone: 'neutral',
         effect: {
-          stockDelta: { creditos: 60 },
+          stockDelta: { creditos: 1_200_000 },
           relations: 3,
           log: 'Os projetistas da feira assinaram contratos com a companhia.',
         },
@@ -370,10 +370,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'observar',
         label: 'Enviar observadores',
-        description: 'Ganhe apenas o essencial: +R$ 20 e −10% no custo de pesquisa por 2 ciclos.',
+        description: 'Ganhe apenas o essencial: +R$ 400 mil e −10% no custo de pesquisa por 2 ciclos.',
         tone: 'neutral',
         effect: {
-          stockDelta: { creditos: 20 },
+          stockDelta: { creditos: 400_000 },
           modifier: {
             label: 'Relatório da feira',
             description: 'Os relatórios técnicos orientam os próximos projetos.',
@@ -397,20 +397,20 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'resgate',
         label: 'Pagar o resgate',
-        description: 'Recupere a carga por R$ 60 e evite perdas maiores.',
+        description: 'Recupere a carga por R$ 1,2 mi e evite perdas maiores.',
         tone: 'neutral',
         effect: {
-          cost: { creditos: 60 },
+          cost: { creditos: 1_200_000 },
           log: 'A companhia pagou para liberar as cargas capturadas.',
         },
       },
       {
         id: 'escolta',
         label: 'Contratar escolta privada',
-        description: 'Gaste R$ 50: as cargas seguem e a rede ganha confiança (+6 de relações).',
+        description: 'Gaste R$ 1 mi: as cargas seguem e a rede ganha confiança (+6 de relações).',
         tone: 'good',
         effect: {
-          cost: { creditos: 50 },
+          cost: { creditos: 1_000_000 },
           relations: 6,
           log: 'Escoltas privadas mantiveram as entregas da companhia no prazo.',
         },
@@ -418,10 +418,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'ignorar',
         label: 'Absorver as perdas',
-        description: '−R$ 40 em caixa e +5 de desordem nas praças.',
+        description: '−R$ 800 mil em caixa e +5 de desordem nas praças.',
         tone: 'bad',
         effect: {
-          stockDelta: { creditos: -40 },
+          stockDelta: { creditos: -800_000 },
           unrest: 5,
           log: 'Cargas da companhia foram perdidas sem resposta.',
         },
@@ -440,17 +440,17 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'emprestimo',
         label: 'Contrair empréstimo',
-        description: '+R$ 120 agora, mas −15% de receita de créditos por 4 ciclos.',
+        description: '+R$ 2,4 mi agora, mas −15% de receita de créditos por 4 ciclos.',
         tone: 'neutral',
         effect: {
-          stockDelta: { creditos: 120 },
+          stockDelta: { creditos: 2_400_000 },
           modifier: {
             label: 'Serviço da dívida',
             description: 'Os juros do empréstimo consomem parte da receita.',
             cycles: 4,
             production: { creditos: -0.15 },
           },
-          log: 'A companhia tomou R$ 120 emprestados em Ourovil.',
+          log: 'A companhia tomou R$ 2,4 mi emprestados em Ourovil.',
         },
       },
       {
@@ -477,10 +477,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'sediar',
         label: 'Sediar o conselho',
-        description: 'Pague R$ 100: +12 de relações com todas as companhias.',
+        description: 'Pague R$ 2 mi: +12 de relações com todas as companhias.',
         tone: 'good',
         effect: {
-          cost: { creditos: 100 },
+          cost: { creditos: 2_000_000 },
           relations: 12,
           log: 'A companhia sediou a Cúpula do setor e colheu prestígio.',
         },
@@ -488,10 +488,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'observadores',
         label: 'Enviar uma delegação discreta',
-        description: '+R$ 20 e +4 de relações, sem custos.',
+        description: '+R$ 400 mil e +4 de relações, sem custos.',
         tone: 'neutral',
         effect: {
-          stockDelta: { creditos: 20 },
+          stockDelta: { creditos: 400_000 },
           relations: 4,
           log: 'A delegação da companhia trocou mapas e relatórios no conselho.',
         },
@@ -520,10 +520,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'arrematar',
         label: 'Arrematar a licença',
-        description: 'Pague R$ 90: +12 de relações com o regulador e −5 de desordem na praça.',
+        description: 'Pague R$ 1,8 mi: +12 de relações com o regulador e −5 de desordem na praça.',
         tone: 'good',
         effect: {
-          cost: { creditos: 90 },
+          cost: { creditos: 1_800_000 },
           relations: 12,
           unrest: -5,
           log: 'A companhia arrematou uma licença portuária no leilão.',
@@ -532,10 +532,10 @@ export const EVENTS: GameEvent[] = [
       {
         id: 'consorcio',
         label: 'Entrar em consórcio',
-        description: 'Pague R$ 40: +6 de relações e −10% no custo de pesquisa por 2 ciclos.',
+        description: 'Pague R$ 800 mil: +6 de relações e −10% no custo de pesquisa por 2 ciclos.',
         tone: 'neutral',
         effect: {
-          cost: { creditos: 40 },
+          cost: { creditos: 800_000 },
           relations: 6,
           modifier: {
             label: 'Consórcio portuário',
@@ -581,6 +581,11 @@ export function pickEvent(state: GameState): string | null {
   return eligible[eligible.length - 1].id;
 }
 
+/** Caixa não tem teto simbólico; os demais estoques seguem limitados. */
+function stockCap(key: ResourceKey): number {
+  return key === 'creditos' ? 1e12 : 100_000;
+}
+
 export function chooseEvent(state: GameState, factionId: FactionId, choiceId: string): CommandResult {
   const next = structuredClone(state);
   const event = eventById(next.pendingEventId);
@@ -605,13 +610,13 @@ export function chooseEvent(state: GameState, factionId: FactionId, choiceId: st
   }
   if (effect.stockDelta) {
     for (const [key, value] of Object.entries(effect.stockDelta) as Array<[ResourceKey, number]>) {
-      player.stocks[key] = round1(clamp(player.stocks[key] + value, 0, 100000));
+      player.stocks[key] = round1(clamp(player.stocks[key] + value, 0, stockCap(key)));
     }
   }
   if (effect.allStockDelta) {
     for (const faction of Object.values(next.factions)) {
       for (const [key, value] of Object.entries(effect.allStockDelta) as Array<[ResourceKey, number]>) {
-        faction.stocks[key] = round1(clamp(faction.stocks[key] + value, 0, 100000));
+        faction.stocks[key] = round1(clamp(faction.stocks[key] + value, 0, stockCap(key)));
       }
     }
   }

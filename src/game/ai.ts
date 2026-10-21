@@ -36,6 +36,7 @@ import {
 } from './commands';
 import { citiesOf, cityById } from './atlas';
 import { MAX_UNIT_BUILD, MAX_UNIT_RANGE, SECTORS } from './constants';
+import { AI_RESERVE } from './money';
 import { scoreOf } from './progress';
 import type { AtlasCity } from './atlas';
 import { buildLevel, operationCost, rangeLevel, unitExpansionCost } from './operations';
@@ -187,7 +188,7 @@ function desiredBuildings(state: GameState, id: FactionId): BuildingKey[] {
 
 function tryUpgrade(state: GameState, id: FactionId): boolean {
   const faction = state.factions[id];
-  if (faction.stocks.creditos < 190 + expansionReserve(state, id) * 0.5) return false;
+  if (faction.stocks.creditos < 2_000_000 + expansionReserve(state, id) * 0.5) return false;
   const candidates: Array<{ tile: Tile; building: BuildingKey }> = [];
   for (const tile of ownedTiles(state, id)) {
     for (const building of ['fazenda', 'extratora', 'usina', 'entreposto', 'industria', 'pesquisa', 'administrativo'] as BuildingKey[]) {
@@ -222,7 +223,7 @@ function essentialBuilding(state: GameState, id: FactionId): BuildingKey | null 
   const expansions = state.projects.filter((p) => p.factionId === id && p.kind === 'expansao').length;
   if (tiles.length + expansions >= adminCapacityOfState(state, id)) return 'administrativo';
   const farms = tiles.reduce((sum, t) => sum + t.buildings.fazenda, 0);
-  if (farms === 0 && eco.finance.net < 30) return 'fazenda';
+  if (farms === 0 && eco.finance.net < 500_000) return 'fazenda';
   return null;
 }
 
@@ -298,7 +299,7 @@ function expansionReserve(state: GameState, id: FactionId): number {
   }
   if (cheapest !== null) return cheapest;
   // If no neutral border is ready, keep a smaller cash buffer for the next opportunity.
-  return faction.stocks.creditos > 220 ? 40 : 0;
+  return faction.stocks.creditos > 8_000_000 ? 1_500_000 : 0;
 }
 
 function tryExpand(state: GameState, id: FactionId): boolean {
@@ -370,7 +371,7 @@ function tryExpandUnit(state: GameState, id: FactionId): boolean {
   const kind = options[Math.floor(nextRandom(state) * options.length)];
   const level = kind === 'build' ? buildLevel(operation) : rangeLevel(operation);
   const cost = unitExpansionCost(city, operation.sector, kind, level);
-  if (faction.stocks.creditos - cost.creditos < 40) return false;
+  if (faction.stocks.creditos - cost.creditos < AI_RESERVE) return false;
   return applyResult(
     state,
     kind === 'build'
@@ -385,7 +386,7 @@ function tryUpgradeOperation(state: GameState, id: FactionId): boolean {
     .filter((op) => op.factionId === id && op.units < 3)
     .filter((op) => {
       const city = cityById(op.cityId);
-      return city ? branchAffordable(state, id, city, op.sector, op.units + 1, 30) : false;
+      return city ? branchAffordable(state, id, city, op.sector, op.units + 1, 1_200_000) : false;
     });
   if (!candidates.length) return false;
   if (nextRandom(state) > 0.45) return false;
@@ -399,7 +400,7 @@ function tryAIDiplomacy(state: GameState, id: FactionId): void {
   const others = (Object.keys(state.factions) as FactionId[]).filter((o) => o !== id && !state.factions[o].eliminated);
   if (nextRandom(state) > 0.25) return;
 
-  if (faction.stocks.creditos > 260 && faction.lastGiftCycle !== state.cycle) {
+  if (faction.stocks.creditos > 6_000_000 && faction.lastGiftCycle !== state.cycle) {
     const player = state.playerFactionId;
     const rel = getRelation(state, id, player);
     if (rel.relation < 18 && nextRandom(state) < 0.35) {

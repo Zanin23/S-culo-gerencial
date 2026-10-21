@@ -26,7 +26,8 @@ import type { GameState } from './types';
 function prepared(seed = 4242): { state: GameState; cityId: string; opId: string } {
   const initial = createInitialState(seed, 1);
   const cityId = citiesOf(initial.factions.concordia.capitalId)[0].id;
-  initial.factions.concordia.stocks.creditos = 40_000;
+  // Caixa de teste suficiente para as obras e todas as etapas da sede.
+  initial.factions.concordia.stocks.creditos = 200_000_000;
 
   const founded = foundSeat(initial, cityId, `${cityId}-lote-01`, 'Centro');
   expect(founded.ok).toBe(true);
@@ -201,7 +202,7 @@ describe('expansões da sede', () => {
 
   it('sem sede fundada não há o que ampliar', () => {
     const state = createInitialState(4, 1);
-    state.factions.concordia.stocks.creditos = 5000;
+    state.factions.concordia.stocks.creditos = 500_000;
     expect(expandSeat(state, 'concordia').ok).toBe(false);
   });
 });

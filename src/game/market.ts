@@ -22,7 +22,7 @@ export function buyUnitPrice(state: GameState, key: MarketKey): number {
 export function applyTradeImpact(state: GameState, key: MarketKey, amount: number, side: 'buy' | 'sell'): void {
   const base = MARKET_BASE[key];
   const delta = (side === 'sell' ? -0.004 : 0.0055) * amount;
-  state.market.prices[key] = round2(
+  state.market.prices[key] = roundPrice(
     clamp(state.market.prices[key] * (1 + delta), base * PRICE_FLOOR, base * PRICE_CEIL),
   );
 }
@@ -34,7 +34,7 @@ export function updateMarket(state: GameState): void {
     const current = state.market.prices[key];
     const meanReversion = (base - current) * 0.14;
     const noise = (nextRandom(state) * 2 - 1) * 0.035 * base;
-    state.market.prices[key] = round2(
+    state.market.prices[key] = roundPrice(
       clamp(current + meanReversion + noise, base * PRICE_FLOOR, base * PRICE_CEIL),
     );
   }
@@ -43,10 +43,11 @@ export function updateMarket(state: GameState): void {
 
 export function marketTrend(state: GameState, key: MarketKey): 'up' | 'down' | 'flat' {
   const diff = state.market.prices[key] - state.market.previous[key];
-  if (Math.abs(diff) < 0.02) return 'flat';
+  if (Math.abs(diff) < state.market.prices[key] * 0.002) return 'flat';
   return diff > 0 ? 'up' : 'down';
 }
 
-export function round2(value: number): number {
-  return Math.round(value * 100) / 100;
+/** Preços de mercado são cotados em reais inteiros. */
+export function roundPrice(value: number): number {
+  return Math.round(value);
 }

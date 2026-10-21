@@ -10,6 +10,7 @@ import { CITY_BY_ID, COUNTRY_BY_ID, cityById } from './atlas';
 import { EMPTY_RELATION, RELATION_SEED, relationKey } from './diplomacy';
 import { createTiles, START_SEATS } from './map';
 import { Rng } from './rng';
+import { AI_START_CASH, LEGACY_MONEY_SCALE } from './money';
 import { scoreOf } from './progress';
 import type {
   CycleSnapshot,
@@ -23,13 +24,13 @@ import type {
 } from './types';
 
 
-export const SAVE_KEY = 'management-century.save.v5';
+export const SAVE_KEY = 'management-century.save.v6';
 /** Chaves de versões anteriores do jogo: lidas uma vez e migradas. */
-export const LEGACY_SAVE_KEYS = ['management-century.save.v4', 'management-century.save.v3', 'management-century.save.v2', 'tessera.save.v2'];
+export const LEGACY_SAVE_KEYS = ['management-century.save.v5', 'management-century.save.v4', 'management-century.save.v3', 'management-century.save.v2', 'tessera.save.v2'];
 export const SAVE_VERSION = GAME.saveVersion;
 
 const AI_START: Stocks = {
-  creditos: 280,
+  creditos: AI_START_CASH,
   alimentos: 90,
   energia: 46,
   materias: 92,
@@ -206,7 +207,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * caixa único (o dinheiro paga insumos), troca filiais por unidades de negócio
  * e aposenta os recursos de Estado. A v5 adiciona as expansões de construção,
  * de ramo de negócio e da sede: as unidades antigas passam a valer como o
- * degrau inicial. Nenhuma praça, obra ou tecnologia se perde.
+ * degrau inicial. A v6 reescala a economia para reais de mercado: caixa, custos
+ * contratados, preços e histórico são multiplicados por `LEGACY_MONEY_SCALE`.
+ * Nenhuma praça, obra ou tecnologia se perde.
  */
 export function migrateSave(input: unknown): unknown {
   if (!isRecord(input)) return input;
@@ -262,6 +265,10 @@ export function migrateSave(input: unknown): unknown {
   if (Array.isArray(next.offers)) {
     next.offers = next.offers.filter((offer) => !isRecord(offer) || offer.kind !== 'peace');
   }
+  // v6: a economia passou a ser expressa em reais na escala de uma companhia
+  // de porte médio. Campanhas antigas têm caixa, custos e preços de mercado
+  // convertidos para preservar o poder de compra conquistado.
+  if (version < 6) scaleLegacyMoney(next);
   delete next.lastBattle;
   if (isRecord(next.lastReport)) delete next.lastReport.battles;
   if (Array.isArray(next.log)) {
@@ -270,6 +277,69 @@ export function migrateSave(input: unknown): unknown {
     }
   }
   return next;
+}
+
+/**
+ * Converte os valores monetários de uma campanha anterior à escala em reais.
+ * Aplica o fator apenas ao que é dinheiro: caixa das companhias, custos já
+ * contratados, histórico e preços de mercado.
+ */
+function scaleLegacyMoney(next: Record<string, unknown>): void {
+  const factor = LEGACY_MONEY_SCALE;
+  if (isRecord(next.factions)) {
+    for (const faction of Object.values(next.factions)) {
+      if (!isRecord(faction) || !isRecord(faction.stocks)) continue;
+      if (typeof faction.stocks.creditos === 'number') {
+        faction.stocks.creditos = Math.round(faction.stocks.creditos * factor);
+      }
+    }
+  }
+  if (Array.isArray(next.projects)) {
+    for (const project of next.projects) {
+      if (!isRecord(project) || !isRecord(project.cost)) continue;
+      if (typeof project.cost.creditos === 'number') {
+        project.cost.creditos = Math.round(project.cost.creditos * factor);
+      }
+    }
+  }
+  if (isRecord(next.market) && isRecord(next.market.prices)) {
+    for (const key of Object.keys(next.market.prices)) {
+      const price = next.market.prices[key];
+      if (typeof price === 'number') next.market.prices[key] = Math.round(price * factor);
+    }
+    if (isRecord(next.market.previous)) {
+      for (const key of Object.keys(next.market.previous)) {
+        const price = next.market.previous[key];
+        if (typeof price === 'number') next.market.previous[key] = Math.round(price * factor);
+      }
+    }
+  }
+  if (Array.isArray(next.history)) {
+    for (const point of next.history) {
+      if (!isRecord(point)) continue;
+      if (isRecord(point.stocks) && typeof point.stocks.creditos === 'number') {
+        point.stocks.creditos = Math.round(point.stocks.creditos * factor);
+      }
+      if (isRecord(point.net) && typeof point.net.creditos === 'number') {
+        point.net.creditos = Math.round(point.net.creditos * factor);
+      }
+      if (isRecord(point.production) && typeof point.production.creditos === 'number') {
+        point.production.creditos = Math.round(point.production.creditos * factor);
+      }
+    }
+  }
+  if (isRecord(next.lastReport)) {
+    for (const key of ['income', 'expenses', 'cash']) {
+      const value = next.lastReport[key];
+      if (typeof value === 'number') next.lastReport[key] = Math.round(value * factor);
+    }
+    for (const key of ['deltas', 'production', 'consumption']) {
+      const flow = next.lastReport[key];
+      if (isRecord(flow) && typeof flow.creditos === 'number') {
+        flow.creditos = Math.round(flow.creditos * factor);
+      }
+    }
+  }
 }
 
 export function validateState(input: unknown): LoadResult {

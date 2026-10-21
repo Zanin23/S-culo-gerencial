@@ -105,7 +105,14 @@ export function ObjectivesPanel() {
                   <div className="eyebrow">Objetivo</div>
                   <h3>{objective.title}</h3>
                 </div>
-                {objective.done ? <Badge tone="teal" icon="Check">Concluído</Badge> : <span className="objective-card__fraction">{fmt(objective.progress)}<small>/{fmt(objective.target)}</small></span>}
+                {objective.done ? (
+                  <Badge tone="teal" icon="Check">Concluído</Badge>
+                ) : (
+                  <span className="objective-card__fraction">
+                    {objective.unit === 'R$/ciclo' ? money(objective.progress) : fmt(objective.progress)}
+                    <small>/{objective.unit === 'R$/ciclo' ? money(objective.target) : fmt(objective.target)}</small>
+                  </span>
+                )}
               </div>
               <p>{objective.description}</p>
               <ProgressBar value={objective.progress} max={objective.target} tone={objective.done ? 'teal' : 'gold'} thin />

@@ -15,14 +15,20 @@ import type {
 import { EMPTY_FLOW, EMPTY_STOCKS } from './constants';
 import { clamp, round1 } from './rng';
 import { hqCommerceMult, hqDefenseMult, hqProductionMult, seatAdminBonus } from './hq';
+import { reaisShort } from './money';
 import { operationsSummary } from './operations';
 
 export const POP_FOOD = 0;
 export const POP_ENERGY = 0;
 export const POP_GOODS = 0;
-/** Salários e encargos por habitante das praças, por ciclo. */
-export const SALARY_PER_POP = 0.32;
-export const TAX_PER_POP = 0.45;
+/**
+ * Salários e encargos por ponto de população das praças, por ciclo (R$).
+ * A população do tabuleiro é um índice econômico, não o censo: cada ponto
+ * representa algumas dezenas de milhares de trabalhadores da rede.
+ */
+export const SALARY_PER_POP = 96_000;
+/** Vendas urbanas por ponto de população, por ciclo (R$). */
+export const TAX_PER_POP = 82_000;
 export const BASE_ADMIN_CAPACITY = 4;
 
 export interface EconomySources {
@@ -40,6 +46,8 @@ export interface EconomyDemands {
   population: Flow;
   industry: Flow;
   upkeep: Flow;
+  /** Pessoal, mercadorias e aluguéis das unidades de negócio. */
+  operations: Flow;
 }
 
 export interface FinanceLine {
@@ -95,7 +103,7 @@ const emptySources = (): EconomySources => ({
 });
 
 const emptyDemands = (): EconomyDemands => ({
-  population: EMPTY_FLOW(), industry: EMPTY_FLOW(), upkeep: EMPTY_FLOW(),
+  population: EMPTY_FLOW(), industry: EMPTY_FLOW(), upkeep: EMPTY_FLOW(), operations: EMPTY_FLOW(),
 });
 
 export function sumFlow(...flows: Flow[]): Flow {
@@ -422,6 +430,7 @@ export function computeEconomy(state: GameState, factionId: FactionId): FactionE
   sources.operations.creditos = ops.revenue;
   demands.upkeep.creditos += ops.upkeep;
   demands.industry.creditos += ops.supply;
+  demands.operations.creditos += ops.operating;
 
   // Security & administration
   const adminCapacity = adminCapacityOfState(state, factionId);
@@ -434,7 +443,7 @@ export function computeEconomy(state: GameState, factionId: FactionId): FactionE
     sources.base, sources.nodes, sources.buildings, sources.taxes,
     sources.commerce, sources.institutions, sources.diplomacy, sources.operations,
   );
-  const demand = sumFlow(demands.population, demands.industry, demands.upkeep);
+  const demand = sumFlow(demands.population, demands.industry, demands.upkeep, demands.operations);
 
   // Insumos são comprados no mercado: não há estoque nem bloqueio de produção.
   const energyRatio = 1;
@@ -461,6 +470,11 @@ export function computeEconomy(state: GameState, factionId: FactionId): FactionE
   }
 
   const finance = financeReport(sources, demands);
+  // O caixa é a única moeda: os fluxos de crédito mostrados na interface usam o
+  // mesmo relatório financeiro para não exibir dois resultados diferentes.
+  production.creditos = Math.round(finance.income);
+  demand.creditos = Math.round(finance.expenses);
+  net.creditos = Math.round(finance.net);
 
   return {
     factionId,
@@ -503,13 +517,14 @@ function financeReport(sources: EconomySources, demands: EconomyDemands): Financ
     { key: 'comercio', label: 'Rede comercial', value: moneyOf(sources.commerce) },
     { key: 'infraestrutura', label: 'Fazendas, indústrias e portos', value: moneyOf(sources.base) + moneyOf(sources.nodes) + moneyOf(sources.buildings) },
     { key: 'acordos', label: 'Acordos e marca', value: moneyOf(sources.diplomacy) + moneyOf(sources.institutions) },
-  ].filter((line) => line.value > 0.05);
+  ].filter((line) => line.value > 50);
 
   const costs: FinanceLine[] = [
     { key: 'pessoal', label: 'Pessoal e utilidades', value: moneyOf(demands.population) },
+    { key: 'operacao', label: 'Operação das unidades', value: moneyOf(demands.operations) },
     { key: 'insumos', label: 'Insumos e mercadorias', value: moneyOf(demands.industry) },
     { key: 'manutencao', label: 'Manutenção de estruturas', value: moneyOf(demands.upkeep) },
-  ].filter((line) => line.value > 0.05);
+  ].filter((line) => line.value > 50);
 
   const income = revenue.reduce((sum, line) => sum + line.value, 0);
   const expenses = costs.reduce((sum, line) => sum + line.value, 0);
@@ -525,10 +540,10 @@ export function applyEconomy(state: GameState, factionId: FactionId): FactionEco
   // A companhia opera com caixa: recebe, paga e recompra insumos no mercado.
   const available = faction.stocks.creditos + eco.finance.income;
   const paid = Math.min(available, eco.finance.expenses);
-  const cashAfter = round1(Math.max(0, available - paid));
+  const cashAfter = Math.round(Math.max(0, available - paid));
   const actualDemand = EMPTY_FLOW();
   const deltas = EMPTY_FLOW();
-  actualDemand.creditos = round1(paid);
+  actualDemand.creditos = Math.round(paid);
   deltas.creditos = round1(eco.finance.income - paid);
   for (const k of RESOURCE_KEYS) {
     if (k === 'creditos') continue;
@@ -599,7 +614,7 @@ export function canAfford(stocks: Stocks, cost: Partial<Stocks>): boolean {
 
 /** Todo custo é pago em caixa: a companhia compra os insumos que precisa. */
 export function payCost(stocks: Stocks, cost: Partial<Stocks>): void {
-  stocks.creditos = round1(Math.max(0, stocks.creditos - moneyOf(cost)));
+  stocks.creditos = Math.round(Math.max(0, stocks.creditos - moneyOf(cost)));
 }
 
 export function missingResources(stocks: Stocks, cost: Partial<Stocks>): ResourceKey[] {
@@ -608,7 +623,7 @@ export function missingResources(stocks: Stocks, cost: Partial<Stocks>): Resourc
 
 export function describeCost(cost: Partial<Stocks>): string {
   const total = moneyOf(cost);
-  return total > 0 ? `R$ ${Math.round(total).toLocaleString('pt-BR')}` : 'sem custo';
+  return total > 0 ? reaisShort(total) : 'sem custo';
 }
 
 export function relationCount(state: GameState, factionId: FactionId): number {

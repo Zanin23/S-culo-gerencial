@@ -27,6 +27,12 @@ import type { FactionId, GameState, Operation, SectorKey, Tile } from './types';
 export const MAX_UNITS_PER_CITY = 3;
 /** Comércio local já instalado em cada cidade: a concorrência de base da praça. */
 export const LOCAL_MARKET_UNITS = 2;
+/**
+ * Coeficiente que converte o mercado da cidade em receita de uma unidade.
+ * Calibrado para uma loja de varejo em cidade média (200 mil hab.) faturar
+ * cerca de R$ 850 mil por ciclo, com payback do imóvel em ~25 ciclos.
+ */
+export const MARKET_TO_REVENUE = 0.84;
 
 export interface OperationOutput {
   /** Receita bruta por ciclo, em dinheiro. */
@@ -35,6 +41,8 @@ export interface OperationOutput {
   upkeep: number;
   /** Compra de insumos no mercado, em dinheiro. */
   supply: number;
+  /** Pessoal e custos operacionais da unidade (mercadorias, folha, aluguéis). */
+  operating: number;
   net: number;
   share: number;
   market: number;
@@ -47,9 +55,21 @@ export interface OperationOutput {
   expansionMult: number;
 }
 
+/**
+ * Mercado mensal da cidade, em reais. Cresce de forma sublinear com a
+ * população: uma metrópole vale ~1,4× uma cidade média, não 50×.
+ * 200 mil hab. → R$ 2,7 mi/mês · 1 milhão → R$ 3,3 mi · 10 milhões → R$ 3,9 mi.
+ */
 export function cityMarketSize(city: Pick<AtlasCity, 'pop'>): number {
-  // 100 mil hab. → ~19; 1 milhão → ~27; 10 milhões → ~36.
-  return 3 + Math.log10(1 + Math.max(0, city.pop) / 1000) * 13;
+  return 700_000 + Math.log10(1 + Math.max(0, city.pop) / 1000) * 850_000;
+}
+
+/**
+ * Prêmio de metro quadrado: imóveis custam mais nas cidades grandes.
+ * 200 mil hab. → 1,09× · 1 milhão → 1,29× · 10 milhões → 1,50×.
+ */
+export function realEstateScale(city: Pick<AtlasCity, 'pop'>): number {
+  return 1 + Math.log10(1 + Math.max(0, city.pop) / 100_000) * 0.28;
 }
 
 export function cityOfOperation(op: Operation): AtlasCity | undefined {
@@ -134,7 +154,7 @@ export function operationOutput(state: GameState, op: Operation, operationsMult 
   const sector = SECTORS[op.sector];
   if (!city || !country || !sector) {
     return {
-      revenue: 0, upkeep: 0, supply: 0, net: 0, share: 0, market: 0,
+      revenue: 0, upkeep: 0, supply: 0, operating: 0, net: 0, share: 0, market: 0,
       units: op.units ?? 1, portBonus: 0, build: 0, range: 0, expansionMult: 1,
     };
   }
@@ -151,7 +171,8 @@ export function operationOutput(state: GameState, op: Operation, operationsMult 
   const upkeepFactor = 1 + buildSteps.reduce((sum, step) => sum + (step.upkeep ?? 0), 0);
   const supplyFactor = 1 + rangeSteps.reduce((sum, step) => sum + (step.supply ?? 0), 0);
   const seat = seatCommerceMult(state, op.factionId, op.cityId);
-  const unitsFactor = 0.45 + 0.55 * (units / MAX_UNITS_PER_CITY);
+  // Cada módulo novo acrescenta capacidade sem diluir a operação já instalada.
+  const unitsFactor = 0.55 + 0.45 * ((units - 1) / (MAX_UNITS_PER_CITY - 1));
   const shareFactor = 0.5 + 0.5 * share;
   // Desordem e falta de segurança derrubam a operação local.
   const unrestFactor = clamp(1 - country.unrest / 220, 0.45, 1);
@@ -159,14 +180,20 @@ export function operationOutput(state: GameState, op: Operation, operationsMult 
   const ports = portBonusIn(state, op.factionId, op.countryId);
 
   const revenue =
-    market * sector.revenue * 1.8 * unitsFactor * shareFactor * unrestFactor * security *
+    market * sector.revenue * MARKET_TO_REVENUE * unitsFactor * shareFactor * unrestFactor * security *
     networkFactor(state, op.factionId, sector) * (1 + operationsMult) * (1 + ports) *
     (1 + expansionRevenue) * seat;
 
-  const upkeep = market * 0.1 * units * (0.75 + 0.25 * units) * upkeepFactor;
+  // Insumos comprados no mercado (indústria e fábrica) e manutenção do imóvel.
   const supply = market * (sector.supplyCost ?? 0) * units * supplyFactor;
+  const upkeep = market * 0.02 * Math.pow(units, 0.8) * upkeepFactor;
+  // Mercadorias, folha de pagamento e aluguéis: a margem setorial já é líquida
+  // desses custos e deixa a rentabilidade do ativo em faixa realista.
+  const operating = Math.max(0, (revenue - supply) * (1 - sector.margin));
   return {
-    revenue, upkeep, supply, net: revenue - upkeep - supply, share, market, units, portBonus: ports,
+    revenue, upkeep, supply, operating,
+    net: revenue - upkeep - supply - operating,
+    share, market, units, portBonus: ports,
     build, range, expansionMult: 1 + expansionRevenue,
   };
 }
@@ -176,6 +203,7 @@ export function operationsSummary(state: GameState, factionId: FactionId, operat
   let revenue = 0;
   let upkeep = 0;
   let supply = 0;
+  let operating = 0;
   let units = 0;
   const list = operationsOf(state, factionId);
   for (const op of list) {
@@ -183,9 +211,14 @@ export function operationsSummary(state: GameState, factionId: FactionId, operat
     revenue += output.revenue;
     upkeep += output.upkeep;
     supply += output.supply;
+    operating += output.operating;
     units += output.units;
   }
-  return { revenue, upkeep, supply, net: revenue - upkeep - supply, count: list.length, units };
+  return {
+    revenue, upkeep, supply, operating,
+    net: revenue - upkeep - supply - operating,
+    count: list.length, units,
+  };
 }
 
 /** Participação média da companhia nas cidades onde já opera (0..1). */
@@ -208,7 +241,7 @@ export function unitExpansionCost(
   level: number,
 ) {
   const def = SECTORS[sector];
-  const scale = 1 + Math.log10(1 + Math.max(0, city.pop) / 1000) * 0.6;
+  const scale = realEstateScale(city);
   const table = kind === 'build' ? UNIT_BUILD_COST : UNIT_RANGE_COST;
   const factor = table[clamp(level, 0, table.length - 1)];
   return { creditos: Math.round(def.cost * scale * factor) };
@@ -217,8 +250,10 @@ export function unitExpansionCost(
 /** Custo em dinheiro para abrir (1ª unidade) ou comprar o próximo módulo. */
 export function operationCost(city: Pick<AtlasCity, 'pop'>, sector: SectorKey, targetUnits: number) {
   const def = SECTORS[sector];
-  const scale = 1 + Math.log10(1 + Math.max(0, city.pop) / 1000) * 0.6;
-  const step = targetUnits <= 1 ? 1 : 1 + (targetUnits - 1) * 0.35;
+  const scale = realEstateScale(city);
+  // Módulos extra aproveitam o terreno e a licença já comprados: custam menos
+  // que a implantação inicial da cidade.
+  const step = targetUnits <= 1 ? 1 : 0.36 + (targetUnits - 2) * 0.08;
   return { creditos: Math.round(def.cost * scale * step) };
 }
 
