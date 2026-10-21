@@ -415,3 +415,51 @@ it('selects countries, provinces and cities on the world map', async () => {
   expect(useGameStore.getState().selectedTileId).toBeNull();
   expect(firstCountry).toBeTruthy();
 });
+
+it('navega pelas seis telas essenciais e guarda o resto no menu Mais', async () => {
+  await act(async () => {
+    root = createRoot(container);
+    root.render(<App />);
+  });
+  await act(async () => {
+    useGameStore.getState().startNewGame(20261021);
+    useGameStore.getState().finishTutorial();
+  });
+
+  const rail = container.querySelector('.nav-rail')!;
+  expect(rail).toBeTruthy();
+  const primary = Array.from(rail.querySelectorAll('.nav-rail__items > .tooltip-wrap > .nav-item, .nav-rail__items > .nav-more .nav-item'));
+  expect(primary.length).toBe(7);
+  expect(rail.textContent).toContain('Mundo');
+  expect(rail.textContent).toContain('Empresas');
+  expect(rail.textContent).toContain('Finanças');
+  expect(rail.textContent).not.toContain('Estruturas');
+
+  const more = Array.from(rail.querySelectorAll('button')).find((button) => button.textContent?.includes('Mais')) as HTMLButtonElement;
+  expect(more).toBeTruthy();
+  await act(async () => {
+    more.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  const menu = document.querySelector('.nav-more__menu');
+  expect(menu).toBeTruthy();
+  expect(menu?.textContent).toContain('Estruturas');
+  expect(menu?.textContent).toContain('P&D');
+  expect(menu?.textContent).toContain('Ajustes');
+
+  const structures = Array.from(document.querySelectorAll('.nav-more__item')).find((item) => item.textContent?.includes('Estruturas')) as HTMLButtonElement;
+  await act(async () => {
+    structures.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  expect(useGameStore.getState().view).toBe('construction');
+  expect(container.querySelector('.nav-more__menu')).toBeNull();
+
+  // O painel do mapa abre enxuto: próximo passo + quatro marcos de carreira.
+  await act(async () => {
+    useGameStore.getState().setView('map');
+    useGameStore.getState().clearSelection();
+  });
+  expect(container.querySelectorAll('.career-step')).toHaveLength(4);
+  expect(container.querySelector('.context-panel')?.textContent).toContain('Abra a primeira unidade');
+  expect(container.querySelector('.quick-stats .quick-stat')).toBeTruthy();
+  expect(container.querySelectorAll('.context-scroll > .card').length).toBe(1);
+});

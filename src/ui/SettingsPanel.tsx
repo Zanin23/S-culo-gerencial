@@ -91,7 +91,7 @@ export function SettingsPanel() {
           <div className="settings-row">
             <div>
               <strong>Atalhos</strong>
-              <span>1–9 trocam de tela · espaço avança um ciclo · Esc fecha modais · ? abre o manual.</span>
+              <span>1–6 trocam de tela · 0 abre o relatório · espaço avança um ciclo · Esc fecha modais · ? abre o manual.</span>
             </div>
             <Badge tone="neutral">teclado</Badge>
           </div>

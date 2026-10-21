@@ -259,7 +259,8 @@ export const useGameStore = create<GameStore>()((set, get) => {
         savedGame: game,
         screen: 'game',
         view: seat ? 'city' : 'map',
-        selectedTileId: game.factions[game.playerFactionId].capitalId,
+        // A primeira tela é a companhia: nada selecionado, mapa focado na sede.
+        selectedTileId: null,
         focusCountryId: null,
         selectedProvinceId: null,
         selectedCityId: null,
@@ -290,7 +291,7 @@ export const useGameStore = create<GameStore>()((set, get) => {
         game: saved,
         screen: 'game',
         view: 'map',
-        selectedTileId: saved.factions[saved.playerFactionId].capitalId,
+        selectedTileId: null,
         focusCountryId: null,
         selectedProvinceId: null,
         selectedCityId: null,
@@ -362,7 +363,8 @@ export const useGameStore = create<GameStore>()((set, get) => {
       const state = get();
       const game = state.game;
       if (!game || game.phase !== 'playing') return;
-      if (!state.autoPlay || state.view !== 'map' || state.digest || state.tutorialStep !== null || state.confirm) return;
+      // Os ciclos correm em qualquer tela: abrir Empresas ou Finanças não pausa o jogo.
+      if (!state.autoPlay || state.view === 'settings' || state.digest || state.tutorialStep !== null || state.confirm) return;
       if (game.pendingEventId) return;
       if (state.secondsLeft <= 1) {
         get().advance();

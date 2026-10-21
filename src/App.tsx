@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FACTIONS, GAME, RESOURCES } from './game/constants';
 import { eventById, type EventEffect } from './game/events';
+import { START_CASH } from './game/money';
 import { rankOf, scoreParts, VICTORY_TARGET } from './game/progress';
 import type { CycleReport, ResourceKey } from './game/types';
 import { CYCLE_SECONDS, useGameStore } from './store/gameStore';
@@ -12,7 +13,7 @@ import { ConstructionPanel } from './ui/ConstructionPanel';
 import { DiplomacyPanel } from './ui/DiplomacyPanel';
 import { EconomyPanel } from './ui/EconomyPanel';
 import { ExpansionPanel } from './ui/ExpansionPanel';
-import { fmt, fmtRate, money, trendClass } from './ui/format';
+import { fmt, money, trendClass } from './ui/format';
 import { Icon } from './ui/Icon';
 import { MapView } from './ui/MapView';
 import { NavRail } from './ui/NavRail';
@@ -41,65 +42,37 @@ const VIEWS = {
   settings: SettingsPanel,
 } as const;
 
-/** Teclas 1–9 percorrem as telas principais; 0 abre o relatório; U abre as unidades. */
-const KEY_VIEWS = ['map', 'city', 'companies', 'economy', 'construction', 'tech', 'expansion', 'diplomacy', 'objectives'] as const;
+/** Teclas 1–6 percorrem as telas principais; 0 abre o relatório; U abre as obras. */
+const KEY_VIEWS = ['map', 'city', 'companies', 'units', 'economy', 'objectives'] as const;
 
-const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'city' | 'economy' | 'construction' | 'tech' | 'companies' | 'diplomacy' | 'objectives' | 'units'; hint: string }> = [
+const TUTORIAL_STEPS: Array<{ title: string; body: string; icon: string; view: 'map' | 'city' | 'economy' | 'companies'; hint: string }> = [
   {
     title: 'Sua companhia, seu mercado',
-    body: 'Você dirige o Grupo Concórdia, com operações em Portugal e Espanha. A campanha começa na escolha da cidade-sede: terreno real, ruas geradas e o lote onde a primeira estrutura será erguida.',
+    body: `Você dirige o Grupo Concórdia e começa com ${money(START_CASH)} em caixa. A campanha abre na escolha da cidade-sede: terreno real, ruas geradas e o lote onde a primeira operação será aberta.`,
     icon: 'Globe2',
     view: 'city',
-    hint: 'Na aba Cidade você alterna entre a maquete, a fachada da sede e o interior do prédio.',
+    hint: 'A aba Cidade mostra a maquete da praça e a fachada da sede. O resto entra depois.',
   },
   {
-    title: 'Gestão, não aventura',
-    body: 'Cada decisão é econômica: o ciclo fecha receita e despesa em caixa; obras elevam o desenvolvimento; a expansão compra licenças para operar em novas praças. O distrito da sede já entra no cálculo.',
-    icon: 'Building2',
-    view: 'economy',
-    hint: 'Use Economia para ver caixa e resultado, Estruturas para construir e Expansão para licenciar novas praças.',
+    title: 'Abra a primeira unidade',
+    body: 'Uma empresa só existe quando tem uma unidade aberta. Escolha cidade, ramo e invista: a loja passa a disputar participação com as rivais e começa a gerar receita no ciclo seguinte.',
+    icon: 'Store',
+    view: 'companies',
+    hint: 'Empresas (tecla 3) lista o portfólio e o formulário de nova unidade. O investimento sai do caixa.',
   },
   {
     title: 'O ciclo move o mundo',
-    body: `A cada ${CYCLE_SECONDS} segundos um ciclo fecha: a receita entra, as despesas saem, projetos avançam, as rivais agem e eventos podem surgir. Use Avançar para controlar o ritmo ou deixe o autoplay ligado — nada acontece fora do ciclo.`,
+    body: `A cada ${CYCLE_SECONDS} segundos um ciclo fecha: a receita entra, as despesas saem, projetos avançam e eventos podem surgir. Use Avançar para controlar o ritmo ou deixe o autoplay ligado — os ciclos correm em qualquer tela.`,
     icon: 'Play',
     view: 'map',
-    hint: 'Espaço avança um ciclo. O autoplay pausa automaticamente ao abrir modais.',
+    hint: 'Espaço avança um ciclo. O autoplay pausa em configurações e modais.',
   },
   {
-    title: 'Construir é crescer',
-    body: 'Obras elevam o desenvolvimento local, aumentam a receita da praça e sustentam mercados maiores. A sede é a âncora: quanto mais desenvolvida, mais longe a companhia pode licenciar novas praças.',
-    icon: 'Hammer',
-    view: 'construction',
-    hint: 'Cada praça tem vagas limitadas. Obras ocupam uma vaga de projeto até concluir.',
-  },
-  {
-    title: 'Sede e filiais evoluem',
-    body: 'Toda unidade nasce pequena. No módulo Construção você compra expansões de construção, que erguem o prédio e aumentam a presença de mercado, e expansões de ramo, que abrem novas fontes de receita no mesmo endereço. A sede sobe do escritório compacto ao complexo matriz.',
+    title: 'Cresça, depois expanda',
+    body: 'Com caixa sobrando, amplie a unidade que já rende (Obras) ou licencie uma nova praça (Expansão). Primeiro a operação precisa ficar de pé; o painel do mapa sempre aponta o próximo passo.',
     icon: 'Blocks',
-    view: 'units',
-    hint: 'A tecla U abre Construção. Cada trilha tem três compras e mexe em receita, manutenção e participação de mercado.',
-  },
-  {
-    title: 'P&D com trade-offs',
-    body: 'A árvore tem quatro ramos e nenhuma trilha obrigatória. Mercados aceleram a receita, Logística reduz o custo de expansão, Indústria melhora produtos e Gestão amplia administração e segurança. Toda tecnologia é paga em caixa, com desconto dos centros de P&D.',
-    icon: 'FlaskConical',
-    view: 'tech',
-    hint: 'Pré-requisitos aparecem em cinza. O desconto de pesquisa é global e ajuda a alcançar tiers altos.',
-  },
-  {
-    title: 'Unidades disputam o mercado',
-    body: 'Cada cidade é um mercado, do tamanho da sua população. Abra fazendas, varejo, portos, indústrias, fábricas de automóveis e finanças nas praças licenciadas: até três unidades por cidade, mais participação e mais concorrência das rivais.',
-    icon: 'Store',
-    view: 'companies',
-    hint: 'A aba Empresas mostra receita, margem e participação de cada unidade, além do custo da próxima unidade.',
-  },
-  {
-    title: 'O objetivo é a liderança',
-    body: `Vença alcançando ${VICTORY_TARGET} pontos de relevância. Você perde se perder a sede, ficar sem praças ou entrar em insolvência. As três companhias rivais perseguem doutrinas diferentes e não recebem vantagens ocultas.`,
-    icon: 'Award',
-    view: 'objectives',
-    hint: 'A aba Metas lista objetivos, ranking e a composição exata da sua pontuação.',
+    view: 'economy',
+    hint: 'O roteiro do painel acompanha quatro marcos: abrir unidade, virar o ciclo, ampliar e licenciar.',
   },
 ];
 
@@ -107,7 +80,7 @@ const HELP_CARDS = [
   { icon: 'Map', title: 'Leia a praça', body: 'Solo, depósito, população, estruturas e valor estratégico determinam o que cada mercado pode render. Clique para abrir a ficha completa.' },
   { icon: 'Play', title: 'Decida no ciclo', body: 'Produção, consumo, manutenção e projetos só mudam quando um ciclo fecha. Avance manualmente ou deixe o autoplay correr.' },
   { icon: 'Store', title: 'Abra unidades', body: 'Cidades grandes sustentam mercados maiores. Cada unidade disputa participação com as rivais: comprar mais unidades na mesma cidade aumenta a sua fatia.' },
-  { icon: 'Blocks', title: 'Cresça no lugar', body: 'No módulo Construção (U), cada filial compra expansões de construção e de ramo, e a sede sobe de escritório compacto a complexo matriz. Ampliar rende mais receita e presença, mas pesa na manutenção.' },
+  { icon: 'Blocks', title: 'Cresça no lugar', body: 'No módulo Obras (tecla 4), cada filial compra expansões de construção e de ramo, e a sede sobe de escritório compacto a complexo matriz. Ampliar rende mais receita e presença, mas pesa na manutenção.' },
   { icon: 'Handshake', title: 'Negocie acordos', body: 'Acordos comerciais, tréguas de concorrência e parcerias estratégicas geram receita e estabilidade. Presentes e propostas custam caixa e melhoram a relação.' },
   { icon: 'FlaskConical', title: 'Escolha um caminho', body: 'São quatro ramos de pesquisa com pré-requisitos claros. Nenhuma tecnologia é obrigatória; cada uma troca custo por uma vantagem concreta.' },
   { icon: 'Award', title: 'Lidere o mercado', body: `${VICTORY_TARGET} pontos de relevância encerram a partida. Perder a sede, ficar sem praças ou entrar em insolvência é derrota.` },
@@ -153,7 +126,8 @@ export function App() {
       }
       if (/^[0-9]$/.test(event.key)) {
         event.preventDefault();
-        store.setView(event.key === '0' ? 'chronicle' : KEY_VIEWS[Number(event.key) - 1]);
+        const keyView = event.key === '0' ? 'chronicle' : KEY_VIEWS[Number(event.key) - 1];
+        if (keyView) store.setView(keyView);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -190,7 +164,7 @@ export function App() {
       <div className="game-shell">
         <TopBar onHelp={() => setHelpOpen(true)} />
         <div className="game-body">
-          <NavRail onHelp={() => setHelpOpen(true)} />
+          <NavRail />
           <main className={cx('game-main', `game-main--${view}`)}>
             {view === 'map' ? (
               <div className="map-workspace">
@@ -237,7 +211,7 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
       <div className="help-footer">
         <div>
           <strong>Indicadores e atalhos</strong>
-          <p>Caixa, receita, despesas, unidades e praças. Teclas 1–9 trocam de tela, U abre a construção das unidades, espaço avança um ciclo, Esc fecha modais e ? abre este manual.</p>
+          <p>Teclas 1–6 abrem as telas essenciais, 0 abre o relatório e U abre as obras. Espaço avança um ciclo, Esc fecha modais e ? abre este manual.</p>
         </div>
         <div>
           <strong>Sem jogadores fictícios</strong>
@@ -321,30 +295,6 @@ function EventModal() {
   );
 }
 
-function describeEffect(effect: EventEffect): string {
-  const parts: string[] = [];
-  if (effect.stockDelta) {
-    for (const [key, value] of Object.entries(effect.stockDelta)) {
-      if (!value) continue;
-      parts.push(`${value > 0 ? '+' : '−'}${fmt(Math.abs(value))} ${RESOURCES[key as ResourceKey].short}`);
-    }
-  }
-  if (effect.allStockDelta) {
-    const entries = Object.entries(effect.allStockDelta).filter(([, value]) => value);
-    if (entries.length) parts.push(entries.map(([key, value]) => `${(value ?? 0) > 0 ? '+' : '−'}${fmt(Math.abs(value ?? 0))} ${RESOURCES[key as ResourceKey].short}`).join(' · '));
-  }
-  if (effect.cost) {
-    for (const [key, value] of Object.entries(effect.cost)) {
-      if (!value) continue;
-      parts.push(`custa ${fmt(Math.abs(value))} ${RESOURCES[key as ResourceKey].short}`);
-    }
-  }
-  if (effect.unrest) parts.push(`desordem ${effect.unrest > 0 ? '+' : ''}${effect.unrest}`);
-  if (effect.relations) parts.push(`relações ${effect.relations > 0 ? '+' : ''}${effect.relations}`);
-  if (effect.modifier) parts.push(`${effect.modifier.label} por ${effect.modifier.cycles} ciclos`);
-  return parts.length ? parts.join(' · ') : effect.log;
-}
-
 function CycleDigest() {
   const digest = useGameStore((s) => s.digest);
   const dismiss = useGameStore((s) => s.dismissDigest);
@@ -381,7 +331,7 @@ function DigestBody({ report }: { report: CycleReport }) {
           </div>
           <div className="digest-row">
             <span><Icon name="Coins" size={12} /> Resultado</span>
-            <strong className={trendClass(report.deltas.creditos)}>{fmtRate(report.deltas.creditos)}</strong>
+            <strong className={trendClass(report.deltas.creditos)}>{money(report.deltas.creditos, true)}</strong>
             <span>saldo do ciclo</span>
           </div>
           <div className="digest-row">
@@ -400,7 +350,7 @@ function DigestBody({ report }: { report: CycleReport }) {
           <div className="digest-panel" style={{ marginTop: 10 }}>
             <h4><Icon name="Target" size={12} /> Próximo ciclo</h4>
             <p className="muted small">
-              Resultado projetado: <strong className={trendClass(report.deltas.creditos)}>{fmtRate(report.deltas.creditos)}</strong>
+              Resultado projetado: <strong className={trendClass(report.deltas.creditos)}>{money(report.deltas.creditos, true)}</strong>
             </p>
           </div>
         </div>
@@ -419,6 +369,39 @@ function DigestBody({ report }: { report: CycleReport }) {
       ) : null}
     </div>
   );
+}
+
+function describeEffect(effect: EventEffect): string {
+  const parts: string[] = [];
+  // Dinheiro usa a mesma forma curta dos painéis (R$ 1,2 mi); insumos vão em unidades.
+  const delta = (key: string, value: number) => (
+    key === 'creditos'
+      ? money(value, true)
+      : `${value > 0 ? '+' : '−'}${fmt(Math.abs(value))} ${RESOURCES[key as ResourceKey].short}`
+  );
+  const cost = (key: string, value: number) => (
+    key === 'creditos' ? money(Math.abs(value)) : `${fmt(Math.abs(value))} ${RESOURCES[key as ResourceKey].short}`
+  );
+  if (effect.stockDelta) {
+    for (const [key, value] of Object.entries(effect.stockDelta)) {
+      if (!value) continue;
+      parts.push(delta(key, value));
+    }
+  }
+  if (effect.allStockDelta) {
+    const entries = Object.entries(effect.allStockDelta).filter(([, value]) => value);
+    if (entries.length) parts.push(entries.map(([key, value]) => delta(key, value ?? 0)).join(' · '));
+  }
+  if (effect.cost) {
+    for (const [key, value] of Object.entries(effect.cost)) {
+      if (!value) continue;
+      parts.push(`custa ${cost(key, value)}`);
+    }
+  }
+  if (effect.unrest) parts.push(`desordem ${effect.unrest > 0 ? '+' : ''}${effect.unrest}`);
+  if (effect.relations) parts.push(`relações ${effect.relations > 0 ? '+' : ''}${effect.relations}`);
+  if (effect.modifier) parts.push(`${effect.modifier.label} por ${effect.modifier.cycles} ciclos`);
+  return parts.length ? parts.join(' · ') : effect.log;
 }
 
 function TutorialOverlay() {

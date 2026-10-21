@@ -955,16 +955,10 @@ svg {
   min-height: 0;
 }
 
-.nav-rail__items,
-.nav-rail__bottom {
+.nav-rail__items {
   display: flex;
   flex-direction: column;
   gap: 3px;
-}
-
-.nav-rail__bottom {
-  border-top: 1px solid var(--line);
-  padding-top: 8px;
 }
 
 .nav-item {
@@ -6323,14 +6317,6 @@ button.quick-stat:hover {
     gap: 0;
   }
 
-  .nav-rail__bottom {
-    flex-direction: row;
-    border-top: 0;
-    padding-top: 0;
-    padding-left: 5px;
-    border-left: 1px solid var(--line);
-  }
-
   .nav-item {
     padding: 6px 4px;
     min-width: 44px;
@@ -8685,4 +8671,208 @@ button.quick-stat:hover {
 
 .callout--seat span strong {
   color: var(--ink);
+}
+
+/* ---------- Começo de carreira ---------- */
+.callout__action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.quick-stats--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.quick-stats--three .quick-stat {
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 8px;
+}
+
+.quick-stats--three .quick-stat strong {
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.career-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.career-step {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.career-step__mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-3);
+}
+
+.career-step strong {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.career-step small {
+  display: block;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.career-step.is-done {
+  opacity: 0.62;
+}
+
+.career-step.is-done .career-step__mark {
+  border-color: rgba(47, 179, 154, 0.5);
+  color: var(--teal-bright);
+  background: rgba(47, 179, 154, 0.12);
+}
+
+.career-step.is-done strong {
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 255, 255, 0.18);
+}
+
+button.panel-note {
+  width: 100%;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+}
+
+button.panel-note span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+button.panel-note small {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+button.panel-note strong {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.panel-actions--quiet {
+  margin-top: 2px;
+}
+
+/* ---------- Menu "Mais" da navegação ---------- */
+.nav-more {
+  position: relative;
+}
+
+.nav-more__menu {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  background: #0b161b;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+}
+
+.nav-more__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 9px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  text-align: left;
+  font-size: 11.5px;
+}
+
+.nav-more__item > svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.nav-more__item > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-more__item strong {
+  font-size: 11.5px;
+  font-weight: 550;
+}
+
+.nav-more__item small {
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.nav-more__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+}
+
+.nav-more__item.is-active {
+  color: var(--teal-bright);
+  background: rgba(47, 179, 154, 0.1);
+}
+
+.nav-more__item.is-active > svg {
+  color: var(--teal-bright);
+}
+
+.res-chip--alert {
+  border-color: rgba(216, 180, 106, 0.32);
+}
+
+@keyframes nav-menu-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+.nav-more__menu {
+  animation: nav-menu-in 0.14s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-more__menu { animation: none; }
 }
