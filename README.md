@@ -106,6 +106,8 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Estruturas 
 - Painel da praça com abas **Resumo / Estruturas / Ações**: resultado local, obras, licença de operação, unidades do país e acordos.
 
 ### Economia
+- **Escala em reais de mercado** (`src/game/money.ts`): o ciclo é um mês de operação e a companhia começa com R$ 12 milhões de caixa. Um ponto de varejo custa R$ 3,4 mi de implantação, um terminal portuário R$ 12 mi, uma planta industrial R$ 10 mi, uma linha de montagem de veículos R$ 30 mi e a matriz R$ 68 mi. Folha, mercadorias e aluguel entram no resultado de cada unidade e passam a pesar mais que a manutenção assim que a rede cresce.
+- **Renda de ativo com payback medido**: unidades devolvem o capital em ~15–30 ciclos, com margem setorial entre 22% e 40% já líquida de folha, mercadorias e aluguel. A manutenção de imóvel fica em ~2% do valor do ponto por ciclo; a folha e as vendas urbanas são cobradas por ponto de população.
 - A companhia opera em **caixa**: receita, despesas, resultado e caixa final por ciclo. Insumos, pessoal e manutenção entram convertidos em dinheiro — não há estoques de Estado.
 - Receitas: unidades de negócio, edifícios comerciais, acordos e portos. Despesas: pessoal, manutenção, insumos industriais e serviço da dívida.
 - Preços de insumos reagem ao volume negociado e afetam a margem industrial; eventos e modificadores alteram custos por alguns ciclos.
@@ -133,7 +135,7 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Estruturas 
 - Tutorial de onboarding, manual, confirmações para ações destrutivas, estados vazios, erros de validação e feedback por toast.
 - Layout responsivo (desktop, tablet e celular); atlas ilustrado, globo WebGL e carta plana SVG sob o mesmo tema de atelier (Fraunces + Inter).
 - Nomes de capitais e grandes cidades em português (`names.ts`) sobre os nomes originais do Natural Earth.
-- Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício. A chave é `management-century.save.v5`; campanhas v2–v4 e as gravadas antes da troca de nome (`tessera.save.v2`) são migradas na primeira abertura, completando as expansões com o estágio inicial, sem perder o mundo.
+- Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício. A chave é `management-century.save.v6`; campanhas v2–v5 e as gravadas antes da troca de nome (`tessera.save.v2`) são migradas na primeira abertura, completando as expansões com o estágio inicial e convertendo caixa, custos contratados, preços de mercado e histórico para a escala em reais (fator 20 000), sem perder o mundo.
 
 ---
 
@@ -204,7 +206,7 @@ npm test
 - `src/game/engine.test.ts` — criação coerente do mundo, economia inicial sã, simulação de 60 ciclos com jogador conduzido pela IA, validação de comandos inválidos, eventos e integridade de estoques/população.
 - `src/ui/globe/globe.test.ts` — valida o atlas (referências de país/província/cidade e adjacência), o tabuleiro completo, a tesselação de todos os contornos em triângulos na esfera, o caso do antimeridiano (Fiji, Nova Zelândia, Rússia) e as cores de soberania.
 - `src/game/expansions.test.ts` — trilhas de construção e de ramo (receita, manutenção, presença e teto), custo crescente por nível e população, bônus da sede restrito à própria cidade e vagas administrativas.
-- `src/game/save.test.ts` — migração de campanhas v2/v3/v4 para v5, incluindo o estágio inicial das expansões e o limite de valores corrompidos.
+- `src/game/save.test.ts` — migração de campanhas v2–v5 para v6, incluindo o estágio inicial das expansões, a conversão monetária para reais e o limite de valores corrompidos.
 - `src/game/cityPlan.test.ts` — determinismo do gerador urbano, aderência à geografia real (água/orla/terra), ruas fora da água, lotes livres e relevo coerente em todas as cidades-sede.
 - `src/ui/FlatAtlas.test.tsx` — desenha a carta plana com todos os países, divisões internas e cidades, encaminha cliques de país/província/cidade, duplo clique e os controles de zoom/recentragem.
 - `src/ui/city3d/dollhouse.test.ts` — monta o corte da sede: quatro pisos mobiliados, piso em foco e paredes voltadas para a câmera reduzidas ao rodapé.

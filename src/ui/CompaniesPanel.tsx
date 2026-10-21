@@ -127,7 +127,7 @@ export function CompaniesPanel() {
           <span className="summary-card__label"><Icon name="TrendingUp" size={14} /> Receita</span>
           <strong>{money(summary.revenue)}</strong>
           <span className="summary-card__delta">por ciclo</span>
-          <small>{money(summary.upkeep)} de manutenção e {money(summary.supply)} de insumos.</small>
+          <small>{money(summary.upkeep)} de manutenção, {money(summary.supply)} de insumos e {money(summary.operating)} de operação.</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="Coins" size={14} /> Resultado</span>
@@ -186,7 +186,7 @@ export function CompaniesPanel() {
                   <div className="ops-row__money">
                     <span className="muted tiny">receita / custo</span>
                     <strong className="tone-teal">{money(out.revenue)}</strong>
-                    <small>−{money(out.upkeep + out.supply)}</small>
+                    <small>−{money(out.upkeep + out.supply + out.operating)}</small>
                   </div>
                   <div className="ops-row__level">
                     <span className="muted tiny">unidades</span>
@@ -285,6 +285,9 @@ export function CompaniesPanel() {
               )}
               {projected ? (
                 <span><Icon name="Coins" size={13} /> projeção: <strong className="tone-teal">{money(projected.net, true)}</strong>/ciclo</span>
+              ) : null}
+              {projected && cost && projected.net > 0 ? (
+                <span><Icon name="RotateCcw" size={13} /> retorno do imóvel em <strong>~{Math.max(1, Math.round(cost.creditos / projected.net))} ciclos</strong></span>
               ) : null}
             </div>
           ) : null}

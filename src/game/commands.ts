@@ -59,6 +59,7 @@ import type {
   Tile,
 } from './types';
 import { clamp, nextRandom, round1 } from './rng';
+import { reaisShort } from './money';
 
 class GameError extends Error {}
 
@@ -95,7 +96,7 @@ function requireAfford(state: GameState, factionId: FactionId, cost: Partial<Rec
   const faction = state.factions[factionId];
   const missing = missingResources(faction.stocks, cost);
   if (missing.length) {
-    fail(`Caixa insuficiente: faltam R$ ${Math.max(0, Math.round(moneyOf(cost) - faction.stocks.creditos)).toLocaleString('pt-BR')}.`);
+    fail(`Caixa insuficiente: faltam ${reaisShort(moneyOf(cost) - faction.stocks.creditos)}.`);
   }
 }
 
@@ -224,12 +225,16 @@ export function startResearch(state: GameState, factionId: FactionId, techId: Te
 export function expansionCost(state: GameState, factionId: FactionId, tile: Tile) {
   const tech = techEffects(state.factions[factionId]);
   const owned = tilesOfFaction(state.tiles, factionId).length;
-  const scale = 1 + 0.1 * owned;
-  const credits = Math.max(30, Math.round((90 + tile.strategic * 22) * scale * (1 + tech.expansionCostMult)));
-  const materias = Math.round((15 + tile.strategic * 3) * (1 + 0.04 * owned));
+  const scale = 1 + 0.12 * owned;
+  // Licença de praça: taxa regulatória, garantias e estrutura local de entrada.
+  const credits = Math.max(
+    900_000,
+    Math.round((1_600_000 + tile.strategic * 1_400_000) * scale * (1 + tech.expansionCostMult)),
+  );
+  const materias = Math.round((12 + tile.strategic * 3) * (1 + 0.05 * owned));
   const influencia = Math.max(
     3,
-    Math.round((10 + tile.strategic * 4 + owned * 2) * (1 + tech.expansionInfluenceMult)),
+    Math.round((6 + tile.strategic * 3 + owned * 2) * (1 + tech.expansionInfluenceMult)),
   );
   // Licença paga em caixa: matérias-primas e relações entram convertidas.
   const total = credits + materias * RESOURCE_VALUE.materias + influencia * RESOURCE_VALUE.influencia;
@@ -291,7 +296,7 @@ export function startExpansion(state: GameState, factionId: FactionId, targetId:
 
 // ── Diplomacy ───────────────────────────────────────────────────────────────
 
-export const GIFT_COST = { creditos: 65 };
+export const GIFT_COST = { creditos: 900_000 };
 
 export function sendGift(state: GameState, factionId: FactionId, targetId: FactionId): CommandResult {
   return withState(state, (next) => {
@@ -580,7 +585,16 @@ export function canBuild(
   const cost = buildingCost(building, nextLevel);
   const cycles = BUILDINGS[building].levels[nextLevel - 1].cycles;
   if (!canAfford(faction.stocks, cost)) {
-    return { ok: false, reason: `Faltam recursos: ${missingResources(faction.stocks, cost).map((k) => RESOURCES[k].short).join(', ')}.`, cost, cycles };
+    const missing = missingResources(faction.stocks, cost);
+    const shortfall = moneyOf(cost) - faction.stocks.creditos;
+    return {
+      ok: false,
+      reason: missing.length === 1 && missing[0] === 'creditos'
+        ? `Caixa insuficiente: faltam ${reaisShort(shortfall)}.`
+        : `Faltam recursos: ${missing.map((k) => RESOURCES[k].short).join(', ')}.`,
+      cost,
+      cycles,
+    };
   }
   if (state.projects.filter((p) => p.factionId === factionId).length >= projectSlotsOf(faction)) {
     return { ok: false, reason: 'Sem vagas de projeto.', cost, cycles };

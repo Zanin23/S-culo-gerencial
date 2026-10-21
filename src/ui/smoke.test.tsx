@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it } from 'vitest';
 import { App } from '../App';
 import { CITIES, PROVINCES, citiesOf } from '../game/atlas';
 import { eventById } from '../game/events';
+import { HQ_STAGES } from '../game/constants';
 import { computeEconomy } from '../game/economy';
 import { useGameStore } from '../store/gameStore';
 
@@ -145,7 +146,7 @@ it('constrói a sede e as filiais no módulo de construção', async () => {
   const seatButton = Array.from(container.querySelectorAll('button')).find((button) =>
     /Ampliar a sede|Faltam/.test(button.textContent ?? '')) as HTMLButtonElement | undefined;
   expect(seatButton).toBeTruthy();
-  if (cash < 320) {
+  if (cash < HQ_STAGES[1].cost) {
     expect(seatButton?.disabled).toBe(true);
     expect(seatButton?.textContent).toContain('Faltam');
   }
@@ -291,7 +292,7 @@ it('clicking the primary UI actions mutates the world', async () => {
 
   // Licença de praça é paga em caixa; o teste abastece a companhia antes de abrir.
   await act(async () => {
-    useGameStore.getState().game!.factions.concordia.stocks.creditos += 900;
+    useGameStore.getState().game!.factions.concordia.stocks.creditos += 8_000_000;
     useGameStore.getState().setView('expansion');
   });
   const expandButton = Array.from(document.querySelectorAll('.claim-card button')).find(

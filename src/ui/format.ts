@@ -1,4 +1,5 @@
 import { RESOURCES, RESOURCE_KEYS } from '../game/constants';
+import { reaisShort } from '../game/money';
 import type { Flow, ResourceKey, Stocks } from '../game/types';
 
 const numberFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
@@ -12,9 +13,17 @@ export function fmt(value: number): string {
   return decimalFormat.format(value);
 }
 
-/** Dinheiro no padrão brasileiro: R$ 1.234. */
+/**
+ * Dinheiro no padrão brasileiro. A partir de R$ 10 mil usa a forma curta
+ * (R$ 12,0 mi), que mantém as fichas e painéis legíveis na escala real de
+ * uma companhia; abaixo disso, valor cheio (R$ 8.400).
+ */
 export function money(value: number, sign = false): string {
   if (!Number.isFinite(value)) return 'R$ 0';
+  if (Math.abs(value) >= 10_000) {
+    const text = reaisShort(value);
+    return sign && value > 0.5 ? `+${text}` : text;
+  }
   const rounded = Math.round(Math.abs(value));
   const text = `R$ ${rounded.toLocaleString('pt-BR')}`;
   if (value < -0.5) return `−${text}`;

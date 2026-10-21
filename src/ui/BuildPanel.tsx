@@ -277,7 +277,7 @@ function UnitBuildCard({
 
       <div className="unit-build__stats">
         <div><span>Receita</span><strong>{money(output.revenue)}</strong></div>
-        <div><span>Custo</span><strong className="tone-red">−{money(output.upkeep + output.supply)}</strong></div>
+        <div><span>Custo</span><strong className="tone-red">−{money(output.upkeep + output.supply + output.operating)}</strong></div>
         <div><span>Participação</span><strong>{Math.round(output.share * 100)}%</strong></div>
         <div><span>Multiplicador</span><strong>×{output.expansionMult.toFixed(2)}</strong></div>
       </div>

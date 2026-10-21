@@ -3,7 +3,7 @@ import { FACTIONS, GAME } from '../game/constants';
 import { computeEconomy } from '../game/economy';
 import { scoreOf, VICTORY_TARGET } from '../game/progress';
 import { CYCLE_SECONDS, useGameStore } from '../store/gameStore';
-import { fmt, fmtRate, money, trendClass } from './format';
+import { fmt, money, trendClass } from './format';
 
 import { Icon } from './Icon';
 import { cx, Ring, Tooltip } from './primitives';
@@ -85,17 +85,17 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
       </div>
 
       <div className="res-strip" aria-label="Indicadores da companhia">
-        <Tooltip text={`Caixa disponível: R$ ${Math.round(player.stocks.creditos).toLocaleString('pt-BR')}\nResultado projetado: ${fmtRate(profit)}/ciclo`}>
-          <button type="button" className={cx('res-chip', player.stocks.creditos < 60 && 'is-low')} onClick={() => setView('economy')}>
+        <Tooltip text={`Caixa disponível: ${money(player.stocks.creditos)}\nResultado projetado: ${money(profit, true)}/ciclo`}>
+          <button type="button" className={cx('res-chip', player.stocks.creditos < 300_000 && 'is-low')} onClick={() => setView('economy')}>
             <span className="res-chip__icon" style={{ color: 'var(--gold)' }}><Icon name="Coins" size={19} /></span>
             <span className="res-chip__body">
               <span className="res-chip__label">Caixa</span>
               <strong aria-label="Caixa disponível">{money(player.stocks.creditos)}</strong>
             </span>
-            <span className={cx('res-chip__net', trendClass(profit))}>{fmtRate(profit)}</span>
+            <span className={cx('res-chip__net', trendClass(profit))}>{money(profit, true)}</span>
           </button>
         </Tooltip>
-        <Tooltip text={`Receita por ciclo: R$ ${Math.round(eco.finance.income).toLocaleString('pt-BR')}`}>
+        <Tooltip text={`Receita por ciclo: ${money(eco.finance.income)}`}>
           <button type="button" className="res-chip" onClick={() => setView('economy')}>
             <span className="res-chip__icon" style={{ color: 'var(--teal)' }}><Icon name="TrendingUp" size={19} /></span>
             <span className="res-chip__body">
@@ -105,7 +105,7 @@ export function TopBar({ onHelp }: { onHelp: () => void }) {
             <span className="res-chip__net muted">/ciclo</span>
           </button>
         </Tooltip>
-        <Tooltip text={`Despesas: R$ ${Math.round(eco.finance.expenses).toLocaleString('pt-BR')} por ciclo`}>
+        <Tooltip text={`Despesas: ${money(eco.finance.expenses)} por ciclo`}>
           <button type="button" className="res-chip" onClick={() => setView('economy')}>
             <span className="res-chip__icon" style={{ color: profit >= 0 ? 'var(--teal-bright)' : 'var(--red)' }}><Icon name="TrendingDown" size={19} /></span>
             <span className="res-chip__body">

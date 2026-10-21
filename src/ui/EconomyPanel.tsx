@@ -93,7 +93,7 @@ function UnitTable({ game, playerId }: { game: GameState; playerId: FactionId })
               <small>{sector.name} · {op.units} unidade{op.units > 1 ? 's' : ''} · {Math.round(out.share * 100)}% do mercado</small>
             </div>
             <span className="finance-unit__revenue tone-teal">{money(out.revenue)}</span>
-            <span className="finance-unit__cost">−{money(out.upkeep + out.supply)}</span>
+            <span className="finance-unit__cost">−{money(out.upkeep + out.supply + out.operating)}</span>
             <span className={cx('finance-unit__net', trendClass(out.net))}>{money(out.net, true)}</span>
           </div>
         );
@@ -137,7 +137,7 @@ export function EconomyPanel() {
           <span className="summary-card__label"><Icon name="TrendingUp" size={14} /> Receita</span>
           <strong>{money(finance.income)}</strong>
           <span className="summary-card__delta">por ciclo</span>
-          <small>{eco.operationCount ? `${eco.operationCount} operações · ${units} unidades · ${Math.round((eco.operationRevenue / Math.max(1, finance.income)) * 100)}% da receita` : 'Abra a primeira unidade para gerar receita própria'}</small>
+          <small>{eco.operationCount ? `${eco.operationCount} operações · ${units} unidades · ${Math.round((eco.operationRevenue / Math.max(1, finance.income)) * 100)}% da receita` : 'Receita das praças e da infraestrutura. Abra unidades para crescer.'}</small>
         </div>
         <div className="summary-card">
           <span className="summary-card__label"><Icon name="TrendingDown" size={14} /> Despesas</span>

@@ -13,7 +13,7 @@ import { tilesOfFaction } from '../game/map';
 import { canBuild } from '../game/commands';
 import type { BuildingKey, Tile } from '../game/types';
 import { useGameStore } from '../store/gameStore';
-import { fmt } from './format';
+import { fmt, money } from './format';
 import { BuildingGlyph } from './art/Glyph';
 import { Icon } from './Icon';
 import { Badge, Cost, cx, EmptyState, LevelPips, ProgressBar, SectionHeader } from './primitives';
@@ -158,7 +158,7 @@ export function ConstructionPanel() {
                 <div><span>Espaços livres</span><strong className={free ? 'tone-teal' : 'tone-gold'}>{free}</strong></div>
                 <div><span>População</span><strong>{fmt(activeTile.pop)}</strong></div>
                 <div><span>Desordem</span><strong className={activeTile.unrest >= 50 ? 'tone-red' : 'tone-teal'}>{Math.round(activeTile.unrest)}%</strong></div>
-                <div><span>Manutenção</span><strong>{fmt(prod?.upkeep ?? 0)}</strong></div>
+                <div><span>Manutenção</span><strong>{money(prod?.upkeep ?? 0)}</strong></div>
               </div>
               <div className="territory-summary__note">
                 <Icon name="Info" size={12} />
@@ -188,7 +188,7 @@ export function ConstructionPanel() {
                   </div>
                   <div>
                     <span className="eyebrow">Manutenção local</span>
-                    <strong>{fmt(prod?.upkeep ?? 0)} <small>cr./ciclo</small></strong>
+                    <strong>{money(prod?.upkeep ?? 0)} <small>/ciclo</small></strong>
                   </div>
                   <div>
                     <span className="eyebrow">Mão de obra</span>

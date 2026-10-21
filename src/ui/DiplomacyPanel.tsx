@@ -50,8 +50,10 @@ function CompanyCard({ id }: { id: FactionId }) {
   const operations = game.operations.filter((op) => op.factionId === id).length;
   const canGift = player.stocks.creditos >= GIFT_COST.creditos && player.lastGiftCycle !== game.cycle;
 
+  const treatyCost = (kind: TreatyKind) => Math.round(proposeCost(kind) * RESOURCE_VALUE.influencia);
+
   const treatyState = (kind: TreatyKind): ActionState => {
-    const cost = Math.round(proposeCost(kind) * RESOURCE_VALUE.influencia);
+    const cost = treatyCost(kind);
     if (player.stocks.creditos < cost) return { disabled: true, reason: `Requer ${money(cost)} em caixa.` };
     if (kind === 'trade' && relation.trade) return { disabled: true, reason: 'Acordo comercial já ativo.' };
     if (kind === 'nonAggression' && relation.nonAggression) return { disabled: true, reason: 'Pacto de não concorrência já ativo.' };
@@ -108,13 +110,13 @@ function CompanyCard({ id }: { id: FactionId }) {
           <Icon name="Gem" size={13} /> Presente
           <span className="button__meta">{money(GIFT_COST.creditos)}</span>
         </button>
-        <button className="button button--tiny button--ghost" disabled={treatyState('trade').disabled} onClick={() => treaty(id, 'trade')} title={treatyState('trade').reason ?? `Custo: ${money(4 * RESOURCE_VALUE.influencia)}`} type="button">
+        <button className="button button--tiny button--ghost" disabled={treatyState('trade').disabled} onClick={() => treaty(id, 'trade')} title={treatyState('trade').reason ?? `Custo: ${money(treatyCost('trade'))}`} type="button">
           <Icon name="Coins" size={13} /> Comércio
         </button>
-        <button className="button button--tiny button--ghost" disabled={treatyState('nonAggression').disabled} onClick={() => treaty(id, 'nonAggression')} title={treatyState('nonAggression').reason ?? `Custo: ${money(7 * RESOURCE_VALUE.influencia)}`} type="button">
+        <button className="button button--tiny button--ghost" disabled={treatyState('nonAggression').disabled} onClick={() => treaty(id, 'nonAggression')} title={treatyState('nonAggression').reason ?? `Custo: ${money(treatyCost('nonAggression'))}`} type="button">
           <Icon name="Shield" size={13} /> Não concorrência
         </button>
-        <button className="button button--tiny button--ghost" disabled={treatyState('alliance').disabled} onClick={() => treaty(id, 'alliance')} title={treatyState('alliance').reason ?? `Custo: ${money(12 * RESOURCE_VALUE.influencia)}`} type="button">
+        <button className="button button--tiny button--ghost" disabled={treatyState('alliance').disabled} onClick={() => treaty(id, 'alliance')} title={treatyState('alliance').reason ?? `Custo: ${money(treatyCost('alliance'))}`} type="button">
           <Icon name="Handshake" size={13} /> Parceria
         </button>
       </div>
@@ -230,9 +232,9 @@ export function DiplomacyPanel() {
           <SectionHeader eyebrow="Protocolo" title="Como negociar" icon="Info" />
           <ul className="benefit-list">
             <li><Icon name="Gem" size={13} /> Presentes custam {money(GIFT_COST.creditos)} e elevam o relacionamento.</li>
-            <li><Icon name="Coins" size={13} /> Acordo comercial exige relações 20 e {money(4 * RESOURCE_VALUE.influencia)}; rende caixa a cada ciclo.</li>
-            <li><Icon name="Shield" size={13} /> Trégua de concorrência exige relações 32 e {money(7 * RESOURCE_VALUE.influencia)}.</li>
-            <li><Icon name="Handshake" size={13} /> Parceria estratégica exige relações 62 e {money(12 * RESOURCE_VALUE.influencia)}.</li>
+            <li><Icon name="Coins" size={13} /> Acordo comercial exige relações 20 e {money(Math.round(proposeCost('trade') * RESOURCE_VALUE.influencia))}; rende caixa a cada ciclo.</li>
+            <li><Icon name="Shield" size={13} /> Trégua de concorrência exige relações 32 e {money(Math.round(proposeCost('nonAggression') * RESOURCE_VALUE.influencia))}.</li>
+            <li><Icon name="Handshake" size={13} /> Parceria estratégica exige relações 62 e {money(Math.round(proposeCost('alliance') * RESOURCE_VALUE.influencia))}.</li>
             <li><Icon name="Store" size={13} /> Unidades rivais disputam participação nas mesmas cidades.</li>
           </ul>
           <div className="protocol-note">

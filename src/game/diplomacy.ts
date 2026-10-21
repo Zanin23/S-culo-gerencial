@@ -49,7 +49,7 @@ export function relationsOf(state: GameState, factionId: FactionId): Array<{ oth
 }
 
 export function proposeCost(kind: 'trade' | 'nonAggression' | 'alliance'): number {
-  return kind === 'trade' ? 4 : kind === 'nonAggression' ? 7 : 12;
+  return kind === 'trade' ? 5 : kind === 'nonAggression' ? 9 : 15;
 }
 
 export function relationRequirement(kind: 'trade' | 'nonAggression' | 'alliance'): number {
