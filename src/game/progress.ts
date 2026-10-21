@@ -2,6 +2,7 @@ import { AI_FACTIONS, FACTIONS, GAME, OBJECTIVES, RANKS } from './constants';
 import { computeEconomy, developmentOf } from './economy';
 import { hasActivePact } from './diplomacy';
 import { tilesOfFaction } from './map';
+import { buildLevel, cityCapacity, operationWeight, rangeLevel } from './operations';
 import type { FactionId, GameState, ObjectiveState } from './types';
 import { clamp } from './rng';
 
@@ -28,8 +29,8 @@ export function scoreParts(state: GameState, factionId: FactionId): ScorePart[] 
     ? state.operations
         .filter((op) => op.factionId === factionId)
         .reduce((sum, op) => {
-          const capacity = state.operations.filter((peer) => peer.cityId === op.cityId).reduce((n, peer) => n + peer.units, 0) + 2;
-          return sum + op.units / capacity;
+          const capacity = cityCapacity(state, op.cityId);
+          return sum + (capacity > 0 ? operationWeight(op) / capacity : 0);
         }, 0) / eco.operationCount
     : 0;
   return [
@@ -96,11 +97,14 @@ export function objectivesOf(state: GameState): ObjectiveState[] {
     (key) => key.includes(playerId) && hasActivePact(state.diplomacy[key]),
   ).length;
 
-  const operationCount = state.operations.filter((op) => op.factionId === playerId).length;
+  const playerOperations = state.operations.filter((op) => op.factionId === playerId);
+  const operationCount = playerOperations.length;
+  const expansions = playerOperations.reduce((sum, op) => sum + buildLevel(op) + rangeLevel(op), 0);
   const eco = computeEconomy(state, playerId);
   const values: Record<string, number> = {
     capital: capitalDev,
     operacoes: operationCount,
+    expansoes: expansions,
     territorios: tiles.length,
     receita: Math.round(eco.finance.income),
     tecnologia: faction.techs.length,

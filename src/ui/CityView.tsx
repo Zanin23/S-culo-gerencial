@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { COUNTRY_BY_ID, cityById } from '../game/atlas';
 import { getCityPlan } from '../game/cityPlan';
-import { FACTIONS } from '../game/constants';
+import { FACTIONS, HQ_STAGES, MAX_HQ_BUILD } from '../game/constants';
 import { developmentOf, moneyOf, SALARY_PER_POP, TAX_PER_POP, territoryProduction } from '../game/economy';
-import { HQ_DISTRICTS } from '../game/hq';
+import { HQ_DISTRICTS, seatBuildLevel } from '../game/hq';
 import { cityLabel } from '../game/names';
 import { useGameStore } from '../store/gameStore';
 import { CityStage } from './city3d/CityStage';
@@ -36,6 +36,8 @@ export function CityView() {
   );
   const city = seat ? cityById(seat.cityId) : null;
   const country = seat ? COUNTRY_BY_ID[seat.countryId] : null;
+  const hqLevel = game ? seatBuildLevel(game) : 0;
+  const hqStage = HQ_STAGES[hqLevel];
 
   if (!game) return null;
 
@@ -80,6 +82,7 @@ export function CityView() {
             mode={cityMode}
             plotId={seat.plotId}
             floor={floor}
+            stage={hqLevel}
             onEnterBuilding={() => setCityMode('interior')}
             onFail={() => setCityMode('overview')}
           >
@@ -243,12 +246,30 @@ export function CityView() {
                       : null}
                   </div>
                   <button type="button" className="button button--ghost button--block" onClick={() => setView('construction')}>
-                    <Icon name="Hammer" size={14} /> Abrir obras
+                    <Icon name="Hammer" size={14} /> Abrir estruturas
                   </button>
                 </section>
               </>
             ) : (
               <>
+                <section>
+                  <SectionHeader
+                    eyebrow="Construção da sede"
+                    title={hqStage.name}
+                    icon="Blocks"
+                    action={<Badge tone="gold" icon="Building2">{hqStage.floors} pisos</Badge>}
+                  />
+                  <p className="city-side__text">{hqStage.description}</p>
+                  <ProgressBar value={hqLevel} max={MAX_HQ_BUILD} tone="gold" thin />
+                  <div className="seat-facts">
+                    <span><b>+{Math.round(hqStage.commerce * 100)}%</b> comércio local</span>
+                    <span><b>{HQ_STAGES.slice(0, hqLevel + 1).reduce((sum, item) => sum + item.admin, 0)}</b> vagas extras</span>
+                  </div>
+                  <button type="button" className="button button--gold button--block" onClick={() => setView('units')}>
+                    <Icon name="Blocks" size={14} /> Abrir Construção
+                  </button>
+                </section>
+
                 <section>
                   <SectionHeader eyebrow="Lote escolhido" title={seat.plotId} icon="Building2" />
                   <p className="city-side__text">{district.description}</p>

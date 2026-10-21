@@ -116,8 +116,12 @@ export interface Operation {
   cityId: string;
   countryId: string;
   sector: SectorKey;
-  /** Quantidade de unidades operando na cidade (1 a 3). */
+  /** Quantidade de módulos operando na cidade (1 a 3). */
   units: number;
+  /** Expansões físicas compradas (0–3): a unidade cresce em área e altura. */
+  build?: number;
+  /** Expansões do ramo de negócio compradas (0–3). */
+  range?: number;
   openedCycle: number;
 }
 
@@ -260,6 +264,8 @@ export interface CitySeat {
   lat: number;
   lon: number;
   foundedCycle: number;
+  /** Expansões da sede compradas (0–3): escritório compacto → complexo matriz. */
+  build?: number;
 }
 
 export interface GameState {

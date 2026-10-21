@@ -712,7 +712,7 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
   for (const block of blockInfo) {
     if (block.size < 6) continue;
     const distance = Math.hypot(block.center[0], block.center[1]);
-    const chance = distance < 500 ? 0.06 : 0.022;
+    const chance = distance < 500 ? 0.085 : 0.034;
     if (rng.chance(chance)) {
       for (const index of blockCells[block.id]) plan.park[index] = 1;
     }
@@ -729,10 +729,10 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
   const plotCandidates = blockInfo
     .filter((block) => block.size >= 9 && !plan.park[blockCells[block.id][0]])
     .sort((a, b) => Math.hypot(a.center[0], a.center[1]) - Math.hypot(b.center[0], b.center[1]))
-    .slice(0, 26);
+    .slice(0, 36);
   let plotNumber = 0;
   for (const block of plotCandidates) {
-    if (plan.plots.length >= 20) break;
+    if (plan.plots.length >= 28) break;
     const members = blockCells[block.id];
     const sizeLimit = Math.sqrt(block.size) * cell;
     const side = Math.min(52, Math.max(34, sizeLimit * 0.55));

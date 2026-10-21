@@ -61,12 +61,12 @@ Requisitos: Node 20+ e um navegador moderno (Chromium, Firefox ou Safari atuais)
 | Trocar atlas / globo / carta | Botões **Atlas · Globo · Carta** no canto superior direito |
 | Localizar país, província ou cidade | Seletores no canto superior esquerdo (também acessíveis por teclado) |
 | Painel da companhia | Clique no fundo do mapa / botão “Painel da companhia” |
-| Trocar de tela | Barra lateral; teclas `1`–`9` (telas principais) e `0` (relatório) |
+| Trocar de tela | Barra lateral; teclas `1`–`9` (telas principais), `U` (construção) e `0` (relatório) |
 | Encerrar ciclo | Botão “Avançar” ou `Espaço` |
 | Voltar ao mapa | `Esc` |
 | Manual | `H` ou botão “Ajuda” |
 
-Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6` P&D · `7` Expansão · `8` Acordos · `9` Metas · `0` Relatório. Ajustes e saves ficam na engrenagem.
+Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Estruturas · `6` P&D · `7` Expansão · `8` Acordos · `9` Metas · `0` Relatório · `U` Construção. Ajustes e saves ficam na engrenagem.
 
 ---
 
@@ -77,10 +77,12 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6
 - **Variedade urbana de verdade**: oito tipologias (torre, comercial, prédio, solar, casa, quinta, galpão e marco) sorteadas por zona — centro denso em torres, periferia em casas e galpões. Cada edifício recebe cobertura (duas águas, quatro águas, laje, shed ou coroa), paleta de fachada, toldo, vitrine, casa de máquinas e antena; as janelas mudam de escala conforme o número de andares.
 - **Terreno real**: a linha de costa, os rios e os lagos vêm do recorte do Natural Earth 10m (Lisboa mostra o Tejo; Sevilha e Córdoba, o Guadalquivir; Funchal e Las Palmas, a orla).
 - **Ruas e quarteirões gerados** a partir dessa base: avenidas radiais a partir do centro, anéis viários, malha ortogonal por distrito e centros de bairro — sempre recortados pela água.
-- **Escolha do lote**: 20 lotes livres por cidade; o distrito (Centro / Expansão / Periferia) define o bônus permanente da capital (+10% comércio, +8% indústria/extração ou +14% defesa).
+- **Escolha do lote**: 28 lotes livres por cidade; o distrito (Centro / Expansão / Periferia) define o bônus permanente da capital (+10% comércio, +8% indústria/extração ou +14% defesa).
 - **Corte da sede no estilo casa de bonecas**: a torre da sede vira uma maquete de quatro pisos empilhados, com planta mobiliada (átrio, escritório aberto, salas de reunião, direção), paredes envidraçadas e **paredes que somem quando ficam entre a câmera e o interior** — só o rodapé de corte continua, como em The Sims. Os botões de piso mostram do térreo até a direção, com a câmera reenquadrando o piso em foco; a luz e o mapa de sombras se aproximam junto.
 - **Câmera**: órbita, zoom, panorâmica com botão direito/Shift e controles `+` / `−` / recentrar; modos **Cidade**, **Sede** (corte) e **Interior** (sala de comando com vista real para os prédios vizinhos pelas janelas).
-- **Minimapa** e planta 2D determinística como fallback sem WebGL — o jogo continua jogável.
+- **Sede que cresce na maquete**: o prédio nasce como escritório compacto de três pisos e ganha embasamento, torres escalonadas, anel dourado, heliponto, jardins, postes e bandeiras conforme as expansões compradas. A altura, o volume e os detalhes vêm do estágio salvo na campanha.
+- **Cidade mais viva**: céu em gradiente, sol quente com recheio frio, postes de luz ao longo das avenidas, copas em cinco tons de verde e praças com mais canteiros. Nada disso custa um quadro por edificação — postes e árvores continuam instanciados.
+- **Minimapa** e planta 2D determinística como fallback sem WebGL — com parques, copas de árvore, orla e o mesmo traçado da maquete; o jogo continua jogável.
 
 ### Direção de arte — atlas de atelier
 - **Identidade**: MANAGEMENT CENTURY é jogado sobre uma **carta ilustrada de papel** pousada numa mesa de couro. Nada de painéis translúcidos, brilhos ou gradientes futuristas — a interface imita **gravura, nanquim e latão**.
@@ -120,6 +122,7 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6
 - **Insolvência** substitui a eliminação militar: caixa zerado com resultado negativo por seis ciclos encerra a companhia, fecha as filiais e devolve os territórios ao mapa. O painel de Economia avisa a partir do primeiro ciclo no vermelho.
 - **Empresas e operações**: cada unidade ocupa uma cidade real de um país licenciado, em uma de seis linhas — fazenda, varejo, porto, indústria, fábrica de automóveis e finanças. Receita cresce com a população da cidade, o número de unidades e a participação de mercado; rivais na mesma cidade diluem a participação de todos.
 - Custos de abertura e de compra de novas unidades pagos em caixa; manutenção e insumos cobrados por ciclo; portos aumentam o escoamento das demais unidades no país.
+- **Construção de sede e filiais** (tela Construção): a sede sobe por quatro estágios — escritório compacto, sede corporativa, torre administrativa e complexo matriz — e cada estágio rende bônus de comércio na cidade-sede e vagas administrativas. Cada filial tem duas trilhas independentes de três compras: **construção** (receita, presença de mercado e manutenção) e **ramo de negócio** (receita nova e, em indústria e fábrica, menos insumos). Tudo é pago em caixa, aparece na maquete e muda o cálculo do ciclo.
 - Licença para praças neutras adjacentes: custo em caixa, desenvolvimento mínimo na base, vaga de projeto e capacidade administrativa. A licença chega em 2 ciclos.
 - Três companhias rivais com doutrinas próprias (varejo, indústria, logística, finanças) abrem e ampliam filiais dentro do próprio caixa.
 - Relações de −100 a +100, presentes, acordo comercial, não concorrência e parceria estratégica. Propostas das rivais chegam ao longo dos ciclos.
@@ -130,7 +133,7 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Obras · `6
 - Tutorial de onboarding, manual, confirmações para ações destrutivas, estados vazios, erros de validação e feedback por toast.
 - Layout responsivo (desktop, tablet e celular); atlas ilustrado, globo WebGL e carta plana SVG sob o mesmo tema de atelier (Fraunces + Inter).
 - Nomes de capitais e grandes cidades em português (`names.ts`) sobre os nomes originais do Natural Earth.
-- Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício. A chave é `management-century.save.v2`; campanhas gravadas antes da troca de nome (`tessera.save.v2`) são migradas na primeira abertura, sem perder o mundo.
+- Save automático no `localStorage`, exportação/importação JSON versionada, retomada de campanha e reinício. A chave é `management-century.save.v5`; campanhas v2–v4 e as gravadas antes da troca de nome (`tessera.save.v2`) são migradas na primeira abertura, completando as expansões com o estágio inicial, sem perder o mundo.
 
 ---
 
@@ -200,6 +203,8 @@ npm test
 
 - `src/game/engine.test.ts` — criação coerente do mundo, economia inicial sã, simulação de 60 ciclos com jogador conduzido pela IA, validação de comandos inválidos, eventos e integridade de estoques/população.
 - `src/ui/globe/globe.test.ts` — valida o atlas (referências de país/província/cidade e adjacência), o tabuleiro completo, a tesselação de todos os contornos em triângulos na esfera, o caso do antimeridiano (Fiji, Nova Zelândia, Rússia) e as cores de soberania.
+- `src/game/expansions.test.ts` — trilhas de construção e de ramo (receita, manutenção, presença e teto), custo crescente por nível e população, bônus da sede restrito à própria cidade e vagas administrativas.
+- `src/game/save.test.ts` — migração de campanhas v2/v3/v4 para v5, incluindo o estágio inicial das expansões e o limite de valores corrompidos.
 - `src/game/cityPlan.test.ts` — determinismo do gerador urbano, aderência à geografia real (água/orla/terra), ruas fora da água, lotes livres e relevo coerente em todas as cidades-sede.
 - `src/ui/FlatAtlas.test.tsx` — desenha a carta plana com todos os países, divisões internas e cidades, encaminha cliques de país/província/cidade, duplo clique e os controles de zoom/recentragem.
 - `src/ui/city3d/dollhouse.test.ts` — monta o corte da sede: quatro pisos mobiliados, piso em foco e paredes voltadas para a câmera reduzidas ao rodapé.

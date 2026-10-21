@@ -23,9 +23,9 @@ import type {
 } from './types';
 
 
-export const SAVE_KEY = 'management-century.save.v4';
+export const SAVE_KEY = 'management-century.save.v5';
 /** Chaves de versões anteriores do jogo: lidas uma vez e migradas. */
-export const LEGACY_SAVE_KEYS = ['management-century.save.v3', 'management-century.save.v2', 'tessera.save.v2'];
+export const LEGACY_SAVE_KEYS = ['management-century.save.v4', 'management-century.save.v3', 'management-century.save.v2', 'tessera.save.v2'];
 export const SAVE_VERSION = GAME.saveVersion;
 
 const AI_START: Stocks = {
@@ -154,6 +154,7 @@ export function createInitialState(seed = Date.now() % 1000000, now = Date.now()
     const city = cityById(seat.cityId);
     if (city) {
       state.city = {
+        build: 0,
         cityId: city.id,
         cityName: city.name,
         countryId: city.countryId,
@@ -203,7 +204,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * Atualiza saves antigos para o formato atual. A v4 transforma a economia em
  * caixa único (o dinheiro paga insumos), troca filiais por unidades de negócio
- * e aposenta os recursos de Estado. Nenhum território, obra ou tecnologia se perde.
+ * e aposenta os recursos de Estado. A v5 adiciona as expansões de construção,
+ * de ramo de negócio e da sede: as unidades antigas passam a valer como o
+ * degrau inicial. Nenhuma praça, obra ou tecnologia se perde.
  */
 export function migrateSave(input: unknown): unknown {
   if (!isRecord(input)) return input;
@@ -215,8 +218,21 @@ export function migrateSave(input: unknown): unknown {
   next.operations = (next.operations as unknown[]).filter(isRecord).map((op) => {
     const units = typeof op.units === 'number' ? op.units : typeof op.level === 'number' ? op.level : 1;
     const sector = op.sector === 'logistica' ? 'porto' : op.sector;
-    return { ...op, sector, units: Math.max(1, Math.min(3, Math.round(units))), level: undefined };
+    const build = typeof op.build === 'number' ? op.build : 0;
+    const range = typeof op.range === 'number' ? op.range : 0;
+    return {
+      ...op,
+      sector,
+      units: Math.max(1, Math.min(3, Math.round(units))),
+      build: Math.max(0, Math.min(3, Math.round(build))),
+      range: Math.max(0, Math.min(3, Math.round(range))),
+      level: undefined,
+    };
   });
+  if (isRecord(next.city)) {
+    const build = typeof next.city.build === 'number' ? next.city.build : 0;
+    next.city.build = Math.max(0, Math.min(3, Math.round(build)));
+  }
   if (isRecord(next.factions)) {
     for (const faction of Object.values(next.factions)) {
       if (!isRecord(faction)) continue;

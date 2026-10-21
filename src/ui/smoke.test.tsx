@@ -86,7 +86,7 @@ it('advances cycles and opens every view', async () => {
   await act(async () => {
     useGameStore.getState().startNewGame(777);
   });
-  const views = ['companies', 'economy', 'construction', 'tech', 'expansion', 'diplomacy', 'objectives', 'chronicle', 'settings'] as const;
+  const views = ['companies', 'units', 'economy', 'construction', 'tech', 'expansion', 'diplomacy', 'objectives', 'chronicle', 'settings'] as const;
   for (const view of views) {
     await act(async () => {
       useGameStore.getState().setView(view);
@@ -100,6 +100,55 @@ it('advances cycles and opens every view', async () => {
     useGameStore.getState().advance();
   });
   expect(useGameStore.getState().game?.cycle).toBe(2);
+});
+
+it('constrói a sede e as filiais no módulo de construção', async () => {
+  await act(async () => {
+    root = createRoot(container);
+    root.render(<App />);
+  });
+  // Funchal deixa caixa para a primeira expansão de construção.
+  const city = citiesOf('PRT').find((candidate) => candidate.name === 'Funchal')!;
+  await act(async () => {
+    useGameStore.getState().startNewGame(2026, {
+      cityId: city.id,
+      plotId: `${city.id}-lote-01`,
+      district: 'Centro',
+    });
+    useGameStore.getState().openOperation(city.id, 'varejo');
+    useGameStore.getState().setView('units');
+  });
+
+  expect(text()).toContain('Sede e filiais');
+  expect(container.querySelector('.build-hq')).toBeTruthy();
+  expect(container.querySelector('.hq-blueprint')).toBeTruthy();
+  expect(container.querySelector('.unit-build')).toBeTruthy();
+  expect(container.querySelectorAll('.unit-track')).toHaveLength(2);
+  expect(container.querySelector('.unit-blueprint')).toBeTruthy();
+
+  const before = useGameStore.getState().game!.operations[0];
+  expect(before.build ?? 0).toBe(0);
+  const buy = container.querySelector('.unit-track--teal .unit-track__buy') as HTMLButtonElement | null;
+  expect(buy).toBeTruthy();
+  await act(async () => {
+    buy?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+  });
+  const after = useGameStore.getState().game!.operations[0];
+  expect(after.build).toBe(1);
+  // A trilha de ramo continua no estágio inicial.
+  expect(after.range ?? 0).toBe(0);
+  expect(container.querySelectorAll('.unit-track--teal .unit-track__steps li.is-done')).toHaveLength(1);
+  expect(text()).toContain('Ampliação da área');
+
+  // A sede só amplia com caixa suficiente; sem saldo o botão fica travado.
+  const cash = useGameStore.getState().game!.factions.concordia.stocks.creditos;
+  const seatButton = Array.from(container.querySelectorAll('button')).find((button) =>
+    /Ampliar a sede|Faltam/.test(button.textContent ?? '')) as HTMLButtonElement | undefined;
+  expect(seatButton).toBeTruthy();
+  if (cash < 320) {
+    expect(seatButton?.disabled).toBe(true);
+    expect(seatButton?.textContent).toContain('Faltam');
+  }
 });
 
 it('runs the core actions and resolves an event through the modal', async () => {

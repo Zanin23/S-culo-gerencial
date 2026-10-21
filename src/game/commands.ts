@@ -2,6 +2,10 @@ import {
   BUILDINGS,
   FACTIONS,
   GAME,
+  HQ_STAGES,
+  MAX_HQ_BUILD,
+  MAX_UNIT_BUILD,
+  MAX_UNIT_RANGE,
   RESOURCES,
   RESOURCE_KEYS,
   RESOURCE_VALUE,
@@ -26,7 +30,18 @@ import {
 } from './economy';
 import { getRelation, offerLabel, proposeCost, relationKey, relationRequirement } from './diplomacy';
 import { COUNTRY_BY_ID, cityById } from './atlas';
-import { canOpenOperation, canOpenSector, MAX_UNITS_PER_CITY, operationCost } from './operations';
+import {
+  buildLevel,
+  canOpenOperation,
+  canOpenSector,
+  MAX_UNITS_PER_CITY,
+  nextBuildStep,
+  nextRangeStep,
+  operationCost,
+  rangeLevel,
+  unitExpansionCost,
+} from './operations';
+import { seatBuildLevel } from './hq';
 import { scoreOf } from './progress';
 import { neighborsOf, tilesOfFaction } from './map';
 import { logEntry } from './state';
@@ -465,6 +480,83 @@ export function closeOperation(state: GameState, factionId: FactionId, operation
   });
 }
 
+// ── Expansões da unidade (construção e ramo) ────────────────────────────────
+
+function ownedOperation(next: GameState, factionId: FactionId, operationId: string): Operation {
+  const operation = next.operations.find((op) => op.id === operationId);
+  if (!operation) fail('Unidade não encontrada.');
+  if (operation.factionId !== factionId) fail('Esta unidade pertence a outra companhia.');
+  return operation;
+}
+
+export function expandUnitBuild(state: GameState, factionId: FactionId, operationId: string): CommandResult {
+  return withState(state, (next) => {
+    requirePlaying(next);
+    const faction = factionOf(next, factionId);
+    const operation = ownedOperation(next, factionId, operationId);
+    if (buildLevel(operation) >= MAX_UNIT_BUILD) fail('A construção desta unidade já está no máximo.');
+    const step = nextBuildStep(operation);
+    if (!step) fail('Não há mais expansões de construção disponíveis.');
+    const city = cityById(operation.cityId);
+    if (!city) fail('Cidade da operação não existe mais no atlas.');
+    const cost = unitExpansionCost(city, operation.sector, 'build', buildLevel(operation));
+    requireAfford(next, factionId, cost);
+    payCost(faction.stocks, cost);
+    operation.build = buildLevel(operation) + 1;
+    logEntry(
+      next,
+      'operacoes',
+      `${FACTIONS[factionId].short}: ${step.name} concluída em ${city.name} (${SECTORS[operation.sector].short}).`,
+      factionId,
+    );
+    return `${step.name} concluída em ${city.name}.`;
+  });
+}
+
+export function expandUnitBusiness(state: GameState, factionId: FactionId, operationId: string): CommandResult {
+  return withState(state, (next) => {
+    requirePlaying(next);
+    const faction = factionOf(next, factionId);
+    const operation = ownedOperation(next, factionId, operationId);
+    if (rangeLevel(operation) >= MAX_UNIT_RANGE) fail('O ramo de negócio desta unidade já está completo.');
+    const step = nextRangeStep(operation);
+    if (!step) fail('Não há mais expansões de negócio disponíveis.');
+    const city = cityById(operation.cityId);
+    if (!city) fail('Cidade da operação não existe mais no atlas.');
+    const cost = unitExpansionCost(city, operation.sector, 'range', rangeLevel(operation));
+    requireAfford(next, factionId, cost);
+    payCost(faction.stocks, cost);
+    operation.range = rangeLevel(operation) + 1;
+    logEntry(
+      next,
+      'operacoes',
+      `${FACTIONS[factionId].short}: ${step.name} no ramo de ${SECTORS[operation.sector].short} em ${city.name}.`,
+      factionId,
+    );
+    return `${step.name} ativada em ${city.name}.`;
+  });
+}
+
+// ── Expansões da sede ───────────────────────────────────────────────────────
+
+export function expandSeat(state: GameState, factionId: FactionId): CommandResult {
+  return withState(state, (next) => {
+    requirePlaying(next);
+    const faction = factionOf(next, factionId);
+    if (!next.city) fail('A companhia ainda não tem sede.');
+    if (factionId !== next.playerFactionId) fail('Só a companhia jogadora administra a própria sede.');
+    const level = seatBuildLevel(next);
+    if (level >= MAX_HQ_BUILD) fail('A sede já é um complexo matriz.');
+    const stage = HQ_STAGES[level + 1];
+    const cost = { creditos: stage.cost };
+    requireAfford(next, factionId, cost);
+    payCost(faction.stocks, cost);
+    next.city.build = level + 1;
+    logEntry(next, 'construcao', `${FACTIONS[factionId].short}: sede ampliada para ${stage.name.toLowerCase()} em ${next.city.cityName}.`, factionId);
+    return `Sede ampliada: ${stage.name}.`;
+  });
+}
+
 // ── Helpers for UI ──────────────────────────────────────────────────────────
 
 export function canBuild(
@@ -559,6 +651,7 @@ export function foundSeat(
     host.isCapital = true;
     player.capitalId = host.id;
     next.city = {
+      build: 0,
       cityId: city.id,
       cityName: city.name,
       countryId: city.countryId,

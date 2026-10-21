@@ -59,6 +59,43 @@ const ROOF_COLORS: Record<RoofKind, number[]> = {
   crown: [0x5f6c72, 0x6c7a80, 0x536066],
 };
 
+/**
+ * Estágios da maquete da sede. A altura acompanha HQ_STAGES (em metros) e cada
+ * estágio acrescenta corpos empilhados, coroa e detalhes de praça.
+ */
+interface HqMaquette {
+  height: number;
+  /** Fração do lote ocupada pelo embasamento. */
+  base: number;
+  /** Altura do embasamento como fração da altura total. */
+  baseH: number;
+  /** Corpos superiores: largura relativa e faixa vertical (0–1 da altura). */
+  tiers: Array<{ width: number; from: number; to: number }>;
+  crown: 'band' | 'ring' | 'spire';
+  pad: boolean;
+  flags: number;
+  gardens: number;
+}
+
+const HQ_MAQUETTE: HqMaquette[] = [
+  { height: 14, base: 0.62, baseH: 1, tiers: [], crown: 'band', pad: false, flags: 0, gardens: 2 },
+  { height: 34, base: 0.72, baseH: 0.3, tiers: [{ width: 0.46, from: 0.26, to: 1 }], crown: 'band', pad: false, flags: 3, gardens: 4 },
+  {
+    height: 66, base: 0.76, baseH: 0.21,
+    tiers: [{ width: 0.5, from: 0.18, to: 0.76 }, { width: 0.37, from: 0.73, to: 1 }],
+    crown: 'ring', pad: true, flags: 3, gardens: 5,
+  },
+  {
+    height: 98, base: 0.8, baseH: 0.17,
+    tiers: [
+      { width: 0.52, from: 0.14, to: 0.62 },
+      { width: 0.42, from: 0.59, to: 0.86 },
+      { width: 0.3, from: 0.83, to: 1 },
+    ],
+    crown: 'spire', pad: true, flags: 5, gardens: 6,
+  },
+];
+
 function styleColor(style: number, tone: number): THREE.Color {
   const palette = FACADE_STYLES[Math.abs(style) % FACADE_STYLES.length];
   const pick = palette[Math.floor(tone * palette.length) % palette.length];
@@ -143,6 +180,28 @@ function disposeObject(object: THREE.Object3D): void {
   });
 }
 
+/** Céu de fundo: gradiente vertical quente no horizonte, azul profundo no topo. */
+function skyTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 4;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  if (context) {
+    const gradient = context.createLinearGradient(0, 0, 0, 256);
+    gradient.addColorStop(0, '#050c12');
+    gradient.addColorStop(0.42, '#0c1921');
+    gradient.addColorStop(0.6, '#192a2f');
+    gradient.addColorStop(0.72, '#2c3c3b');
+    gradient.addColorStop(0.84, '#1b2a28');
+    gradient.addColorStop(1, '#0f1a18');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 4, 256);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function windowTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
@@ -185,7 +244,7 @@ export class CityScene {
   private dollhouseFloor = 1;
   private dollhouseBase = 0;
   private sun: THREE.DirectionalLight;
-  private fog = new THREE.Fog(0x14202a, 4200, 11500);
+  private fog = new THREE.Fog(0x1a2a30, 4600, 12000);
 
   private target = new THREE.Vector3(0, 0, 0);
   private spherical = { radius: 3450, theta: -0.9, phi: 0.78 };
@@ -203,6 +262,8 @@ export class CityScene {
   private plan: CityPlan | null = null;
   private mode: CityMode = 'overview';
   private hqPlot: CityPlot | null = null;
+  private hqStage = 0;
+  private hqTextures: THREE.Texture[] = [];
   private frame = 0;
   private disposed = false;
   private resizeObserver: ResizeObserver | null = null;
@@ -231,7 +292,8 @@ export class CityScene {
     container.appendChild(this.renderer.domElement);
 
     this.scene.fog = this.fog;
-    this.camera = new THREE.PerspectiveCamera(58, 1, 0.6, 14000);
+    this.camera = new THREE.PerspectiveCamera(58, 1, 0.6, 16000);
+    this.scene.background = skyTexture();
     this.scene.add(this.world);
     this.world.add(this.cityGroup, this.plotGroup, this.hqGroup, this.interiorGroup, this.dollhouseGroup);
     this.dollhouseGroup.visible = false;
@@ -244,9 +306,14 @@ export class CityScene {
   }
 
   private buildLights(): THREE.DirectionalLight {
-    this.scene.add(new THREE.HemisphereLight(0xcfd9e2, 0x121a18, 1.15));
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.22));
-    const sun = new THREE.DirectionalLight(0xfff0d4, 2.1);
+    // Luz de fim de tarde: sol quente rasante, céu frio e um recheio suave do
+    // lado oposto para as fachadas não ficarem chapadas.
+    this.scene.add(new THREE.HemisphereLight(0xd9e6ea, 0x1a2320, 0.96));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.17));
+    const fill = new THREE.DirectionalLight(0x93bdd6, 0.52);
+    fill.position.set(1300, 720, -980);
+    this.scene.add(fill);
+    const sun = new THREE.DirectionalLight(0xffeacb, 2.7);
     sun.position.set(-900, 1500, 700);
     sun.castShadow = true;
     sun.shadow.mapSize.set(3072, 3072);
@@ -389,8 +456,9 @@ export class CityScene {
       const crownGeometry = new THREE.ConeGeometry(3.4, 8, 7);
       crownGeometry.translate(0, 7, 0);
       const trunks = new THREE.InstancedMesh(trunkGeometry, new THREE.MeshLambertMaterial({ color: 0x4a3d2c }), plan.trees.length);
-      const crowns = new THREE.InstancedMesh(crownGeometry, new THREE.MeshLambertMaterial({ color: 0x35663f }), plan.trees.length);
+      const crowns = new THREE.InstancedMesh(crownGeometry, new THREE.MeshLambertMaterial({ color: 0xffffff }), plan.trees.length);
       crowns.castShadow = true;
+      const leafPalette = [0x35663f, 0x2e5a3a, 0x3f7247, 0x4a6b3a, 0x2a5240];
       plan.trees.forEach((tree, index) => {
         const y = sampleHeight(plan, tree.x, tree.y) - 2.2 + 0.2;
         treeQuaternion.identity();
@@ -401,11 +469,16 @@ export class CityScene {
         treeScale.setScalar(tree.s / 3.6);
         treeMatrix.compose(treePosition, treeQuaternion, treeScale);
         crowns.setMatrixAt(index, treeMatrix);
+        const pick = Math.abs(Math.round(tree.x * 7 + tree.y * 13)) % leafPalette.length;
+        crowns.setColorAt(index, tint.setHex(leafPalette[pick]));
       });
       trunks.instanceMatrix.needsUpdate = true;
       crowns.instanceMatrix.needsUpdate = true;
+      if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
       this.cityGroup.add(trunks, crowns);
     }
+
+    this.buildStreetLamps(plan);
 
     // ── Praia / orla: faixa clara onde a terra encontra a água ─────────────
     if (plan.shore.length) {
@@ -464,6 +537,61 @@ export class CityScene {
     texture.needsUpdate = true;
     this.buildingTextures.push(texture);
     return texture;
+  }
+
+  /** Postes ao longo das avenidas: dão escala e vida à cidade vista de cima. */
+  private buildStreetLamps(plan: CityPlan): void {
+    const points: Array<{ x: number; z: number }> = [];
+    const spacing = 96;
+    for (const road of plan.roads) {
+      if (road.kind === 'rua' || road.width < 11) continue;
+      const offset = road.width * 0.62;
+      for (let index = 0; index < road.pts.length - 1; index += 1) {
+        const [x1, z1] = road.pts[index];
+        const [x2, z2] = road.pts[index + 1];
+        const dx = x2 - x1;
+        const dz = z2 - z1;
+        const length = Math.hypot(dx, dz);
+        if (length < 8) continue;
+        const nx = (-dz / length) * offset;
+        const nz = (dx / length) * offset;
+        const steps = Math.max(1, Math.round(length / spacing));
+        for (let step = 0; step < steps; step += 1) {
+          const t = (step + 0.5) / steps;
+          const side = (index + step) % 2 === 0 ? 1 : -1;
+          points.push({ x: x1 + dx * t + nx * side, z: z1 + dz * t + nz * side });
+          if (points.length >= 620) break;
+        }
+        if (points.length >= 620) break;
+      }
+      if (points.length >= 620) break;
+    }
+    if (!points.length) return;
+    const pole = new THREE.CylinderGeometry(0.14, 0.2, 6, 5);
+    pole.translate(0, 3, 0);
+    const bulb = new THREE.SphereGeometry(0.42, 7, 5);
+    const poles = new THREE.InstancedMesh(pole, new THREE.MeshLambertMaterial({ color: 0x424a48 }), points.length);
+    const bulbs = new THREE.InstancedMesh(
+      bulb,
+      new THREE.MeshStandardMaterial({ color: 0xfff4d8, emissive: 0xffcf8a, emissiveIntensity: 1.5 }),
+      points.length,
+    );
+    const matrix = new THREE.Matrix4();
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3(1, 1, 1);
+    points.forEach((point, index) => {
+      const y = sampleHeight(plan, point.x, point.z) - 2.2 + 0.4;
+      position.set(point.x, y, point.z);
+      matrix.compose(position, quaternion, scale);
+      poles.setMatrixAt(index, matrix);
+      position.set(point.x, y + 6.1, point.z);
+      matrix.compose(position, quaternion, scale);
+      bulbs.setMatrixAt(index, matrix);
+    });
+    poles.instanceMatrix.needsUpdate = true;
+    bulbs.instanceMatrix.needsUpdate = true;
+    this.cityGroup.add(poles, bulbs);
   }
 
   private buildBuildings(plan: CityPlan): void {
@@ -613,50 +741,189 @@ export class CityScene {
     }
   }
 
-  /** Constrói a sede no lote escolhido: torre corporativa com jardim e heliponto. */
-  setHq(plot: CityPlot): void {
+  /** Maquete da sede: começa como escritório compacto e cresce por estágios. */
+  setHq(plot: CityPlot, stage = 0): void {
     this.hqPlot = plot;
+    this.hqStage = Math.max(0, Math.min(HQ_MAQUETTE.length - 1, Math.round(stage)));
     disposeObject(this.hqGroup);
     this.hqGroup.clear();
+    for (const texture of this.hqTextures) texture.dispose();
+    this.hqTextures = [];
     this.hqGroup.position.set(0, 0, 0);
     const plan = this.plan;
     if (!plan) return;
-    const base = sampleHeight(plan, plot.x, plot.y) - 2.2 + 0.5;
-    const height = 92;
-    const tower = new THREE.Mesh(
-      new THREE.BoxGeometry(plot.w * 0.9, height, plot.d * 0.9),
-      new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: 0.55, metalness: 0.18 }),
-    );
-    tower.position.set(plot.x, base + height / 2, plot.y);
-    tower.castShadow = true;
-    tower.receiveShadow = true;
-    this.hqGroup.add(tower);
-    const glass = new THREE.Mesh(
-      new THREE.BoxGeometry(plot.w * 0.92, height * 0.74, plot.d * 0.92),
-      new THREE.MeshStandardMaterial({ color: 0x7fb3c2, roughness: 0.1, metalness: 0.65, transparent: true, opacity: 0.55 }),
-    );
-    glass.position.set(plot.x, base + height * 0.42, plot.y);
-    this.hqGroup.add(glass);
-    const crown = new THREE.Mesh(
-      new THREE.CylinderGeometry(plot.w * 0.5, plot.w * 0.52, 4, 24),
-      new THREE.MeshStandardMaterial({ color: COLORS.hq, roughness: 0.4, metalness: 0.6 }),
-    );
-    crown.position.set(plot.x, base + height + 2, plot.y);
-    this.hqGroup.add(crown);
-    const pad = new THREE.Mesh(
-      new THREE.CylinderGeometry(11, 11, 1.2, 24),
-      new THREE.MeshStandardMaterial({ color: 0x2f3436, roughness: 0.9 }),
-    );
-    pad.position.set(plot.x, base + height + 4.6, plot.y);
-    this.hqGroup.add(pad);
-    const plaza = new THREE.Mesh(
-      new THREE.CylinderGeometry(plot.w * 0.95, plot.w * 0.95, 0.8, 32),
-      new THREE.MeshStandardMaterial({ color: 0x8f8a7c, roughness: 0.95 }),
-    );
-    plaza.position.set(plot.x, base + 0.1, plot.y);
-    this.hqGroup.add(plaza);
 
-    this.buildInterior(plot, base + height - 4.2);
+    const base = sampleHeight(plan, plot.x, plot.y) - 2.2 + 0.5;
+    const spec = HQ_MAQUETTE[this.hqStage];
+    const height = spec.height;
+    const rot = -plot.rot;
+    const ground = (color: number, roughness: number) => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.05 });
+    const gold = new THREE.MeshStandardMaterial({ color: COLORS.hq, roughness: 0.32, metalness: 0.72 });
+    const add = (mesh: THREE.Mesh): THREE.Mesh => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.hqGroup.add(mesh);
+      return mesh;
+    };
+    const box = (w: number, h: number, d: number, x: number, y: number, z: number, material: THREE.Material, yaw = rot) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+      mesh.position.set(x, y, z);
+      mesh.rotation.y = yaw;
+      return add(mesh);
+    };
+    const facade = (w: number, h: number, color: number, rough: number, metal: number) => {
+      const texture = this.facadeTexture(Math.max(2, Math.round(w / 11)), Math.max(1, Math.round(h / 10)));
+      this.hqTextures.push(texture);
+      return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, map: texture });
+    };
+
+    // ── Praça, terraço e anel dourado ──────────────────────────────────────
+    const plaza = new THREE.Mesh(new THREE.CylinderGeometry(plot.w * 0.98, plot.w * 0.98, 0.8, 44), ground(0x8f8a7c, 0.96));
+    plaza.position.set(plot.x, base + 0.1, plot.y);
+    plaza.receiveShadow = true;
+    this.hqGroup.add(plaza);
+    const terrace = new THREE.Mesh(new THREE.CylinderGeometry(plot.w * 0.73, plot.w * 0.73, 0.44, 44), ground(0xb3ac9b, 0.9));
+    terrace.position.set(plot.x, base + 0.56, plot.y);
+    terrace.receiveShadow = true;
+    this.hqGroup.add(terrace);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(plot.w * 0.73, 0.3, 6, 48), gold);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(plot.x, base + 0.8, plot.y);
+    this.hqGroup.add(ring);
+
+    const baseW = plot.w * spec.base;
+    const baseD = plot.d * spec.base;
+    const baseH = height * spec.baseH;
+    const groundY = base + 0.78;
+
+    // ── Embasamento ───────────────────────────────────────────────────────
+    const plinth = box(baseW * 1.04, 1.5, baseD * 1.04, plot.x, groundY + 0.75, plot.y, ground(0x6f6a5e, 0.9));
+    plinth.receiveShadow = true;
+    box(baseW, baseH, baseD, plot.x, groundY + baseH / 2, plot.y, facade(baseW, baseH, 0xdcd5c4, 0.6, 0.12));
+
+    // ── Corpos superiores ─────────────────────────────────────────────────
+    let topY = groundY + baseH;
+    let topW = baseW;
+    let topD = baseD;
+    for (const tier of spec.tiers) {
+      const tierH = height * (tier.to - tier.from);
+      const tierW = plot.w * tier.width;
+      const tierD = plot.d * tier.width;
+      const y = groundY + height * tier.from + tierH / 2;
+      box(tierW, tierH, tierD, plot.x, y, plot.y, facade(tierW, tierH, 0x9dc0cb, 0.16, 0.55));
+      // Laje de transição: dá ritmo vertical e separa os corpos.
+      box(tierW * 1.05, 0.9, tierD * 1.05, plot.x, y - tierH / 2 + 0.45, plot.y, ground(0xcbc4b2, 0.72));
+      topY = y + tierH / 2;
+      topW = tierW;
+      topD = tierD;
+    }
+
+    // ── Coroa ─────────────────────────────────────────────────────────────
+    if (spec.crown === 'band' || spec.crown === 'spire') {
+      box(topW * 1.06, 1.7, topD * 1.06, plot.x, topY + 0.85, plot.y, gold);
+    }
+    if (spec.crown === 'ring') {
+      const crownRing = new THREE.Mesh(new THREE.TorusGeometry(topW * 0.52, 0.75, 8, 40), gold);
+      crownRing.rotation.x = Math.PI / 2;
+      crownRing.position.set(plot.x, topY + 1.2, plot.y);
+      this.hqGroup.add(crownRing);
+      box(topW * 0.9, 2.2, topD * 0.9, plot.x, topY + 1.1, plot.y, gold);
+      topY += 1.6;
+    }
+    if (spec.crown === 'spire') {
+      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.5, topW * 0.16, height * 0.12, 8), gold);
+      spire.position.set(plot.x, topY + height * 0.06, plot.y);
+      this.hqGroup.add(spire);
+      const beacon = new THREE.Mesh(
+        new THREE.SphereGeometry(0.85, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0xfff2cf, emissive: 0xffcf7a, emissiveIntensity: 2.2 }),
+      );
+      beacon.position.set(plot.x, topY + height * 0.125, plot.y);
+      this.hqGroup.add(beacon);
+      topY += height * 0.1;
+    }
+
+    // ── Heliponto ─────────────────────────────────────────────────────────
+    // Na torre ele fica no terraço; na matriz, o mastro ocupa o topo e o
+    // heliponto desce para a praça, como em um campus corporativo.
+    if (spec.pad) {
+      const onPlaza = spec.crown === 'spire';
+      const padRadius = onPlaza ? Math.min(5.4, plot.w * 0.13) : Math.min(topW * 0.3, 9);
+      const padX = onPlaza ? plot.x + Math.cos(-2.2) * plot.w * 0.7 : plot.x;
+      const padZ = onPlaza ? plot.y + Math.sin(-2.2) * plot.w * 0.7 : plot.y;
+      const padY = onPlaza ? groundY + 0.6 : topY + 0.35;
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(padRadius, padRadius, onPlaza ? 1 : 0.7, 28), ground(0x2f3436, 0.95));
+      pad.position.set(padX, padY, padZ);
+      pad.receiveShadow = true;
+      this.hqGroup.add(pad);
+      const mark = new THREE.Mesh(new THREE.TorusGeometry(padRadius * 0.7, 0.28, 4, 32), ground(0xe6dcc0, 0.8));
+      mark.rotation.x = Math.PI / 2;
+      mark.position.set(padX, padY + (onPlaza ? 0.56 : 0.39), padZ);
+      this.hqGroup.add(mark);
+      if (!onPlaza) topY += 0.4;
+    }
+
+    // ── Entrada: porta de vidro, toldo e faixa iluminada ──────────────────
+    const front = baseD / 2;
+    const doorX = plot.x + Math.sin(rot) * front;
+    const doorZ = plot.y + Math.cos(rot) * front;
+    box(baseW * 0.34, 4.4, 0.6, doorX, groundY + 2.2, doorZ, new THREE.MeshStandardMaterial({ color: 0x2b3c40, roughness: 0.12, metalness: 0.6 }));
+    box(baseW * 0.52, 0.34, 3.2, doorX + Math.sin(rot) * 1.5, groundY + 4.7, doorZ + Math.cos(rot) * 1.5, ground(0x55524a, 0.8));
+    box(
+      baseW * 0.42, 0.26, 0.5,
+      plot.x + Math.sin(rot) * (front + 0.05), groundY + 3.1, plot.y + Math.cos(rot) * (front + 0.05),
+      new THREE.MeshStandardMaterial({ color: 0xffe6b8, emissive: 0xffc978, emissiveIntensity: 1.5 }),
+    );
+
+    // ── Praça viva: canteiros, postes e bandeiras ─────────────────────────
+    for (let index = 0; index < spec.gardens; index += 1) {
+      const angle = (index / Math.max(1, spec.gardens)) * Math.PI * 2 + 0.4;
+      const radius = plot.w * 0.86;
+      const gx = plot.x + Math.cos(angle) * radius;
+      const gz = plot.y + Math.sin(angle) * radius;
+      box(4.6, 0.9, 4.6, gx, groundY + 0.45, gz, ground(0x7d7768, 0.95), angle);
+      box(4.1, 0.5, 4.1, gx, groundY + 0.95, gz, ground(0x3f7046, 0.9), angle);
+      const bush = new THREE.Mesh(new THREE.SphereGeometry(1.5, 8, 6), ground(0x4a8253, 0.85));
+      bush.position.set(gx, groundY + 1.9, gz);
+      bush.castShadow = true;
+      this.hqGroup.add(bush);
+    }
+
+    const lamps = 8;
+    for (let index = 0; index < lamps; index += 1) {
+      const angle = (index / lamps) * Math.PI * 2;
+      const radius = plot.w * 0.9;
+      const lx = plot.x + Math.cos(angle) * radius;
+      const lz = plot.y + Math.sin(angle) * radius;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 4.6, 6), ground(0x39413f, 0.7));
+      pole.position.set(lx, groundY + 2.3, lz);
+      pole.castShadow = true;
+      this.hqGroup.add(pole);
+      const bulb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 8, 6),
+        new THREE.MeshStandardMaterial({ color: 0xfff3d6, emissive: 0xffd08a, emissiveIntensity: 1.8 }),
+      );
+      bulb.position.set(lx, groundY + 4.75, lz);
+      this.hqGroup.add(bulb);
+    }
+
+    for (let index = 0; index < spec.flags; index += 1) {
+      const angle = Math.PI * 0.5 + (index - (spec.flags - 1) / 2) * 0.22;
+      const radius = plot.w * 0.6;
+      const fx = plot.x + Math.cos(angle) * radius;
+      const fz = plot.y + Math.sin(angle) * radius;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 8.4, 5), ground(0x9aa3a0, 0.45));
+      pole.position.set(fx, groundY + 4.2, fz);
+      this.hqGroup.add(pole);
+      const flag = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.6, 1.5),
+        new THREE.MeshStandardMaterial({ color: index % 2 === 0 ? COLORS.hq : 0x2fb39a, roughness: 0.8, side: THREE.DoubleSide }),
+      );
+      flag.position.set(fx + 1.3, groundY + 7.5, fz);
+      this.hqGroup.add(flag);
+    }
+
+    this.buildInterior(plot, base + Math.max(8.4, height - 4.2));
 
     // Corte "casa de bonecas" da sede, quatro pisos mobiliados.
     this.clearDollhouse();
@@ -1114,6 +1381,9 @@ export class CityScene {
     canvas.removeEventListener('dblclick', this.onDoubleClick);
     this.clearDollhouse();
     for (const texture of this.buildingTextures) texture.dispose();
+    for (const texture of this.hqTextures) texture.dispose();
+    if (this.scene.background instanceof THREE.Texture) this.scene.background.dispose();
+    this.scene.background = null;
     disposeObject(this.scene);
     this.windowMap.dispose();
     this.renderer.dispose();

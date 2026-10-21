@@ -9,6 +9,9 @@ import type { CommandResult, CycleReport, FactionId, GameState, ResourceKey, Sec
 import {
   closeOperation,
   expandOperation,
+  expandSeat,
+  expandUnitBuild,
+  expandUnitBusiness,
   openOperation,
   proposeTreaty,
   respondToOffer,
@@ -22,6 +25,7 @@ import {
 export type ViewKey =
   | 'map'
   | 'city'
+  | 'units'
   | 'economy'
   | 'construction'
   | 'tech'
@@ -113,6 +117,9 @@ interface GameStore {
   expand: (tileId: string) => boolean;
   openOperation: (cityId: string, sector: SectorKey) => boolean;
   upgradeOperation: (operationId: string) => boolean;
+  expandUnitBuild: (operationId: string) => boolean;
+  expandUnitBusiness: (operationId: string) => boolean;
+  expandSeat: () => boolean;
   closeOperation: (operationId: string) => boolean;
   gift: (target: FactionId) => boolean;
   treaty: (target: FactionId, kind: 'trade' | 'nonAggression' | 'alliance') => boolean;
@@ -413,6 +420,12 @@ export const useGameStore = create<GameStore>()((set, get) => {
       run((state) => openOperation(state, state.playerFactionId, cityId, sector)),
     upgradeOperation: (operationId) =>
       run((state) => expandOperation(state, state.playerFactionId, operationId)),
+    expandUnitBuild: (operationId) =>
+      run((state) => expandUnitBuild(state, state.playerFactionId, operationId)),
+    expandUnitBusiness: (operationId) =>
+      run((state) => expandUnitBusiness(state, state.playerFactionId, operationId)),
+    expandSeat: () =>
+      run((state) => expandSeat(state, state.playerFactionId)),
     closeOperation: (operationId) =>
       run((state) => closeOperation(state, state.playerFactionId, operationId)),
     gift: (target) => run((state) => sendGift(state, state.playerFactionId, target)),
