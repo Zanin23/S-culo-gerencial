@@ -131,7 +131,8 @@ Telas: `1` Mapa · `2` Cidade · `3` Empresas · `4` Economia · `5` Estruturas 
 - Eventos dinâmicos com escolhas e efeitos consistentes (colheita, seca, greve, leilão de concessões, cargas desviadas, inovação, dívida, entre outros).
 
 ### Interface e persistência
-- Barra superior em livro-razão com caixa, receita, despesas, unidades, praças e relevância; navegação lateral em plaquetas; painel contextual em papel; notificações; relatório completo.
+- **Começo pequeno**: a campanha abre no mapa com três números (caixa, unidades, relevância), um próximo passo contextual e quatro marcos de carreira — abrir a primeira unidade, avançar um ciclo, ampliar e licenciar uma praça. As telas de estruturas, P&D, expansão, acordos, relatório e ajustes ficam no menu **Mais**, fora do caminho até a primeira operação.
+- Barra superior enxuta com caixa (e resultado por ciclo), unidades e relevância; navegação lateral em seis destinos e menu **Mais**; painel contextual; notificações; relatório completo.
 - Tutorial de onboarding, manual, confirmações para ações destrutivas, estados vazios, erros de validação e feedback por toast.
 - Layout responsivo (desktop, tablet e celular); atlas ilustrado, globo WebGL e carta plana SVG sob o mesmo tema de atelier (Fraunces + Inter).
 - Nomes de capitais e grandes cidades em português (`names.ts`) sobre os nomes originais do Natural Earth.
