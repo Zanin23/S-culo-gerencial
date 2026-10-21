@@ -1,7 +1,10 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   CITY_CELLS,
   sampleHeight,
+  type BuildingKind,
+  type BuildingZone,
   type CityBuilding,
   type CityPlan,
   type CityPlot,
@@ -23,83 +26,352 @@ export interface CitySceneCallbacks {
   onFail: () => void;
 }
 
+/**
+ * Paleta de maquete: base clara e mate, asfalto neutro, verde natural e vidro
+ * azulado. Tudo com contraste de valor suficiente para as quadras e avenidas
+ * serem lidas à primeira vista — sem contornos escuros nem cores saturadas.
+ */
 const COLORS = {
-  land: 0x36443a,
-  landHigh: 0x4a5443,
-  park: 0x33573c,
-  sand: 0x6b6553,
-  water: 0x0d3340,
-  road: 0x2b3033,
-  roadEdge: 0x393f42,
-  building: 0xb9b3a6,
-  roof: 0x6f6a5f,
-  glass: 0x7fa9b8,
+  ground: 0xc9c3b3,
+  groundHigh: 0xb6ae9c,
+  groundEdge: 0x8e9678,
+  park: 0x9db183,
+  parkDeep: 0x8ba070,
+  sand: 0xd8cfb4,
+  water: 0x89aab1,
+  asphalt: 0x9c988e,
+  avenue: 0x938f85,
+  sidewalk: 0xc4beb0,
+  kerb: 0xd6d0c2,
+  marking: 0xf0ebdd,
+  median: 0x94a37c,
+  skirting: 0xcfc7b6,
   hq: 0xd8b46a,
   interiorFloor: 0x2a2b28,
   interiorWall: 0x3c3f3a,
   wood: 0x6d5136,
 };
 
-/** Paleta de fachadas por estilo: reboco, tijolo, betão, vidro, ardósia, metal, pedra. */
-const FACADE_STYLES = [
-  [0xd7d1c1, 0xcbc3b0, 0xe0dacb, 0xc2b8a2],
-  [0xa65a41, 0x96503a, 0xb16b4c, 0x8e4936],
-  [0xb6b8b3, 0xa8aaa5, 0xc2c4bf, 0x9b9d99],
-  [0x86aebc, 0x7299a8, 0x95bcc9, 0x658c9b],
-  [0x737f8c, 0x67737f, 0x7f8b98, 0x5c6874],
-  [0xa7b0ae, 0x99a3a1, 0xb4bcba, 0x8d9795],
-  [0xcabea4, 0xbfb299, 0xd4c9b2, 0xb2a58c],
-];
-
-const ROOF_COLORS: Record<RoofKind, number[]> = {
-  gable: [0x8a5a44, 0x9c6a4e, 0x7a4e3b, 0x6d6a60],
-  hip: [0x7e5744, 0x8d6550, 0x6f4c3c, 0x6a6257],
-  flat: [0x6f6a5f, 0x7a776d, 0x625e55],
-  saw: [0x8d939a, 0x7c838a, 0x9aa0a6],
-  crown: [0x5f6c72, 0x6c7a80, 0x536066],
+/** Cores das fachadas por zona: betão, bege, branco e vidro azulado. */
+const ZONE_FACADES: Record<string, number[]> = {
+  centro: [0xf1eee6, 0xe7e2d6, 0xdad7cc, 0xd9dbd8, 0xcdd5d8],
+  residencial: [0xf3ecdd, 0xe8dfcd, 0xdccfba, 0xefe7da, 0xe2d6c3],
+  industrial: [0xdfe0da, 0xd3d6d0, 0xc9cfcb, 0xe6e5dd],
+  periferia: [0xece1cb, 0xe2d5bd, 0xd9cbb2, 0xf0e8d8],
 };
 
-/**
- * Estágios da maquete da sede. A altura acompanha HQ_STAGES (em metros) e cada
- * estágio acrescenta corpos empilhados, coroa e detalhes de praça.
- */
-interface HqMaquette {
-  height: number;
-  /** Fração do lote ocupada pelo embasamento. */
-  base: number;
-  /** Altura do embasamento como fração da altura total. */
-  baseH: number;
-  /** Corpos superiores: largura relativa e faixa vertical (0–1 da altura). */
-  tiers: Array<{ width: number; from: number; to: number }>;
-  crown: 'band' | 'ring' | 'spire';
-  pad: boolean;
-  flags: number;
-  gardens: number;
+const ROOF_COLORS: Record<RoofKind, number[]> = {
+  gable: [0xa9735b, 0x9c6b54, 0xb17b62],
+  hip: [0x9c7f6a, 0x907763, 0xa98c75],
+  flat: [0x9b978e, 0x8f8c84, 0xa5a199],
+  saw: [0xa9ada7, 0x9ea49f, 0xb3b6b0],
+  crown: [0x8e9a9c, 0x98a3a5],
+};
+
+/** Tipologias reutilizáveis: poucos modelos, variação por escala e cor. */
+type FacadeKind = 'grid' | 'ribbon' | 'housing';
+
+interface BuildingModel {
+  key: string;
+  kinds: BuildingKind[];
+  zones: BuildingZone[];
+  w: number;
+  d: number;
+  h: number;
+  facade: FacadeKind;
+  roof: RoofKind;
+  walls: THREE.BufferGeometry;
+  roofGeometry: THREE.BufferGeometry;
+  accent: THREE.BufferGeometry | null;
 }
 
-const HQ_MAQUETTE: HqMaquette[] = [
-  { height: 14, base: 0.62, baseH: 1, tiers: [], crown: 'band', pad: false, flags: 0, gardens: 2 },
-  { height: 34, base: 0.72, baseH: 0.3, tiers: [{ width: 0.46, from: 0.26, to: 1 }], crown: 'band', pad: false, flags: 3, gardens: 4 },
-  {
-    height: 66, base: 0.76, baseH: 0.21,
-    tiers: [{ width: 0.5, from: 0.18, to: 0.76 }, { width: 0.37, from: 0.73, to: 1 }],
-    crown: 'ring', pad: true, flags: 3, gardens: 5,
-  },
-  {
-    height: 98, base: 0.8, baseH: 0.17,
-    tiers: [
-      { width: 0.52, from: 0.14, to: 0.62 },
-      { width: 0.42, from: 0.59, to: 0.86 },
-      { width: 0.3, from: 0.83, to: 1 },
-    ],
-    crown: 'spire', pad: true, flags: 5, gardens: 6,
-  },
-];
+/* ── Geometria utilitária (metres, sem texturas fora das fachadas) ──────── */
 
-function styleColor(style: number, tone: number): THREE.Color {
-  const palette = FACADE_STYLES[Math.abs(style) % FACADE_STYLES.length];
-  const pick = palette[Math.floor(tone * palette.length) % palette.length];
-  return new THREE.Color(pick);
+const TILE_W = 7.2;
+const TILE_H = 3.6;
+
+/** Quatro paredes com UV em metros: cada tile é uma janela de 7,2 × 3,6 m. */
+function wallBox(w: number, h: number, d: number, y0 = 0): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const push = (
+    corners: Array<[number, number, number]>,
+    normal: [number, number, number],
+    uSpan: number,
+  ) => {
+    const base = positions.length / 3;
+    const [a, b, c, e] = corners;
+    for (const [x, y, z] of [a, b, c, e]) {
+      positions.push(x, y, z);
+      normals.push(normal[0], normal[1], normal[2]);
+    }
+    uvs.push(0, 0, uSpan / TILE_W, 0, uSpan / TILE_W, h / TILE_H, 0, h / TILE_H);
+    indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+  const hw = w / 2;
+  const hd = d / 2;
+  const top = y0 + h;
+  push([[hw, y0, hd], [hw, y0, -hd], [hw, top, -hd], [hw, top, hd]], [1, 0, 0], d);
+  push([[-hw, y0, -hd], [-hw, y0, hd], [-hw, top, hd], [-hw, top, -hd]], [-1, 0, 0], d);
+  push([[-hw, y0, hd], [hw, y0, hd], [hw, top, hd], [-hw, top, hd]], [0, 0, 1], w);
+  push([[hw, y0, -hd], [-hw, y0, -hd], [-hw, top, -hd], [hw, top, -hd]], [0, 0, -1], w);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+/** Sólido sem UV para coberturas, coroas e detalhes. */
+function solidBox(w: number, h: number, d: number, y0 = 0): THREE.BufferGeometry {
+  const geometry = new THREE.BoxGeometry(w, h, d);
+  geometry.deleteAttribute('uv');
+  geometry.translate(0, y0 + h / 2, 0);
+  return geometry;
+}
+
+function gableSolid(w: number, d: number, rise: number, y0 = 0): THREE.BufferGeometry {
+  const geometry = gableGeometry();
+  geometry.scale(w, rise, d);
+  geometry.translate(0, y0, 0);
+  geometry.deleteAttribute('uv');
+  return geometry;
+}
+
+function hipSolid(w: number, d: number, rise: number, y0 = 0): THREE.BufferGeometry {
+  const geometry = hipGeometry();
+  geometry.scale(w, rise, d);
+  geometry.translate(0, y0, 0);
+  geometry.deleteAttribute('uv');
+  return geometry;
+}
+
+function sawSolid(w: number, d: number, rise: number, y0 = 0): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const bays = 3;
+  const bay = d / bays;
+  for (let index = 0; index < bays; index += 1) {
+    const geometry = sawGeometry();
+    geometry.scale(w, rise, bay);
+    geometry.translate(0, y0, -d / 2 + bay * (index + 0.5));
+    geometry.deleteAttribute('uv');
+    parts.push(geometry);
+  }
+  return mergeGeometries(parts, false) ?? parts[0];
+}
+
+function mergeWalls(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  return mergeGeometries(parts, false) ?? parts[0];
+}
+
+/* ── Catálogo de modelos ───────────────────────────────────────────────── */
+
+function buildModels(): BuildingModel[] {
+  const models: BuildingModel[] = [];
+  const add = (
+    spec: Omit<BuildingModel, 'walls' | 'roofGeometry' | 'accent'> & {
+      walls: THREE.BufferGeometry[];
+      roofGeometry: THREE.BufferGeometry;
+      accent?: THREE.BufferGeometry | null;
+    },
+  ) => {
+    models.push({
+      ...spec,
+      walls: mergeWalls(spec.walls),
+      accent: spec.accent ?? null,
+    });
+  };
+
+  // Torres do centro financeiro: três silhuetas distintas.
+  add({
+    key: 'torre-a', kinds: ['torre', 'comercial'], zones: ['centro'], w: 34, d: 30, h: 105.2, facade: 'ribbon', roof: 'flat',
+    walls: [wallBox(34, 92, 30), wallBox(24, 12, 21, 92)],
+    roofGeometry: solidBox(24.6, 1.2, 21.6, 104),
+    accent: solidBox(11, 4.2, 9, 105.2),
+  });
+  add({
+    key: 'torre-b', kinds: ['torre', 'comercial'], zones: ['centro'], w: 30, d: 30, h: 153.4, facade: 'ribbon', roof: 'crown',
+    walls: [wallBox(30, 96, 30), wallBox(23, 40, 23, 96), wallBox(15, 16, 15, 136)],
+    roofGeometry: solidBox(15.6, 1.4, 15.6, 152),
+    accent: mergeWalls([solidBox(0.9, 24, 0.9, 153), solidBox(5, 1.2, 5, 153)]),
+  });
+  add({
+    key: 'torre-c', kinds: ['torre', 'comercial'], zones: ['centro'], w: 40, d: 33, h: 75.2, facade: 'grid', roof: 'flat',
+    walls: [wallBox(40, 74, 33), wallBox(17, 22, 14, 0)],
+    roofGeometry: solidBox(40.8, 1.2, 33.8, 74),
+    accent: solidBox(14, 3.6, 12, 75.2),
+  });
+  // Escritórios e edifícios de médio porte.
+  add({
+    key: 'escritorio-a', kinds: ['comercial', 'predio', 'solar'], zones: ['centro', 'residencial'], w: 34, d: 24, h: 45.1, facade: 'grid', roof: 'flat',
+    walls: [wallBox(34, 44, 24)],
+    roofGeometry: solidBox(35, 1.1, 25, 44),
+    accent: mergeWalls([solidBox(10, 3.2, 8, 45.1), solidBox(30, 1.1, 1.2, 45.1)]),
+  });
+  add({
+    key: 'escritorio-b', kinds: ['comercial', 'predio', 'solar'], zones: ['centro', 'residencial'], w: 28, d: 22, h: 63.1, facade: 'ribbon', roof: 'flat',
+    walls: [wallBox(28, 62, 22), wallBox(11, 26, 18, 0)],
+    roofGeometry: solidBox(28.6, 1.1, 22.6, 62),
+    accent: solidBox(9, 3, 7, 63.1),
+  });
+  add({
+    key: 'predio-a', kinds: ['predio', 'solar'], zones: ['centro', 'residencial', 'periferia'], w: 36, d: 26, h: 31, facade: 'grid', roof: 'flat',
+    walls: [wallBox(36, 30, 26)],
+    roofGeometry: solidBox(37, 1, 27, 30),
+    accent: mergeWalls([solidBox(8, 2.8, 6, 31), solidBox(33, 0.9, 0.9, 31)]),
+  });
+  add({
+    key: 'predio-b', kinds: ['predio', 'solar'], zones: ['residencial', 'periferia', 'centro'], w: 30, d: 21, h: 39, facade: 'grid', roof: 'flat',
+    walls: [wallBox(30, 38, 21), wallBox(13, 19, 9, 0)],
+    roofGeometry: solidBox(30.6, 1, 21.6, 38),
+    accent: null,
+  });
+  add({
+    key: 'predio-c', kinds: ['predio', 'solar'], zones: ['residencial', 'periferia'], w: 26, d: 24, h: 22, facade: 'housing', roof: 'flat',
+    walls: [wallBox(26, 21, 24)],
+    roofGeometry: solidBox(26.6, 1, 24.6, 21),
+    accent: null,
+  });
+  add({
+    key: 'predio-d', kinds: ['predio', 'solar'], zones: ['residencial', 'periferia'], w: 22, d: 18, h: 15, facade: 'housing', roof: 'flat',
+    walls: [wallBox(22, 14, 18)],
+    roofGeometry: solidBox(22.6, 1, 18.6, 14),
+    accent: null,
+  });
+  // Habitação: fita de sobrados e casas isoladas com telhado.
+  add({
+    key: 'sobrado', kinds: ['casa', 'villa'], zones: ['residencial', 'periferia'], w: 30, d: 14, h: 12.8, facade: 'housing', roof: 'gable',
+    walls: [wallBox(30, 9.4, 14)],
+    roofGeometry: mergeWalls([
+      gableSolid(9.6, 15, 3.4, 9.4).translate(-10, 0, 0),
+      gableSolid(9.6, 15, 3.4, 9.4),
+      gableSolid(9.6, 15, 3.4, 9.4).translate(10, 0, 0),
+    ]),
+    accent: null,
+  });
+  add({
+    key: 'geminada', kinds: ['casa', 'villa'], zones: ['periferia', 'residencial'], w: 32, d: 18, h: 7.8, facade: 'housing', roof: 'gable',
+    walls: [wallBox(32, 6.4, 18)],
+    roofGeometry: mergeWalls([
+      gableSolid(10.6, 18.6, 1.4, 6.4).translate(-10.7, 0, 0),
+      gableSolid(10.6, 18.6, 1.4, 6.4),
+      gableSolid(10.6, 18.6, 1.4, 6.4).translate(10.7, 0, 0),
+    ]),
+    accent: null,
+  });
+  add({
+    key: 'geminada-b', kinds: ['casa', 'villa'], zones: ['periferia', 'residencial'], w: 26, d: 20, h: 9.4, facade: 'housing', roof: 'gable',
+    walls: [wallBox(26, 7.6, 20)],
+    roofGeometry: mergeWalls([
+      gableSolid(12.6, 20.6, 1.8, 7.6).translate(-6.6, 0, 0),
+      gableSolid(12.6, 20.6, 1.8, 7.6).translate(6.6, 0, 0),
+    ]),
+    accent: null,
+  });
+  add({
+    key: 'casa', kinds: ['casa', 'villa'], zones: ['residencial', 'periferia'], w: 15, d: 12, h: 8.8, facade: 'housing', roof: 'hip',
+    walls: [wallBox(15, 5.6, 12)],
+    roofGeometry: hipSolid(16.5, 13.5, 3.2, 5.6),
+    accent: null,
+  });
+  add({
+    key: 'villa', kinds: ['casa', 'villa'], zones: ['residencial', 'periferia'], w: 21, d: 16, h: 10.4, facade: 'housing', roof: 'hip',
+    walls: [wallBox(21, 7, 16), wallBox(8, 3.2, 6, 0)],
+    roofGeometry: hipSolid(22.5, 17.5, 3.4, 7),
+    accent: null,
+  });
+  // Indústria e logística: naves baixas, longas e de silhuetas diferentes.
+  add({
+    key: 'galpao-a', kinds: ['galpao'], zones: ['industrial', 'periferia'], w: 50, d: 36, h: 13, facade: 'grid', roof: 'saw',
+    walls: [wallBox(50, 10.4, 36)],
+    roofGeometry: sawSolid(51, 37, 3.2, 10.4),
+    accent: mergeWalls([
+      solidBox(10, 2.6, 8, 10.4).translate(-12, 0, 0),
+      solidBox(6, 1.8, 6, 10.4).translate(14, 0, 6),
+    ]),
+  });
+  add({
+    key: 'galpao-b', kinds: ['galpao'], zones: ['industrial', 'periferia'], w: 40, d: 30, h: 11.1, facade: 'grid', roof: 'flat',
+    walls: [wallBox(40, 10, 30)],
+    roofGeometry: solidBox(41, 1.1, 31, 10),
+    accent: solidBox(9, 2.4, 7, 11.1).translate(-9, 0, 0),
+  });
+  add({
+    key: 'fabrica', kinds: ['galpao'], zones: ['industrial'], w: 52, d: 34, h: 17, facade: 'grid', roof: 'saw',
+    walls: [wallBox(52, 13, 34), wallBox(16, 4, 12, 13)],
+    roofGeometry: sawSolid(53, 35, 3.4, 13),
+    accent: solidBox(3.4, 30, 3.4, 0).translate(18, 0, -10),
+  });
+  // Marco urbano: torre esguia com anéis, referência de horizonte.
+  add({
+    key: 'marco', kinds: ['marco'], zones: ['centro'], w: 28, d: 28, h: 68, facade: 'ribbon', roof: 'crown',
+    walls: [wallBox(28, 22, 28), wallBox(19, 30, 19, 22), wallBox(11, 12, 11, 52)],
+    roofGeometry: solidBox(11.6, 1.2, 11.6, 64),
+    accent: mergeWalls([solidBox(14, 1.1, 14, 30), solidBox(9, 1, 9, 43), solidBox(0.8, 16, 0.8, 65)]),
+  });
+  return models;
+}
+
+export const BUILDING_MODELS = buildModels();
+
+/** Cor de fachada por zona, com variação controlada (nada de sorteio saturado). */
+function facadeColor(building: CityBuilding, target: THREE.Color): THREE.Color {
+  const palette = ZONE_FACADES[building.zone] ?? ZONE_FACADES.residencial;
+  return target.setHex(palette[Math.floor(building.tone * palette.length) % palette.length]);
+}
+
+/** Grava a cor do edifício como atributo de vértice para mesclar geometrias. */
+function paintGeometry(geometry: THREE.BufferGeometry, color: THREE.Color): void {
+  const count = geometry.getAttribute('position').count;
+  const colors = new Float32Array(count * 3);
+  for (let index = 0; index < count; index += 1) {
+    colors[index * 3] = color.r;
+    colors[index * 3 + 1] = color.g;
+    colors[index * 3 + 2] = color.b;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+
+/** Dimensões finais do volume: a escala é limitada para o modelo não deformar. */
+function buildingDimensions(building: CityBuilding, model: BuildingModel) {
+  return {
+    w: model.w * THREE.MathUtils.clamp(building.w / model.w, 0.76, 1.32),
+    h: model.h * THREE.MathUtils.clamp(building.h / model.h, 0.74, 1.36),
+    d: model.d * THREE.MathUtils.clamp(building.d / model.d, 0.76, 1.32),
+  };
+}
+
+function roofColor(building: CityBuilding, target: THREE.Color): THREE.Color {
+  const palette = ROOF_COLORS[building.roof];
+  return target.setHex(palette[Math.floor(building.tone * palette.length) % palette.length]);
+}
+
+/** Escolhe o modelo cuja proporção e altura ficam mais próximas do lote. */
+export function pickModel(building: CityBuilding): BuildingModel {
+  const pool = BUILDING_MODELS.filter(
+    (model) => model.kinds.includes(building.kind) && model.zones.includes(building.zone),
+  );
+  const candidates = pool.length
+    ? pool
+    : BUILDING_MODELS.filter((model) => model.kinds.includes(building.kind));
+  let best = candidates[0] ?? BUILDING_MODELS[0];
+  let bestScore = Number.POSITIVE_INFINITY;
+  const buildingAspect = building.w / building.d;
+  for (const model of candidates) {
+    const score = Math.abs(Math.log(building.h / model.h)) * 1.3
+      + Math.abs(Math.log(building.w / model.w)) * 0.4
+      + Math.abs(Math.log(building.d / model.d)) * 0.4
+      // Pegada com proporção parecida evita esticar o volume numa direção só.
+      + Math.abs(Math.log(buildingAspect / (model.w / model.d))) * 0.5;
+    if (score < bestScore) {
+      bestScore = score;
+      best = model;
+    }
+  }
+  return best;
 }
 
 
@@ -180,7 +452,7 @@ function disposeObject(object: THREE.Object3D): void {
   });
 }
 
-/** Céu de fundo: gradiente vertical quente no horizonte, azul profundo no topo. */
+/** Fundo discreto: névoa clara em cima, horizonte quente — a cidade é o assunto. */
 function skyTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 4;
@@ -188,12 +460,11 @@ function skyTexture(): THREE.CanvasTexture {
   const context = canvas.getContext('2d');
   if (context) {
     const gradient = context.createLinearGradient(0, 0, 0, 256);
-    gradient.addColorStop(0, '#050c12');
-    gradient.addColorStop(0.42, '#0c1921');
-    gradient.addColorStop(0.6, '#192a2f');
-    gradient.addColorStop(0.72, '#2c3c3b');
-    gradient.addColorStop(0.84, '#1b2a28');
-    gradient.addColorStop(1, '#0f1a18');
+    gradient.addColorStop(0, '#c3cbca');
+    gradient.addColorStop(0.42, '#cfd3cc');
+    gradient.addColorStop(0.62, '#dcd8ca');
+    gradient.addColorStop(0.78, '#d6d3c6');
+    gradient.addColorStop(1, '#c8c9bd');
     context.fillStyle = gradient;
     context.fillRect(0, 0, 4, 256);
   }
@@ -202,28 +473,150 @@ function skyTexture(): THREE.CanvasTexture {
   return texture;
 }
 
+/**
+ * Fachadas procedurais nítidas (sem grão): parede branca para o tom da instância
+ * colorir, vãos de vidro azulado e uma linha de sombra sob a janela.
+ * Um tile = 7,2 m × 3,6 m.
+ */
 function windowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 64;
+  const context = canvas.getContext('2d');
+  if (context) {
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, 128, 64);
+    for (let row = 0; row < 1; row += 1) {
+      for (let col = 0; col < 2; col += 1) {
+        const x = col * 64 + 14;
+        const y = row * 64 + 12;
+        context.fillStyle = '#8fa9b3';
+        context.fillRect(x, y, 36, 32);
+        context.fillStyle = 'rgba(255,255,255,0.55)';
+        context.fillRect(x, y + 14, 36, 2);
+        context.fillStyle = 'rgba(60,72,78,0.18)';
+        context.fillRect(x, y + 32, 36, 3);
+      }
+    }
+    context.fillStyle = 'rgba(120,118,110,0.14)';
+    context.fillRect(0, 0, 128, 4);
+    context.fillRect(0, 60, 128, 4);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** Faixa de vidro contínua: torres com pele de cortina, luz uniforme. */
+function ribbonTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
   canvas.height = 64;
   const context = canvas.getContext('2d');
   if (context) {
-    context.fillStyle = '#e8e4d9';
+    context.fillStyle = '#ffffff';
     context.fillRect(0, 0, 64, 64);
-    for (let row = 0; row < 4; row += 1) {
-      for (let col = 0; col < 4; col += 1) {
-        const lit = (row * 4 + col) % 7 === 0;
-        context.fillStyle = lit ? '#f3dfae' : '#5e7480';
-        context.fillRect(col * 16 + 4, row * 16 + 4, 8, 9);
-      }
-    }
+    context.fillStyle = '#8ba7b2';
+    context.fillRect(0, 16, 64, 26);
+    context.fillStyle = 'rgba(255,255,255,0.5)';
+    context.fillRect(0, 29, 64, 2);
+    context.fillStyle = 'rgba(255,255,255,0.32)';
+    for (let col = 0; col < 4; col += 1) context.fillRect(col * 16 + 15, 16, 2, 26);
+    context.fillStyle = 'rgba(110,108,100,0.16)';
+    context.fillRect(0, 42, 64, 3);
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = 4;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
   return texture;
 }
+
+/** Habitação: janelas pequenas, peitoril e faixa de varanda. */
+function housingTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 64;
+  const context = canvas.getContext('2d');
+  if (context) {
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, 128, 64);
+    for (let col = 0; col < 4; col += 1) {
+      const x = col * 32 + 8;
+      context.fillStyle = '#93a9ad';
+      context.fillRect(x, 14, 16, 20);
+      context.fillStyle = 'rgba(255,255,255,0.7)';
+      context.fillRect(x, 23, 16, 2);
+      context.fillStyle = 'rgba(120,116,106,0.2)';
+      context.fillRect(x - 2, 34, 20, 3);
+    }
+    context.fillStyle = 'rgba(130,126,116,0.16)';
+    context.fillRect(0, 52, 128, 4);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+interface CityMaterials {
+  facades: Record<FacadeKind, THREE.MeshStandardMaterial>;
+  roof: THREE.MeshStandardMaterial;
+  accent: THREE.MeshStandardMaterial;
+  coarse: THREE.MeshStandardMaterial;
+  sidewalk: THREE.MeshStandardMaterial;
+  asphalt: THREE.MeshStandardMaterial;
+  marking: THREE.MeshBasicMaterial;
+  median: THREE.MeshStandardMaterial;
+  ground: THREE.MeshStandardMaterial;
+  skirt: THREE.MeshStandardMaterial;
+  water: THREE.MeshStandardMaterial;
+  trunk: THREE.MeshStandardMaterial;
+  leaf: THREE.MeshStandardMaterial;
+}
+
+/**
+ * Estágios da maquete da sede. A altura acompanha HQ_STAGES (em metros) e cada
+ * estágio acrescenta corpos empilhados, coroa e detalhes de praça.
+ */
+interface HqMaquette {
+  height: number;
+  /** Fração do lote ocupada pelo embasamento. */
+  base: number;
+  /** Altura do embasamento como fração da altura total. */
+  baseH: number;
+  /** Corpos superiores: largura relativa e faixa vertical (0–1 da altura). */
+  tiers: Array<{ width: number; from: number; to: number }>;
+  crown: 'band' | 'ring' | 'spire';
+  pad: boolean;
+  flags: number;
+  gardens: number;
+}
+
+const HQ_MAQUETTE: HqMaquette[] = [
+  { height: 14, base: 0.62, baseH: 1, tiers: [], crown: 'band', pad: false, flags: 0, gardens: 2 },
+  { height: 34, base: 0.72, baseH: 0.3, tiers: [{ width: 0.46, from: 0.26, to: 1 }], crown: 'band', pad: false, flags: 3, gardens: 4 },
+  {
+    height: 66, base: 0.76, baseH: 0.21,
+    tiers: [{ width: 0.5, from: 0.18, to: 0.76 }, { width: 0.37, from: 0.73, to: 1 }],
+    crown: 'ring', pad: true, flags: 3, gardens: 5,
+  },
+  {
+    height: 98, base: 0.8, baseH: 0.17,
+    tiers: [
+      { width: 0.52, from: 0.14, to: 0.62 },
+      { width: 0.42, from: 0.59, to: 0.86 },
+      { width: 0.3, from: 0.83, to: 1 },
+    ],
+    crown: 'spire', pad: true, flags: 5, gardens: 6,
+  },
+];
 
 export class CityScene {
   private container: HTMLElement;
@@ -244,11 +637,12 @@ export class CityScene {
   private dollhouseFloor = 1;
   private dollhouseBase = 0;
   private sun: THREE.DirectionalLight;
-  private fog = new THREE.Fog(0x1a2a30, 4600, 12000);
+  private fog = new THREE.Fog(0xcfd0c1, 2800, 11000);
 
   private target = new THREE.Vector3(0, 0, 0);
-  private spherical = { radius: 3450, theta: -0.9, phi: 0.78 };
-  private goal = { radius: 3450, theta: -0.9, phi: 0.78 };
+  private spherical = { radius: 3100, theta: -0.9, phi: 0.8 };
+  private goal = { radius: 3100, theta: -0.9, phi: 0.8 };
+  private lodTick = 0;
 
   private dragging = false;
   private panning = false;
@@ -268,6 +662,16 @@ export class CityScene {
   private disposed = false;
   private resizeObserver: ResizeObserver | null = null;
   private windowMap = windowTexture();
+  private materials: CityMaterials | null = null;
+  private materialTextures: THREE.Texture[] = [];
+  private buildingTextures: THREE.Texture[] = [];
+  private chunks = new Map<string, {
+    center: THREE.Vector3;
+    buildings: CityBuilding[];
+    coarse: THREE.InstancedMesh | null;
+    detail: THREE.Group | null;
+    detailed: boolean;
+  }>();
   private clock = new THREE.Clock();
   private labLight = new THREE.PointLight(0xffe6b8, 0, 26, 2);
 
@@ -285,6 +689,8 @@ export class CityScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.domElement.className = 'city-canvas';
     this.renderer.domElement.setAttribute('role', 'img');
@@ -292,7 +698,7 @@ export class CityScene {
     container.appendChild(this.renderer.domElement);
 
     this.scene.fog = this.fog;
-    this.camera = new THREE.PerspectiveCamera(58, 1, 0.6, 16000);
+    this.camera = new THREE.PerspectiveCamera(46, 1, 0.6, 16000);
     this.scene.background = skyTexture();
     this.scene.add(this.world);
     this.world.add(this.cityGroup, this.plotGroup, this.hqGroup, this.interiorGroup, this.dollhouseGroup);
@@ -306,30 +712,64 @@ export class CityScene {
   }
 
   private buildLights(): THREE.DirectionalLight {
-    // Luz de fim de tarde: sol quente rasante, céu frio e um recheio suave do
-    // lado oposto para as fachadas não ficarem chapadas.
-    this.scene.add(new THREE.HemisphereLight(0xd9e6ea, 0x1a2320, 0.96));
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.17));
-    const fill = new THREE.DirectionalLight(0x93bdd6, 0.52);
-    fill.position.set(1300, 720, -980);
+    // Luz global equilibrada: céu claro, sol alto e suave, preenchimento frio do
+    // lado oposto. Exposição única para fachadas claras sem estourar o branco.
+    this.scene.add(new THREE.HemisphereLight(0xe4ecec, 0x9d9a86, 0.55));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+    const fill = new THREE.DirectionalLight(0xbcd2dd, 0.24);
+    fill.position.set(1500, 900, -1200);
     this.scene.add(fill);
-    const sun = new THREE.DirectionalLight(0xffeacb, 2.7);
-    sun.position.set(-900, 1500, 700);
+    const sun = new THREE.DirectionalLight(0xfff2dc, 1.6);
+    sun.position.set(-820, 1500, 560);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(3072, 3072);
+    sun.shadow.mapSize.set(2048, 2048);
     const camera = sun.shadow.camera as THREE.OrthographicCamera;
-    camera.left = -2600;
-    camera.right = 2600;
-    camera.top = 2600;
-    camera.bottom = -2600;
+    camera.left = -2300;
+    camera.right = 2300;
+    camera.top = 2300;
+    camera.bottom = -2300;
     camera.near = 200;
-    camera.far = 11000;
+    camera.far = 8000;
     camera.updateProjectionMatrix();
-    sun.shadow.bias = -0.0006;
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = 0.6;
     this.scene.add(sun);
     this.scene.add(sun.target);
     this.scene.add(this.labLight);
     return sun;
+  }
+
+  /** Materiais compartilhados por toda a cena — criados uma vez por plano. */
+  private buildMaterials(): CityMaterials {
+    const grid = windowTexture();
+    const ribbon = ribbonTexture();
+    const housing = housingTexture();
+    this.materialTextures.push(grid, ribbon, housing);
+    const facadeTexture = (kind: FacadeKind, texture: THREE.Texture) => new THREE.MeshStandardMaterial({
+      map: texture,
+      vertexColors: true,
+      roughness: kind === 'ribbon' ? 0.55 : 0.86,
+      metalness: kind === 'ribbon' ? 0.1 : 0.02,
+    });
+    return {
+      facades: {
+        grid: facadeTexture('grid', grid),
+        ribbon: facadeTexture('ribbon', ribbon),
+        housing: facadeTexture('housing', housing),
+      },
+      roof: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.94, metalness: 0 }),
+      accent: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.25 }),
+      coarse: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }),
+      sidewalk: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.98, metalness: 0 }),
+      asphalt: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 }),
+      marking: new THREE.MeshBasicMaterial({ vertexColors: true }),
+      median: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.98, metalness: 0 }),
+      ground: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }),
+      skirt: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide }),
+      water: new THREE.MeshStandardMaterial({ color: COLORS.water, roughness: 0.42, metalness: 0.04 }),
+      trunk: new THREE.MeshStandardMaterial({ color: 0x7d6b52, roughness: 0.95 }),
+      leaf: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0 }),
+    };
   }
 
   setPlan(plan: CityPlan): void {
@@ -338,42 +778,82 @@ export class CityScene {
     this.resetView();
   }
 
+  /** Altura de apoio: o ponto mais baixo do lote, para nada flutuar no declive. */
+  private baseHeight(plan: CityPlan, building: CityBuilding): number {
+    const cos = Math.cos(building.rot);
+    const sin = Math.sin(building.rot);
+    let min = Number.POSITIVE_INFINITY;
+    for (const [u, v] of [[0, 0], [1, 1], [-1, 1], [1, -1], [-1, -1]] as Array<[number, number]>) {
+      const x = building.x + u * building.w * 0.5 * cos - v * building.d * 0.5 * sin;
+      const z = building.y + u * building.w * 0.5 * sin + v * building.d * 0.5 * cos;
+      min = Math.min(min, sampleHeight(plan, x, z));
+    }
+    return min - 2.2 + 0.05;
+  }
+
+  private disposeMaterials(): void {
+    const materials = this.materials;
+    if (!materials) return;
+    for (const material of Object.values(materials)) {
+      if (material instanceof THREE.Material) material.dispose();
+    }
+    for (const facade of Object.values(materials.facades)) facade.dispose();
+    for (const texture of this.materialTextures) texture.dispose();
+    this.materialTextures = [];
+    this.materials = null;
+  }
+
   private buildCity(plan: CityPlan): void {
     disposeObject(this.cityGroup);
     this.cityGroup.clear();
     disposeObject(this.hqGroup);
     this.hqGroup.clear();
     this.clearDollhouse();
-    const half = plan.size / 2;
+    this.chunks.clear();
+    this.disposeMaterials();
+    this.materials = this.buildMaterials();
+    this.buildTerrain(plan, this.materials);
+    this.buildWater(plan, this.materials);
+    this.buildRoads(plan, this.materials);
+    this.buildBuildings(plan, this.materials);
+    this.buildTrees(plan, this.materials);
+    this.buildPlots(plan);
+  }
 
-    // ── Terreno ────────────────────────────────────────────────────────────
-    const segments = 168;
+  // ── Terreno ──────────────────────────────────────────────────────────────
+  private buildTerrain(plan: CityPlan, materials: CityMaterials): void {
+    const segments = 190;
     const geometry = new THREE.PlaneGeometry(plan.size, plan.size, segments, segments);
     geometry.rotateX(-Math.PI / 2);
     const position = geometry.getAttribute('position') as THREE.BufferAttribute;
     const colors = new Float32Array(position.count * 3);
-    const land = new THREE.Color(COLORS.land);
-    const high = new THREE.Color(COLORS.landHigh);
+    const half = plan.size / 2;
+    const groundLow = new THREE.Color(COLORS.ground);
+    const groundHigh = new THREE.Color(COLORS.groundHigh);
+    const edge = new THREE.Color(COLORS.groundEdge);
     const park = new THREE.Color(COLORS.park);
+    const parkDeep = new THREE.Color(COLORS.parkDeep);
     const sand = new THREE.Color(COLORS.sand);
-    const water = new THREE.Color(COLORS.water);
     const tint = new THREE.Color();
     for (let index = 0; index < position.count; index += 1) {
       const x = position.getX(index);
       const z = position.getZ(index);
       const height = sampleHeight(plan, x, z);
       position.setY(index, height - 2.2);
-      const cellX = Math.floor((x + half) / plan.cell);
-      const cellY = Math.floor((z + half) / plan.cell);
-      const cell = Math.max(0, Math.min(CITY_CELLS * CITY_CELLS - 1, cellY * CITY_CELLS + cellX));
+      const cellX = Math.max(0, Math.min(CITY_CELLS - 1, Math.floor((x + half) / plan.cell)));
+      const cellY = Math.max(0, Math.min(CITY_CELLS - 1, Math.floor((z + half) / plan.cell)));
+      const cell = cellY * CITY_CELLS + cellX;
       if (plan.water[cell]) {
-        tint.copy(water);
-      } else if (plan.park[cell]) {
-        tint.copy(park);
-      } else if (height < 4) {
         tint.copy(sand);
+      } else if (plan.park[cell]) {
+        const mix = 0.5 + 0.5 * Math.sin(x * 0.011) * Math.cos(z * 0.009);
+        tint.copy(park).lerp(parkDeep, mix * 0.75);
       } else {
-        tint.copy(land).lerp(high, Math.min(1, height / 140));
+        const high = Math.min(1, Math.max(0, (height - 12) / 120));
+        tint.copy(groundLow).lerp(groundHigh, high * 0.7);
+        // Cinturão verde: o limite do recorte vira terreno natural, não uma borda.
+        const rim = Math.max(Math.abs(x), Math.abs(z)) / half;
+        if (rim > 0.78) tint.lerp(edge, Math.min(1, (rim - 0.78) / 0.2));
       }
       colors[index * 3] = tint.r;
       colors[index * 3 + 1] = tint.g;
@@ -381,153 +861,241 @@ export class CityScene {
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
-    const ground = new THREE.Mesh(
-      geometry,
-      new THREE.MeshLambertMaterial({ vertexColors: true }),
-    );
+    const ground = new THREE.Mesh(geometry, materials.ground);
     ground.receiveShadow = true;
     this.cityGroup.add(ground);
 
-    // Água: plano único ligeiramente abaixo do nível do mar.
-    const waterMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(plan.size * 1.4, plan.size * 1.4),
-      new THREE.MeshStandardMaterial({
-        color: COLORS.water,
-        roughness: 0.16,
-        metalness: 0.35,
-        transparent: true,
-        opacity: 0.94,
-      }),
-    );
-    waterMesh.rotation.x = -Math.PI / 2;
-    waterMesh.position.y = 0.35;
-    waterMesh.receiveShadow = false;
-    this.cityGroup.add(waterMesh);
+    // Saia do bloco de maquete: o terreno tem espessura, não é uma folha solta.
+    const positions: number[] = [];
+    const skirtColors: number[] = [];
+    const skirt = new THREE.Color(COLORS.skirting);
+    const steps = 48;
+    const pushSkirt = (ax: number, az: number, bx: number, bz: number) => {
+      const ay = sampleHeight(plan, ax, az) - 2.2;
+      const by = sampleHeight(plan, bx, bz) - 2.2;
+      positions.push(ax, ay, az, bx, by, bz, bx, -26, bz, ax, -26, az);
+      const top = 1;
+      const bottom = 0.82;
+      for (const shade of [top, top, bottom, bottom]) {
+        skirtColors.push(skirt.r * shade, skirt.g * shade, skirt.b * shade);
+      }
+    };
+    for (let step = 0; step < steps; step += 1) {
+      const t0 = (step / steps) * plan.size - half;
+      const t1 = ((step + 1) / steps) * plan.size - half;
+      pushSkirt(t0, -half, t1, -half);
+      pushSkirt(t1, half, t0, half);
+      pushSkirt(-half, t1, -half, t0);
+      pushSkirt(half, t0, half, t1);
+    }
+    const skirtGeometry = new THREE.BufferGeometry();
+    skirtGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    skirtGeometry.setAttribute('color', new THREE.Float32BufferAttribute(skirtColors, 3));
+    // Converte a fita em triângulos (cada quadrilátero tem 4 vértices).
+    const indices: number[] = [];
+    for (let base = 0; base < positions.length / 3; base += 4) {
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    skirtGeometry.setIndex(indices);
+    skirtGeometry.computeVertexNormals();
+    this.cityGroup.add(new THREE.Mesh(skirtGeometry, materials.skirt));
+  }
 
-    // ── Ruas ───────────────────────────────────────────────────────────────
-    const roadPositions: number[] = [];
-    const roadIndices: number[] = [];
-    let vertex = 0;
+  private buildWater(plan: CityPlan, materials: CityMaterials): void {
+    // Água discreta e uniforme, só dentro do recorte real da cidade.
+    const water = new THREE.Mesh(
+      new THREE.PlaneGeometry(plan.size, plan.size),
+      materials.water,
+    );
+    water.rotation.x = -Math.PI / 2;
+    water.position.y = -0.7;
+    water.receiveShadow = false;
+    this.cityGroup.add(water);
+  }
+
+  // ── Ruas: calçada, guia, asfalto, eixo e canteiro ─────────────────────────
+  private buildRoads(plan: CityPlan, materials: CityMaterials): void {
+    const pavementPos: number[] = [];
+    const pavementCol: number[] = [];
+    const markingPos: number[] = [];
+    const markingCol: number[] = [];
+    const medianPos: number[] = [];
+    const medianCol: number[] = [];
+    const walk = new THREE.Color(COLORS.sidewalk);
+    const kerb = new THREE.Color(COLORS.kerb);
+    const local = new THREE.Color(COLORS.asphalt);
+    const avenue = new THREE.Color(COLORS.avenue);
+    const marking = new THREE.Color(COLORS.marking);
+    const median = new THREE.Color(COLORS.median);
+    const tint = new THREE.Color();
+
+    const quad = (
+      target: number[], colors: number[],
+      ax: number, az: number, bx: number, bz: number,
+      half: number, lift: number, color: THREE.Color,
+    ) => {
+      const dx = bx - ax;
+      const dz = bz - az;
+      const length = Math.hypot(dx, dz) || 1;
+      const nx = -dz / length;
+      const nz = dx / length;
+      const ay = sampleHeight(plan, ax, az) - 2.2 + lift;
+      const by = sampleHeight(plan, bx, bz) - 2.2 + lift;
+      target.push(
+        ax + nx * half, ay, az + nz * half,
+        ax - nx * half, ay, az - nz * half,
+        bx + nx * half, by, bz + nz * half,
+        bx - nx * half, by, bz - nz * half,
+      );
+      for (let index = 0; index < 4; index += 1) colors.push(color.r, color.g, color.b);
+    };
+
     for (const road of plan.roads) {
-      const halfWidth = Math.max(3.2, road.width / 2);
+      const wide = road.kind === 'arterial' || road.kind === 'anel';
+      const halfWidth = road.width / 2;
+      const walkWidth = wide ? 6.4 : 3.6;
+      tint.copy(wide ? avenue : local);
+      if (road.kind === 'anel') tint.offsetHSL(0, 0, -0.02);
       for (let index = 0; index < road.pts.length - 1; index += 1) {
         const [x1, z1] = road.pts[index];
         const [x2, z2] = road.pts[index + 1];
-        const dx = x2 - x1;
-        const dz = z2 - z1;
-        const length = Math.hypot(dx, dz) || 1;
-        const nx = (-dz / length) * halfWidth;
-        const nz = (dx / length) * halfWidth;
-        const y1 = sampleHeight(plan, x1, z1) - 2.2 + 0.5;
-        const y2 = sampleHeight(plan, x2, z2) - 2.2 + 0.5;
-        roadPositions.push(
-          x1 + nx, y1, z1 + nz,
-          x1 - nx, y1, z1 - nz,
-          x2 + nx, y2, z2 + nz,
-          x2 - nx, y2, z2 - nz,
-        );
-        roadIndices.push(vertex, vertex + 2, vertex + 1, vertex + 1, vertex + 2, vertex + 3);
-        vertex += 4;
-      }
-    }
-    if (roadPositions.length) {
-      const roadGeometry = new THREE.BufferGeometry();
-      roadGeometry.setAttribute('position', new THREE.Float32BufferAttribute(roadPositions, 3));
-      roadGeometry.setIndex(roadIndices);
-      roadGeometry.computeVertexNormals();
-      const roads = new THREE.Mesh(
-        roadGeometry,
-        new THREE.MeshLambertMaterial({ color: COLORS.road, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 }),
-      );
-      roads.receiveShadow = true;
-      this.cityGroup.add(roads);
-    }
-
-    this.buildBuildings(plan);
-
-    // ── Árvores ────────────────────────────────────────────────────────────
-    if (plan.trees.length) {
-      const treeMatrix = new THREE.Matrix4();
-      const treeQuaternion = new THREE.Quaternion();
-      const treePosition = new THREE.Vector3();
-      const treeScale = new THREE.Vector3();
-      const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.7, 3, 5);
-      trunkGeometry.translate(0, 1.5, 0);
-      const crownGeometry = new THREE.ConeGeometry(3.4, 8, 7);
-      crownGeometry.translate(0, 7, 0);
-      const trunks = new THREE.InstancedMesh(trunkGeometry, new THREE.MeshLambertMaterial({ color: 0x4a3d2c }), plan.trees.length);
-      const crowns = new THREE.InstancedMesh(crownGeometry, new THREE.MeshLambertMaterial({ color: 0xffffff }), plan.trees.length);
-      crowns.castShadow = true;
-      const leafPalette = [0x35663f, 0x2e5a3a, 0x3f7247, 0x4a6b3a, 0x2a5240];
-      plan.trees.forEach((tree, index) => {
-        const y = sampleHeight(plan, tree.x, tree.y) - 2.2 + 0.2;
-        treeQuaternion.identity();
-        treePosition.set(tree.x, y, tree.y);
-        treeScale.setScalar(tree.s / 4.4);
-        treeMatrix.compose(treePosition, treeQuaternion, treeScale);
-        trunks.setMatrixAt(index, treeMatrix);
-        treeScale.setScalar(tree.s / 3.6);
-        treeMatrix.compose(treePosition, treeQuaternion, treeScale);
-        crowns.setMatrixAt(index, treeMatrix);
-        const pick = Math.abs(Math.round(tree.x * 7 + tree.y * 13)) % leafPalette.length;
-        crowns.setColorAt(index, tint.setHex(leafPalette[pick]));
-      });
-      trunks.instanceMatrix.needsUpdate = true;
-      crowns.instanceMatrix.needsUpdate = true;
-      if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
-      this.cityGroup.add(trunks, crowns);
-    }
-
-    this.buildStreetLamps(plan);
-
-    // ── Praia / orla: faixa clara onde a terra encontra a água ─────────────
-    if (plan.shore.length) {
-      const beach: number[] = [];
-      for (const run of plan.shore) {
-        for (let index = 0; index < run.length - 1; index += 1) {
-          const [x1, z1] = run[index];
-          const [x2, z2] = run[index + 1];
-          if (Math.hypot(x2 - x1, z2 - z1) > 380) continue;
-          beach.push(x1, 1.0, z1, x2, 1.0, z2);
+        // Calçada larga, guia clara e asfalto por cima: hierarquia sem contorno.
+        quad(pavementPos, pavementCol, x1, z1, x2, z2, halfWidth + walkWidth, 0.14, walk);
+        quad(pavementPos, pavementCol, x1, z1, x2, z2, halfWidth + 1.1, 0.32, kerb);
+        quad(pavementPos, pavementCol, x1, z1, x2, z2, halfWidth, 0.44, tint);
+        if (!wide) continue;
+        const length = Math.hypot(x2 - x1, z2 - z1);
+        const dashes = Math.max(1, Math.floor(length / 15));
+        for (let dash = 0; dash < dashes; dash += 1) {
+          const t0 = (dash + 0.18) / dashes;
+          const t1 = (dash + 0.66) / dashes;
+          quad(
+            markingPos, markingCol,
+            x1 + (x2 - x1) * t0, z1 + (z2 - z1) * t0,
+            x1 + (x2 - x1) * t1, z1 + (z2 - z1) * t1,
+            0.34, 0.5, marking,
+          );
+        }
+        if (road.width >= 26) {
+          quad(medianPos, medianCol, x1, z1, x2, z2, 2.2, 0.52, median);
         }
       }
-      if (beach.length) {
-        const beachGeometry = new THREE.BufferGeometry();
-        beachGeometry.setAttribute('position', new THREE.Float32BufferAttribute(beach, 3));
-        this.cityGroup.add(new THREE.LineSegments(
-          beachGeometry,
-          new THREE.LineBasicMaterial({ color: 0xc9bd9a, transparent: true, opacity: 0.55 }),
-        ));
-      }
     }
 
-    // ── Marcações dos lotes ────────────────────────────────────────────────
+    const makeMesh = (
+      positions: number[],
+      colors: number[],
+      material: THREE.Material,
+      shadows: boolean,
+    ) => {
+      if (!positions.length) return null;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      const indices: number[] = [];
+      for (let base = 0; base < positions.length / 3; base += 4) {
+        indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      }
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.receiveShadow = shadows;
+      mesh.castShadow = false;
+      return mesh;
+    };
+
+    const pavement = makeMesh(pavementPos, pavementCol, materials.sidewalk, true);
+    if (pavement) this.cityGroup.add(pavement);
+    const marks = makeMesh(markingPos, markingCol, materials.marking, false);
+    if (marks) this.cityGroup.add(marks);
+    const medians = makeMesh(medianPos, medianCol, materials.median, true);
+    if (medians) this.cityGroup.add(medians);
+  }
+
+  // ── Árvores ──────────────────────────────────────────────────────────────
+  private buildTrees(plan: CityPlan, materials: CityMaterials): void {
+    if (!plan.trees.length) return;
+    const trunkGeometry = new THREE.CylinderGeometry(0.34, 0.5, 2.6, 5);
+    trunkGeometry.translate(0, 1.3, 0);
+    const leafGeometry = new THREE.IcosahedronGeometry(1, 0);
+    leafGeometry.translate(0, 1, 0);
+    const trunks = new THREE.InstancedMesh(trunkGeometry, materials.trunk, plan.trees.length);
+    const leaves = new THREE.InstancedMesh(leafGeometry, materials.leaf, plan.trees.length);
+    leaves.castShadow = true;
+    leaves.receiveShadow = true;
+    const matrix = new THREE.Matrix4();
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    const color = new THREE.Color();
+    const palette = [0x7f9a6c, 0x8ba777, 0x73905f, 0x94ab7c];
+    plan.trees.forEach((tree, index) => {
+      const base = sampleHeight(plan, tree.x, tree.y) - 2.2 + 0.1;
+      position.set(tree.x, base, tree.y);
+      quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (tree.x * 0.07 + tree.y * 0.11) % (Math.PI * 2));
+      const crown = tree.s * 0.62;
+      scale.set(crown, tree.s * 0.94, crown);
+      matrix.compose(position, quaternion, scale);
+      leaves.setMatrixAt(index, matrix);
+      leaves.setColorAt(index, color.setHex(palette[Math.abs(Math.round(tree.x * 3 + tree.y * 5)) % palette.length]));
+      scale.set(tree.s / 5, tree.s / 5, tree.s / 5);
+      matrix.compose(position, quaternion, scale);
+      trunks.setMatrixAt(index, matrix);
+    });
+    trunks.instanceMatrix.needsUpdate = true;
+    leaves.instanceMatrix.needsUpdate = true;
+    if (leaves.instanceColor) leaves.instanceColor.needsUpdate = true;
+    this.cityGroup.add(trunks, leaves);
+  }
+
+  // ── Lotes da sede ────────────────────────────────────────────────────────
+  private buildPlots(plan: CityPlan): void {
     disposeObject(this.plotGroup);
     this.plotGroup.clear();
     for (const plot of plan.plots) {
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(plot.w * 0.55, plot.w * 0.62, 28),
-        new THREE.MeshBasicMaterial({ color: COLORS.hq, transparent: true, opacity: 0.75, side: THREE.DoubleSide }),
-      );
+      const radius = Math.max(20, plot.w * 0.6);
+      const base = sampleHeight(plan, plot.x, plot.y) - 2.2;
+      const discMaterial = new THREE.MeshBasicMaterial({
+        color: COLORS.hq,
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 36), discMaterial);
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.set(plot.x, base + 0.9, plot.y);
+      disc.userData = { plotId: plot.id, role: 'disc' };
+      this.plotGroup.add(disc);
+
+      const ringMaterial = new THREE.MeshBasicMaterial({
+        color: COLORS.hq,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.9, radius, 40), ringMaterial);
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(plot.x, sampleHeight(plan, plot.x, plot.y) - 2.2 + 0.9, plot.y);
-      ring.userData = { plotId: plot.id };
+      ring.position.set(plot.x, base + 1.0, plot.y);
+      ring.userData = { plotId: plot.id, role: 'ring' };
       this.plotGroup.add(ring);
-      const pin = new THREE.Mesh(
-        new THREE.ConeGeometry(plot.w * 0.16, plot.w * 0.5, 8),
-        new THREE.MeshBasicMaterial({ color: 0xf4d79a }),
-      );
-      pin.rotation.x = Math.PI;
-      pin.position.set(plot.x, sampleHeight(plan, plot.x, plot.y) - 2.2 + plot.w * 0.5, plot.y);
-      pin.userData = { plotId: plot.id };
-      this.plotGroup.add(pin);
+
+      // Alfinete discreto: o lote tem de ser achado na visão geral sem poluir.
+      const pinMaterial = new THREE.MeshBasicMaterial({ color: 0xf2d699, transparent: true, opacity: 0.9 });
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 26, 5), pinMaterial);
+      stem.position.set(plot.x, base + 14, plot.y);
+      stem.userData = { plotId: plot.id, role: 'pin' };
+      const head = new THREE.Mesh(new THREE.ConeGeometry(5.2, 14, 10), pinMaterial);
+      head.rotation.x = Math.PI;
+      head.position.set(plot.x, base + 34, plot.y);
+      head.userData = { plotId: plot.id, role: 'pin' };
+      this.plotGroup.add(stem, head);
     }
     this.plotGroup.visible = false;
   }
 
   // ── Edificações ──────────────────────────────────────────────────────────
-  private buildingTextures: THREE.Texture[] = [];
-
   private facadeTexture(repeatX: number, repeatY: number): THREE.CanvasTexture {
     const texture = this.windowMap.clone() as THREE.CanvasTexture;
     texture.wrapS = THREE.RepeatWrapping;
@@ -539,205 +1107,173 @@ export class CityScene {
     return texture;
   }
 
-  /** Postes ao longo das avenidas: dão escala e vida à cidade vista de cima. */
-  private buildStreetLamps(plan: CityPlan): void {
-    const points: Array<{ x: number; z: number }> = [];
-    const spacing = 96;
-    for (const road of plan.roads) {
-      if (road.kind === 'rua' || road.width < 11) continue;
-      const offset = road.width * 0.62;
-      for (let index = 0; index < road.pts.length - 1; index += 1) {
-        const [x1, z1] = road.pts[index];
-        const [x2, z2] = road.pts[index + 1];
-        const dx = x2 - x1;
-        const dz = z2 - z1;
-        const length = Math.hypot(dx, dz);
-        if (length < 8) continue;
-        const nx = (-dz / length) * offset;
-        const nz = (dx / length) * offset;
-        const steps = Math.max(1, Math.round(length / spacing));
-        for (let step = 0; step < steps; step += 1) {
-          const t = (step + 0.5) / steps;
-          const side = (index + step) % 2 === 0 ? 1 : -1;
-          points.push({ x: x1 + dx * t + nx * side, z: z1 + dz * t + nz * side });
-          if (points.length >= 620) break;
-        }
-        if (points.length >= 620) break;
-      }
-      if (points.length >= 620) break;
+  /**
+   * Cidade em blocos de 850 m. Cada bloco tem uma versão grosseira (uma caixa
+   * instanciada) e uma versão detalhada, montada sob demanda com os modelos
+   * reutilizáveis. Longe, a cidade é um volume; perto, ganha fachada, telhado e
+   * coroamento — sem criar nem destruir milhares de objetos por quadro.
+   */
+  private buildBuildings(plan: CityPlan, materials: CityMaterials): void {
+    const chunkSize = plan.size / 8;
+    const half = plan.size / 2;
+    const coarseGeometry = new THREE.BoxGeometry(1, 1, 1);
+    coarseGeometry.translate(0, 0.5, 0);
+    coarseGeometry.deleteAttribute('uv');
+    const count = coarseGeometry.getAttribute('position').count;
+    const tint = new Float32Array(count * 3);
+    const normal = coarseGeometry.getAttribute('normal');
+    for (let index = 0; index < count; index += 1) {
+      // Topo mais escuro que as paredes: a caixa distante já tem telhado.
+      const shade = normal.getY(index) > 0.5 ? 0.82 : 1;
+      tint[index * 3] = shade;
+      tint[index * 3 + 1] = shade;
+      tint[index * 3 + 2] = shade;
     }
-    if (!points.length) return;
-    const pole = new THREE.CylinderGeometry(0.14, 0.2, 6, 5);
-    pole.translate(0, 3, 0);
-    const bulb = new THREE.SphereGeometry(0.42, 7, 5);
-    const poles = new THREE.InstancedMesh(pole, new THREE.MeshLambertMaterial({ color: 0x424a48 }), points.length);
-    const bulbs = new THREE.InstancedMesh(
-      bulb,
-      new THREE.MeshStandardMaterial({ color: 0xfff4d8, emissive: 0xffcf8a, emissiveIntensity: 1.5 }),
-      points.length,
-    );
+    coarseGeometry.setAttribute('color', new THREE.BufferAttribute(tint, 3));
+
+    const buckets = new Map<string, CityBuilding[]>();
+    for (const building of plan.buildings) {
+      const ci = Math.floor((building.x + half) / chunkSize);
+      const cj = Math.floor((building.y + half) / chunkSize);
+      const key = `${ci}:${cj}`;
+      const list = buckets.get(key);
+      if (list) list.push(building);
+      else buckets.set(key, [building]);
+    }
+
     const matrix = new THREE.Matrix4();
     const position = new THREE.Vector3();
-    const quaternion = new THREE.Quaternion();
-    const scale = new THREE.Vector3(1, 1, 1);
-    points.forEach((point, index) => {
-      const y = sampleHeight(plan, point.x, point.z) - 2.2 + 0.4;
-      position.set(point.x, y, point.z);
-      matrix.compose(position, quaternion, scale);
-      poles.setMatrixAt(index, matrix);
-      position.set(point.x, y + 6.1, point.z);
-      matrix.compose(position, quaternion, scale);
-      bulbs.setMatrixAt(index, matrix);
-    });
-    poles.instanceMatrix.needsUpdate = true;
-    bulbs.instanceMatrix.needsUpdate = true;
-    this.cityGroup.add(poles, bulbs);
-  }
-
-  private buildBuildings(plan: CityPlan): void {
-    for (const texture of this.buildingTextures) texture.dispose();
-    this.buildingTextures = [];
-    const buildings = plan.buildings;
-    if (!buildings.length) return;
-
-    const box = new THREE.BoxGeometry(1, 1, 1);
-    box.translate(0, 0.5, 0);
-    const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
     const scale = new THREE.Vector3();
-    const position = new THREE.Vector3();
-    const color = new THREE.Color();
     const up = new THREE.Vector3(0, 1, 0);
-    const setAt = (mesh: THREE.InstancedMesh, index: number, x: number, y: number, z: number, sx: number, sy: number, sz: number, rot: number) => {
-      quaternion.setFromAxisAngle(up, -rot);
-      position.set(x, y, z);
-      scale.set(sx, sy, sz);
-      matrix.compose(position, quaternion, scale);
-      mesh.setMatrixAt(index, matrix);
-    };
+    const color = new THREE.Color();
 
-    // Corpo: quatro faixas de altura, cada uma com janelas na escala certa.
-    const bands = [
-      { max: 4, repeat: [2, 1] as [number, number] },
-      { max: 9, repeat: [2, 2] as [number, number] },
-      { max: 19, repeat: [2, 4] as [number, number] },
-      { max: Infinity, repeat: [3, 6] as [number, number] },
-    ];
-    const bandOf = (building: CityBuilding) => bands.findIndex((band) => building.floors <= band.max);
-    const buckets = bands.map(() => [] as CityBuilding[]);
-    for (const building of buildings) buckets[Math.max(0, bandOf(building))].push(building);
-
-    bands.forEach((band, bandIndex) => {
-      const list = buckets[bandIndex];
-      if (!list.length) return;
-      const bodyMaterial = new THREE.MeshStandardMaterial({
-        map: this.facadeTexture(band.repeat[0], band.repeat[1]),
-        roughness: 0.76,
-        metalness: 0.08,
-      });
-      const body = new THREE.InstancedMesh(box, bodyMaterial, list.length);
-      body.castShadow = true;
-      body.receiveShadow = true;
+    for (const [key, list] of buckets) {
+      const [ci, cj] = key.split(':').map(Number);
+      const center = new THREE.Vector3(
+        -half + (ci + 0.5) * chunkSize,
+        0,
+        -half + (cj + 0.5) * chunkSize,
+      );
+      const coarse = new THREE.InstancedMesh(coarseGeometry, materials.coarse, list.length);
+      coarse.castShadow = true;
+      coarse.receiveShadow = true;
       list.forEach((building, index) => {
-        const base = sampleHeight(plan, building.x, building.y) - 2.2 + 0.3;
-        setAt(body, index, building.x, base, building.y, building.w, building.h, building.d, building.rot);
-        color.copy(styleColor(building.style, building.tone));
-        if (building.style === 3) color.lerp(new THREE.Color(COLORS.glass), 0.35);
-        body.setColorAt(index, color);
+        const base = this.baseHeight(plan, building);
+        // A caixa distante usa as mesmas dimensões finais do modelo: trocar de
+        // LOD não muda a silhueta, só o nível de detalhe.
+        const model = pickModel(building);
+        const dims = buildingDimensions(building, model);
+        quaternion.setFromAxisAngle(up, -building.rot);
+        position.set(building.x, base, building.y);
+        scale.set(dims.w, dims.h, dims.d);
+        matrix.compose(position, quaternion, scale);
+        coarse.setMatrixAt(index, matrix);
+        coarse.setColorAt(index, facadeColor(building, color));
       });
-      body.instanceMatrix.needsUpdate = true;
-      if (body.instanceColor) body.instanceColor.needsUpdate = true;
-      this.cityGroup.add(body);
-    });
-
-    // Coberturas por tipo — a silhueta passa a variar de verdade.
-    const gable = gableGeometry();
-    const hip = hipGeometry();
-    const saw = sawGeometry();
-    const slab = new THREE.BoxGeometry(1, 1, 1);
-    slab.translate(0, 0.5, 0);
-    const roofGroups: Array<{ kind: RoofKind; geometry: THREE.BufferGeometry; list: CityBuilding[]; y: number }> = [
-      { kind: 'gable', geometry: gable, list: buildings.filter((b) => b.roof === 'gable'), y: 0 },
-      { kind: 'hip', geometry: hip, list: buildings.filter((b) => b.roof === 'hip'), y: 0 },
-      { kind: 'saw', geometry: saw, list: buildings.filter((b) => b.roof === 'saw'), y: 0 },
-      { kind: 'flat', geometry: slab, list: buildings.filter((b) => b.roof === 'flat'), y: 0 },
-      { kind: 'crown', geometry: slab, list: buildings.filter((b) => b.roof === 'crown'), y: 0 },
-    ];
-    for (const group of roofGroups) {
-      if (!group.list.length) continue;
-      const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.86, metalness: 0.05 });
-      const mesh = new THREE.InstancedMesh(group.geometry === slab ? slab : group.geometry, material, group.list.length);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      group.list.forEach((building, index) => {
-        const base = sampleHeight(plan, building.x, building.y) - 2.2 + 0.3;
-        const y = base + building.h;
-        if (building.roof === 'flat' || building.roof === 'crown') {
-          setAt(mesh, index, building.x, y, building.y, building.w * 1.04, 0.62, building.d * 1.04, building.rot);
-        } else if (building.roof === 'gable' || building.roof === 'hip') {
-          setAt(mesh, index, building.x, y - 0.06, building.y, building.w, building.roofH, building.d, building.rot);
-        } else {
-          setAt(mesh, index, building.x, y - 0.06, building.y, building.w, building.roofH, building.d, building.rot);
-        }
-        const palette = ROOF_COLORS[building.roof];
-        mesh.setColorAt(index, color.setHex(palette[Math.floor(building.tone * palette.length) % palette.length]));
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      this.cityGroup.add(mesh);
+      coarse.instanceMatrix.needsUpdate = true;
+      if (coarse.instanceColor) coarse.instanceColor.needsUpdate = true;
+      this.cityGroup.add(coarse);
+      this.chunks.set(key, { center, buildings: list, coarse, detail: null, detailed: false });
     }
+  }
 
-    // Coroas, casas de máquinas e antenas das torres.
-    const crowns = buildings.filter((building) => building.crown > 0);
-    if (crowns.length) {
-      const mesh = new THREE.InstancedMesh(slab, new THREE.MeshStandardMaterial({ color: 0x9aa4a2, roughness: 0.7, metalness: 0.15 }), crowns.length);
-      crowns.forEach((building, index) => {
-        const base = sampleHeight(plan, building.x, building.y) - 2.2 + 0.3;
-        setAt(mesh, index, building.x, base + building.h, building.y, building.w * 0.46, Math.max(2.4, building.roofH * 1.6), building.d * 0.46, building.rot);
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      this.cityGroup.add(mesh);
-      const masts = crowns.filter((building) => building.crown >= 2);
-      if (masts.length) {
-        const mast = new THREE.CylinderGeometry(0.26, 0.4, 1, 5);
-        mast.translate(0, 0.5, 0);
-        const antennas = new THREE.InstancedMesh(mast, new THREE.MeshStandardMaterial({ color: 0x59646a, metalness: 0.6, roughness: 0.4 }), masts.length);
-        masts.forEach((building, index) => {
-          const base = sampleHeight(plan, building.x, building.y) - 2.2 + 0.3;
-          setAt(antennas, index, building.x, base + building.h + Math.max(2.4, building.roofH * 1.6), building.y, 1, 8 + building.h * 0.08, 1, building.rot);
-        });
-        antennas.instanceMatrix.needsUpdate = true;
-        this.cityGroup.add(antennas);
+  /**
+   * Monta (uma vez) o bloco detalhado: uma geometria mesclada por tipo de
+   * fachada + uma para coberturas + uma para coroamentos. Três draw calls por
+   * bloco, sem instâncias invisíveis.
+   */
+  private ensureDetail(key: string): void {
+    const chunk = this.chunks.get(key);
+    const plan = this.plan;
+    const materials = this.materials;
+    if (!chunk || chunk.detail || !plan || !materials) return;
+    const group = new THREE.Group();
+    const wallsByFacade = new Map<FacadeKind, THREE.BufferGeometry[]>();
+    const roofs: THREE.BufferGeometry[] = [];
+    const accents: THREE.BufferGeometry[] = [];
+    const matrix = new THREE.Matrix4();
+    const quaternion = new THREE.Quaternion();
+    const position = new THREE.Vector3();
+    const scale = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    const color = new THREE.Color();
+
+    for (const building of chunk.buildings) {
+      const model = pickModel(building);
+      const base = this.baseHeight(plan, building);
+      quaternion.setFromAxisAngle(up, -building.rot);
+      position.set(building.x, base, building.y);
+      scale.set(
+        THREE.MathUtils.clamp(building.w / model.w, 0.7, 1.36),
+        THREE.MathUtils.clamp(building.h / model.h, 0.7, 1.4),
+        THREE.MathUtils.clamp(building.d / model.d, 0.7, 1.36),
+      );
+      matrix.compose(position, quaternion, scale);
+
+      const walls = model.walls.clone().applyMatrix4(matrix);
+      paintGeometry(walls, facadeColor(building, color));
+      const list = wallsByFacade.get(model.facade);
+      if (list) list.push(walls);
+      else wallsByFacade.set(model.facade, [walls]);
+
+      const roof = model.roofGeometry.clone().applyMatrix4(matrix);
+      paintGeometry(roof, roofColor(building, color));
+      roofs.push(roof);
+
+      if (model.accent) {
+        const accent = model.accent.clone().applyMatrix4(matrix);
+        paintGeometry(accent, color.setHex(0x9aa0a0));
+        accents.push(accent);
       }
     }
 
-    // Toldos nas fachadas comerciais e vitrines no rés do chão.
-    const awnings = buildings.filter((building) => (building.kind === 'casa' || building.kind === 'comercial' || building.kind === 'villa') && building.tone > 0.42);
-    if (awnings.length) {
-      const mesh = new THREE.InstancedMesh(slab, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 }), awnings.length);
-      awnings.forEach((building, index) => {
-        const base = sampleHeight(plan, building.x, building.y) - 2.2 + 0.3;
-        const offset = building.d / 2 + 0.75;
-        const dx = Math.sin(-building.rot) * offset;
-        const dz = Math.cos(-building.rot) * offset;
-        setAt(mesh, index, building.x + dx, base + 3.1, building.y + dz, building.w * 0.82, 0.16, 1.8, building.rot);
-        const palette = [0xc0653f, 0x2f7d6c, 0xc9a24a, 0x7d4f57];
-        mesh.setColorAt(index, color.setHex(palette[Math.floor(building.tone * 97) % palette.length]));
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-      this.cityGroup.add(mesh);
-    }
+    const addMerged = (parts: THREE.BufferGeometry[], material: THREE.Material) => {
+      if (!parts.length) return;
+      const merged = mergeGeometries(parts, false);
+      for (const part of parts) part.dispose();
+      if (!merged) return;
+      const mesh = new THREE.Mesh(merged, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    };
+    for (const [facade, parts] of wallsByFacade) addMerged(parts, materials.facades[facade]);
+    addMerged(roofs, materials.roof);
+    addMerged(accents, materials.accent);
 
-    const shopfronts = buildings.filter((building) => building.kind === 'comercial' || building.kind === 'solar' || building.kind === 'galpao');
-    if (shopfronts.length) {
-      const mesh = new THREE.InstancedMesh(slab, new THREE.MeshStandardMaterial({ color: 0x2a3d40, roughness: 0.25, metalness: 0.35 }), shopfronts.length);
-      shopfronts.forEach((building, index) => {
-        const base = sampleHeight(plan, building.x, building.y) - 2.2 + 0.3;
-        setAt(mesh, index, building.x, base + 0.2, building.y, building.w * 1.015, 2.9, building.d * 1.015, building.rot);
-      });
-      mesh.instanceMatrix.needsUpdate = true;
-      this.cityGroup.add(mesh);
+    group.visible = false;
+    chunk.detail = group;
+    chunk.detailed = true;
+    this.cityGroup.add(group);
+  }
+
+  /**
+   * LOD em função do zoom: no plano geral a cidade é massa (caixas com sombra);
+   * ao aproximar, os blocos centrais trocam para os modelos detalhados, em
+   * ordem de distância ao alvo da câmera e com um teto fixo de blocos.
+   */
+  private updateLod(): void {
+    const radius = this.spherical.radius;
+    const detailRadius = Math.max(760, radius * 0.52);
+    const wanted: Array<{ key: string; distance: number }> = [];
+    for (const [key, chunk] of this.chunks) {
+      const distance = Math.hypot(chunk.center.x - this.target.x, chunk.center.z - this.target.z);
+      if (distance < detailRadius) wanted.push({ key, distance });
+    }
+    wanted.sort((a, b) => a.distance - b.distance);
+    const keep = new Set(wanted.slice(0, 26).map((entry) => entry.key));
+    // Constrói no máximo dois blocos por avaliação: o zoom nunca engasga.
+    let budget = 2;
+    for (const [key, chunk] of this.chunks) {
+      const detailed = keep.has(key);
+      if (detailed && !chunk.detailed && budget > 0) {
+        this.ensureDetail(key);
+        budget -= 1;
+      }
+      const ready = chunk.detailed;
+      if (chunk.detail) chunk.detail.visible = detailed && ready;
+      if (chunk.coarse) chunk.coarse.visible = !(detailed && ready);
     }
   }
 
@@ -758,7 +1294,7 @@ export class CityScene {
     const height = spec.height;
     const rot = -plot.rot;
     const ground = (color: number, roughness: number) => new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.05 });
-    const gold = new THREE.MeshStandardMaterial({ color: COLORS.hq, roughness: 0.32, metalness: 0.72 });
+    const gold = new THREE.MeshStandardMaterial({ color: COLORS.hq, roughness: 0.44, metalness: 0.5 });
     const add = (mesh: THREE.Mesh): THREE.Mesh => {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -772,7 +1308,8 @@ export class CityScene {
       return add(mesh);
     };
     const facade = (w: number, h: number, color: number, rough: number, metal: number) => {
-      const texture = this.facadeTexture(Math.max(2, Math.round(w / 11)), Math.max(1, Math.round(h / 10)));
+      // Metros por tile (7,2 × 3,6 m): janelas da sede na mesma escala da cidade.
+      const texture = this.facadeTexture(Math.max(1, Math.round(w / TILE_W)), Math.max(1, Math.round(h / TILE_H)));
       this.hqTextures.push(texture);
       return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal, map: texture });
     };
@@ -1110,11 +1647,13 @@ export class CityScene {
     camera.top = halfSize;
     camera.bottom = -halfSize;
     camera.updateProjectionMatrix();
+    // Viés proporcional: sombra colada no corte da sede e sem acne no plano geral.
+    this.sun.shadow.normalBias = THREE.MathUtils.clamp(halfSize * 0.0008, 0.4, 1.8);
   }
 
   setMode(mode: CityMode): void {
     this.mode = mode;
-    this.configureShadow(mode === 'building' ? 95 : mode === 'interior' ? 300 : 2600);
+    this.configureShadow(mode === 'building' ? 95 : mode === 'interior' ? 300 : 2300);
     this.plotGroup.visible = mode === 'select';
     this.interiorGroup.visible = mode === 'interior';
     // No interior a cidade continua visível: é por ela que se olha pelas janelas.
@@ -1123,8 +1662,8 @@ export class CityScene {
     this.dollhouseGroup.visible = mode === 'building';
     this.labLight.intensity = mode === 'interior' ? 12 : 0;
     if (mode === 'select') {
-      this.goal.radius = 3000;
-      this.goal.phi = 0.78;
+      this.goal.radius = 3900;
+      this.goal.phi = 0.8;
       this.target.set(0, 0, 0);
     } else if (mode === 'building' && this.hqPlot) {
       // Corte da sede: câmera de maquete no piso em foco.
@@ -1136,8 +1675,8 @@ export class CityScene {
       this.target.set(0, 0, 0);
     } else {
       this.target.set(0, 0, 0);
-      this.goal.radius = 3450;
-      this.goal.phi = 0.78;
+      this.goal.radius = 3100;
+      this.goal.phi = 0.8;
     }
   }
 
@@ -1147,13 +1686,13 @@ export class CityScene {
       this.goal.theta = -0.9;
       return;
     }
-    this.goal = { radius: 3450, theta: -0.9, phi: 0.78 };
+    this.goal = { radius: 3100, theta: -0.9, phi: 0.8 };
     this.target.set(0, 0, 0);
   }
 
   zoomBy(factor: number): void {
     const min = this.mode === 'building' ? 26 : this.mode === 'interior' ? 1 : 110;
-    const max = this.mode === 'building' ? 220 : this.mode === 'interior' ? 1 : 6200;
+    const max = this.mode === 'building' ? 220 : this.mode === 'interior' ? 1 : 5400;
     this.goal.radius = THREE.MathUtils.clamp(this.goal.radius * factor, min, max);
   }
 
@@ -1226,9 +1765,9 @@ export class CityScene {
   private onWheel = (event: WheelEvent): void => {
     event.preventDefault();
     if (this.mode === 'interior') return;
-    const factor = Math.exp(event.deltaY * 0.0011);
+    const factor = Math.exp(event.deltaY * 0.0009);
     const min = this.mode === 'building' ? 26 : 90;
-    const max = this.mode === 'building' ? 220 : 6200;
+    const max = this.mode === 'building' ? 220 : 5400;
     this.goal.radius = THREE.MathUtils.clamp(this.goal.radius * factor, min, max);
   };
 
@@ -1248,9 +1787,11 @@ export class CityScene {
     for (const child of this.plotGroup.children) {
       const mesh = child as THREE.Mesh;
       const material = mesh.material as THREE.MeshBasicMaterial;
-      const match = (mesh.userData as { plotId?: string }).plotId === plot?.id;
-      material.opacity = match ? 1 : 0.55;
-      material.color.setHex(match ? 0xf6e2b4 : COLORS.hq);
+      const data = mesh.userData as { plotId?: string; role?: string };
+      const match = data.plotId === plot?.id;
+      const base = data.role === 'disc' ? 0.2 : data.role === 'pin' ? 0.9 : 0.85;
+      material.opacity = match ? Math.min(1, base + 0.35) : base;
+      material.color.setHex(match ? 0xf8e7bf : data.role === 'pin' ? 0xf2d699 : COLORS.hq);
     }
   }
 
@@ -1319,7 +1860,7 @@ export class CityScene {
       const focus = this.mode === 'building' && this.hqPlot
         ? { x: this.hqPlot.x, z: this.hqPlot.y }
         : { x: this.target.x, z: this.target.z };
-      this.sun.position.set(focus.x - 780, 1500, focus.z + 620);
+      this.sun.position.set(focus.x - 820, 1500, focus.z + 560);
       this.sun.target.position.set(focus.x, this.mode === 'building' ? this.dollhouseBase : 0, focus.z);
       this.sun.target.updateMatrixWorld();
     } else {
@@ -1342,7 +1883,7 @@ export class CityScene {
       }
     }
     if (this.mode !== 'interior') {
-      const fov = this.mode === 'building' ? 52 : 58;
+      const fov = this.mode === 'building' ? 50 : 46;
       if (this.camera.fov !== fov) {
         this.camera.fov = fov;
         this.camera.updateProjectionMatrix();
@@ -1350,8 +1891,10 @@ export class CityScene {
       // Névoa proporcional à distância da câmera: o miolo da cidade nunca lava.
       // No corte a névoa sai de cena: o entorno da maquete continua legível.
       this.scene.fog = this.mode === 'building' ? null : this.fog;
-      this.fog.near = this.spherical.radius * 1.15;
-      this.fog.far = this.spherical.radius * 3.1;
+      this.fog.near = this.spherical.radius * 1.55;
+      this.fog.far = this.spherical.radius * 3.6;
+      // Reavalia o LOD a cada 6 quadros: barato e sem cintilação.
+      if (this.lodTick++ % 6 === 0) this.updateLod();
     }
     this.labLight.position.set(0, 3.2, 0);
     const time = this.clock.getElapsedTime();
@@ -1384,6 +1927,7 @@ export class CityScene {
     for (const texture of this.hqTextures) texture.dispose();
     if (this.scene.background instanceof THREE.Texture) this.scene.background.dispose();
     this.scene.background = null;
+    this.disposeMaterials();
     disposeObject(this.scene);
     this.windowMap.dispose();
     this.renderer.dispose();

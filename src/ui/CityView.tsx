@@ -123,10 +123,15 @@ export function CityView() {
 
             <div className="city-caption">
               <strong>{cityLabel(city.name)}</strong>
-              <span>
-                {country?.name} · {seat.district} · lote {seat.plotId}
-                {cityMode === 'building' ? ' · corte aberto' : ''}
-              </span>
+              <span>{country?.name} · {country?.continent} · {fmt(city.pop)} hab.</span>
+              <div className="city-caption__meta">
+                <span>Distrito <b>{seat.district}</b></span>
+                <span>Lote <b>{seat.plotId.split('-').pop()}</b></span>
+                <span><b>{fmt(plan.stats.blocks)}</b> quadras</span>
+                <span>
+                  <b>{cityMode === 'building' ? `${floor} pisos` : cityMode === 'interior' ? 'interior' : 'visão geral'}</b>
+                </span>
+              </div>
             </div>
 
             {cityMode === 'building' && (

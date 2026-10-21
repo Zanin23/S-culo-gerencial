@@ -64,9 +64,17 @@ export interface CityBuilding {
   /** Volumes extras no topo (0 nenhum, 1 parapeto/casa de máquinas, 2 coroa + antena). */
   crown: number;
   floors: number;
+  /** Zona urbana que define material, densidade e silhueta na cena 3D. */
+  zone: BuildingZone;
 }
 
-export type BuildingZone = 'centro' | 'meio' | 'borda';
+/**
+ * Zonas urbanas com identidade própria. O plano classifica cada quadra e a cena
+ * usa a zona para escolher silhueta, material e densidade — é o que faz o centro
+ * financeiro, os bairros, o distrito industrial e a periferia serem reconhecíveis
+ * sem precisar de uma camada de informação ligada.
+ */
+export type BuildingZone = 'centro' | 'residencial' | 'industrial' | 'periferia';
 
 export interface BuildingArchetype {
   kind: BuildingKind;
@@ -79,30 +87,34 @@ export interface BuildingArchetype {
   weight: Record<BuildingZone, number>;
 }
 
-/** Catálogo de tipologias. Os pesos mudam do centro para a periferia. */
+/**
+ * Catálogo de tipologias. As pegadas são generosas de propósito: poucos volumes
+ * grandes leem melhor do que milhares de caixinhas. Cada zona tem 3–4 tipos
+ * dominantes e silhuetas bem diferentes entre si.
+ */
 export const BUILDING_ARCHETYPES: BuildingArchetype[] = [
-  { kind: 'torre', roof: 'crown', w: [20, 30], d: [20, 30], h: [62, 152], styles: [3, 4, 1], crown: 2, weight: { centro: 20, meio: 4, borda: 0 } },
-  { kind: 'comercial', roof: 'crown', w: [20, 30], d: [17, 26], h: [34, 78], styles: [3, 5, 1], crown: 1, weight: { centro: 18, meio: 7, borda: 1 } },
-  { kind: 'predio', roof: 'flat', w: [18, 28], d: [14, 22], h: [20, 44], styles: [0, 1, 2], crown: 1, weight: { centro: 22, meio: 24, borda: 5 } },
-  { kind: 'solar', roof: 'flat', w: [16, 26], d: [13, 20], h: [11, 21], styles: [0, 2, 5], crown: 0, weight: { centro: 12, meio: 22, borda: 12 } },
-  { kind: 'casa', roof: 'gable', w: [8, 13], d: [9, 14], h: [6, 10], styles: [0, 2, 6], crown: 0, weight: { centro: 4, meio: 22, borda: 44 } },
-  { kind: 'villa', roof: 'hip', w: [12, 18], d: [11, 16], h: [7, 11], styles: [0, 1, 6], crown: 0, weight: { centro: 2, meio: 8, borda: 16 } },
-  { kind: 'galpao', roof: 'saw', w: [26, 40], d: [17, 28], h: [8, 14], styles: [2, 5], crown: 0, weight: { centro: 0, meio: 14, borda: 22 } },
-  { kind: 'marco', roof: 'crown', w: [16, 24], d: [16, 24], h: [38, 86], styles: [6], crown: 2, weight: { centro: 2, meio: 0, borda: 0 } },
+  { kind: 'torre', roof: 'crown', w: [30, 44], d: [28, 40], h: [92, 186], styles: [3, 4, 5], crown: 2, weight: { centro: 26, residencial: 0, industrial: 0, periferia: 0 } },
+  { kind: 'comercial', roof: 'crown', w: [26, 38], d: [22, 32], h: [38, 84], styles: [3, 5, 0], crown: 1, weight: { centro: 24, residencial: 5, industrial: 0, periferia: 0 } },
+  { kind: 'predio', roof: 'flat', w: [24, 34], d: [20, 28], h: [18, 40], styles: [0, 2, 1], crown: 1, weight: { centro: 16, residencial: 30, industrial: 0, periferia: 4 } },
+  { kind: 'solar', roof: 'flat', w: [22, 32], d: [18, 26], h: [11, 22], styles: [0, 2, 6], crown: 0, weight: { centro: 6, residencial: 22, industrial: 0, periferia: 8 } },
+  { kind: 'casa', roof: 'gable', w: [12, 18], d: [12, 18], h: [6, 9], styles: [0, 2, 6], crown: 0, weight: { centro: 0, residencial: 18, industrial: 0, periferia: 58 } },
+  { kind: 'villa', roof: 'hip', w: [16, 24], d: [14, 20], h: [7, 11], styles: [0, 1, 6], crown: 0, weight: { centro: 0, residencial: 15, industrial: 0, periferia: 22 } },
+  { kind: 'galpao', roof: 'saw', w: [34, 54], d: [26, 42], h: [9, 16], styles: [2, 5], crown: 0, weight: { centro: 0, residencial: 0, industrial: 78, periferia: 6 } },
+  { kind: 'marco', roof: 'crown', w: [24, 32], d: [24, 32], h: [58, 112], styles: [6], crown: 2, weight: { centro: 4, residencial: 0, industrial: 0, periferia: 0 } },
 ];
 
-export function pickArchetype(rng: Rng, zone: BuildingZone, radial: number): BuildingArchetype {
-  const pool = BUILDING_ARCHETYPES.map((archetype) => ({
-    archetype,
-    weight: archetype.kind === 'galpao' && radial < 0.62 ? 0 : archetype.weight[zone],
-  }));
-  const total = pool.reduce((sum, entry) => sum + entry.weight, 0);
+/** Prédio de apartamentos: o miolo de quadra nunca vira casa isolada. */
+const MID_RISE = BUILDING_ARCHETYPES.find((archetype) => archetype.kind === 'predio')!;
+
+export function pickArchetype(rng: Rng, zone: BuildingZone): BuildingArchetype {
+  const pool = BUILDING_ARCHETYPES.filter((archetype) => archetype.weight[zone] > 0);
+  const total = pool.reduce((sum, archetype) => sum + archetype.weight[zone], 0);
   let roll = rng.next() * total;
-  for (const entry of pool) {
-    roll -= entry.weight;
-    if (roll <= 0) return entry.archetype;
+  for (const archetype of pool) {
+    roll -= archetype.weight[zone];
+    if (roll <= 0) return archetype;
   }
-  return BUILDING_ARCHETYPES[0];
+  return pool[0] ?? BUILDING_ARCHETYPES[0];
 }
 
 export interface CityPlot {
@@ -113,6 +125,18 @@ export interface CityPlot {
   d: number;
   rot: number;
   district: string;
+}
+
+/** Quadra: centroide, eixo principal e extensão no referencial local. */
+interface BlockShape {
+  id: number;
+  size: number;
+  center: Pt;
+  angle: number;
+  uMin: number;
+  uMax: number;
+  vMin: number;
+  vMax: number;
 }
 
 export interface CityPlan {
@@ -578,7 +602,7 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
       if (!passable(x, y)) break;
     }
     for (const run of clipRuns(pts, passable, 90)) {
-      roads.push({ pts: run, width: rng.between(21, 29), kind: 'arterial' });
+      roads.push({ pts: run, width: rng.between(24, 32), kind: 'arterial' });
     }
   }
 
@@ -595,20 +619,22 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
       pts.push([center[0] + Math.cos(angle) * localRadius, center[1] + Math.sin(angle) * localRadius]);
     }
     for (const run of clipRuns(pts, passable, 110)) {
-      roads.push({ pts: run, width: ring === 0 ? 18 : 20, kind: 'anel' });
+      roads.push({ pts: run, width: ring === 0 ? 22 : 26, kind: 'anel' });
     }
   }
 
   // Malha local: a cidade é dividida em nove distritos, cada um com sua
   // orientação de quadra (ruas retas com pequenas quebras).
   const districtSpan = size / 3;
+  const gridAngles = new Float32Array(9);
   for (let dj = 0; dj < 3; dj += 1) {
     for (let di = 0; di < 3; di += 1) {
       const cx = -half + (di + 0.5) * districtSpan;
       const cy = -half + (dj + 0.5) * districtSpan;
       const far = Math.hypot(cx, cy) / half;
       const angle = baseAngle + Math.PI / 2 + (far > 0.55 ? Math.PI / 4 : 0) + rng.between(-0.22, 0.22);
-      const spacing = rng.between(165, 215);
+      gridAngles[dj * 3 + di] = angle;
+      const spacing = rng.between(118, 168);
       const bounds = districtSpan / 2 - 8;
       const limit = Math.ceil((bounds * 1.5) / spacing) + 1;
       for (let k = -limit; k <= limit; k += 1) {
@@ -643,8 +669,8 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
           ];
           // Nem toda linha da malha vira rua: quebras deixam quadras maiores e
           // mais irregulares, como em tecido urbano real.
-          if (k !== 0 && rng.chance(0.34)) continue;
-          const width = k === 0 ? 17 : rng.between(11, 14);
+          if (k !== 0 && rng.chance(0.1)) continue;
+          const width = k === 0 ? 20 : rng.between(14, 17);
           for (const run of clipRuns(pts, passable, 110)) {
             roads.push({ pts: run, width, kind: 'rua' });
           }
@@ -696,7 +722,8 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
   }
   plan.stats.blocks = blockCells.filter((members) => members.length > 6).length;
 
-  const blockInfo = blockCells.map((members, id) => {
+  // 6. Forma de cada quadra: centroide, eixo principal (PCA) e extensão local.
+  const blockInfo: BlockShape[] = blockCells.map((members, id) => {
     let sumX = 0;
     let sumY = 0;
     for (const index of members) {
@@ -705,49 +732,163 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
       sumY += y;
     }
     const c: Pt = members.length ? [sumX / members.length, sumY / members.length] : [0, 0];
-    return { id, size: members.length, center: c, angle: baseAngle + Math.PI / 2 };
+    let cxx = 0;
+    let cyy = 0;
+    let cxy = 0;
+    for (const index of members) {
+      const [x, y] = cellCenter(plan, index);
+      const dx = x - c[0];
+      const dy = y - c[1];
+      cxx += dx * dx;
+      cyy += dy * dy;
+      cxy += dx * dy;
+    }
+    const n = Math.max(1, members.length);
+    const varX = cxx / n;
+    const varY = cyy / n;
+    const cov = cxy / n;
+    let angle = 0.5 * Math.atan2(2 * cov, varX - varY);
+    // Quadras quase quadradas não têm eixo dominante: herdam a malha do distrito.
+    const anisotropy = Math.hypot(varX - varY, 2 * cov) / Math.max(1e-6, varX + varY);
+    if (!Number.isFinite(angle) || anisotropy < 0.07) {
+      const di = Math.max(0, Math.min(2, Math.floor((c[0] + half) / districtSpan)));
+      const dj = Math.max(0, Math.min(2, Math.floor((c[1] + half) / districtSpan)));
+      angle = gridAngles[dj * 3 + di];
+    }
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    let uMin = Number.POSITIVE_INFINITY;
+    let uMax = Number.NEGATIVE_INFINITY;
+    let vMin = Number.POSITIVE_INFINITY;
+    let vMax = Number.NEGATIVE_INFINITY;
+    for (const index of members) {
+      const [x, y] = cellCenter(plan, index);
+      const dx = x - c[0];
+      const dy = y - c[1];
+      const u = dx * cosA + dy * sinA;
+      const v = -dx * sinA + dy * cosA;
+      if (u < uMin) uMin = u;
+      if (u > uMax) uMax = u;
+      if (v < vMin) vMin = v;
+      if (v > vMax) vMax = v;
+    }
+    if (!members.length) uMin = uMax = vMin = vMax = 0;
+    return { id, size: members.length, center: c, angle, uMin, uMax, vMin, vMax };
   });
+  plan.stats.blocks = blockInfo.filter((block) => block.size > 6).length;
 
-  // 6. Parques e praças.
+  // 7. Parques: praça central, bolsões de bairro e parques de duas a três quadras.
+  const parkBlocks = new Uint8Array(blockInfo.length);
+  const blockRural = new Uint8Array(blockInfo.length);
+  /** Probabilidade de uma quadra virar campo, crescendo em direção à borda. */
+  const THREE_RURAL = (roll: number, reach: number) => {
+    const t = Math.max(0, Math.min(1, (reach - 0.66) / 0.34));
+    const share = 0.12 + t * t * 0.62;
+    return roll < share;
+  };
+  // Uma quadra vira parque se for grande o bastante para ler como praça e
+  // pequena o bastante para não engolir o bairro (nem tocar a borda do recorte).
+  const parkable = (block: BlockShape) => {
+    if (block.size < 7 || block.size > 300) return false;
+    const reach = Math.max(Math.abs(block.center[0]), Math.abs(block.center[1]));
+    return reach < half * 0.9;
+  };
+  const parkBy = (block: BlockShape) => {
+    if (parkBlocks[block.id]) return;
+    parkBlocks[block.id] = 1;
+    for (const index of blockCells[block.id]) plan.park[index] = 1;
+  };
+  const centralBlock = blockInfo
+    .filter((block) => parkable(block))
+    .sort((a, b) => Math.hypot(a.center[0], a.center[1]) - Math.hypot(b.center[0], b.center[1]))[0];
+  if (centralBlock) parkBy(centralBlock);
   for (const block of blockInfo) {
-    if (block.size < 6) continue;
+    if (parkBlocks[block.id] || !parkable(block)) continue;
     const distance = Math.hypot(block.center[0], block.center[1]);
-    const chance = distance < 500 ? 0.085 : 0.034;
-    if (rng.chance(chance)) {
-      for (const index of blockCells[block.id]) plan.park[index] = 1;
+    const chance = distance < 900 ? 0.085 : distance < 2100 ? 0.058 : 0.036;
+    if (!rng.chance(chance)) continue;
+    parkBy(block);
+    const neighbours = blockInfo
+      .filter((other) => other.id !== block.id && !parkBlocks[other.id] && parkable(other))
+      .sort((a, b) => Math.hypot(a.center[0] - block.center[0], a.center[1] - block.center[1])
+        - Math.hypot(b.center[0] - block.center[0], b.center[1] - block.center[1]))
+      .slice(0, 2);
+    for (const neighbour of neighbours) {
+      const reach = Math.hypot(neighbour.center[0] - block.center[0], neighbour.center[1] - block.center[1]);
+      if (reach < 330 && rng.chance(0.62)) parkBy(neighbour);
     }
   }
-  // Praça central.
-  const centralBlock = blockInfo
-    .filter((block) => block.size >= 8)
-    .sort((a, b) => Math.hypot(a.center[0], a.center[1]) - Math.hypot(b.center[0], b.center[1]))[0];
-  if (centralBlock) {
-    for (const index of blockCells[centralBlock.id]) plan.park[index] = 1;
+
+  // Grandes parques: três núcleos espalhados pelo tecido, cada um com duas ou
+  // três quadras vizinhas — a mancha verde precisa ser lida de longe.
+  for (let index = 0; index < 3; index += 1) {
+    const angle = (index / 3) * Math.PI * 2 + rng.between(-0.5, 0.5);
+    const radius = half * rng.between(0.32, 0.64);
+    const target: Pt = [Math.cos(angle) * radius, Math.sin(angle) * radius];
+    const nearby = blockInfo
+      .filter((block) => !parkBlocks[block.id] && parkable(block))
+      .sort((a, b) => Math.hypot(a.center[0] - target[0], a.center[1] - target[1])
+        - Math.hypot(b.center[0] - target[0], b.center[1] - target[1]));
+    const seed = nearby[0];
+    if (!seed) continue;
+    parkBy(seed);
+    for (const neighbour of nearby.slice(1, 4)) {
+      const reach = Math.hypot(neighbour.center[0] - seed.center[0], neighbour.center[1] - seed.center[1]);
+      if (reach < 380 && rng.chance(0.8)) parkBy(neighbour);
+    }
   }
 
-  // 7. Lotes para a sede e demais construções.
+  // Cinturão rural: perto da borda do recorte a cidade se dissolve em campos e
+  // bosques — é a transição natural entre a malha urbana e o terreno aberto.
+  for (const block of blockInfo) {
+    if (parkBlocks[block.id] || block.size < 4) continue;
+    const reach = Math.max(Math.abs(block.center[0]), Math.abs(block.center[1])) / half;
+    if (reach < 0.66) continue;
+    if (!THREE_RURAL(rng.next(), reach)) continue;
+    if (block.size <= 220) parkBy(block);
+    // Quadra grande demais para virar parque: fica como campo aberto.
+    else blockRural[block.id] = 1;
+  }
+
+  // 8. Lotes da sede: quadras livres mais próximas do centro.
   const plotCandidates = blockInfo
-    .filter((block) => block.size >= 9 && !plan.park[blockCells[block.id][0]])
+    .filter((block) => block.size >= 9 && !parkBlocks[block.id])
     .sort((a, b) => Math.hypot(a.center[0], a.center[1]) - Math.hypot(b.center[0], b.center[1]))
     .slice(0, 36);
+  const plotCells = new Uint8Array(cells * cells);
+  const freePoint = (x: number, y: number, margin = 0) => {
+    const index = cellIndex(plan, x, y);
+    if (index < 0 || plan.land[index] === 0 || plan.road[index] === 1 || plan.park[index] === 1) return false;
+    if (!margin) return true;
+    const i = index % cells;
+    const j = Math.floor(index / cells);
+    const wear = Math.round(margin / cell);
+    for (let dj = -wear; dj <= wear; dj += 1) {
+      for (let di = -wear; di <= wear; di += 1) {
+        const other = (j + dj) * cells + (i + di);
+        if (other < 0 || other >= plan.road.length) return false;
+        if (plan.land[other] === 0 || plan.road[other] === 1 || plan.park[other] === 1) return false;
+      }
+    }
+    return true;
+  };
   let plotNumber = 0;
   for (const block of plotCandidates) {
-    if (plan.plots.length >= 28) break;
-    const members = blockCells[block.id];
+    if (plan.plots.length >= 16) break;
     const sizeLimit = Math.sqrt(block.size) * cell;
-    const side = Math.min(52, Math.max(34, sizeLimit * 0.55));
-    const angle = block.angle + rng.between(-0.12, 0.12);
+    const span = Math.min(block.uMax - block.uMin, block.vMax - block.vMin);
+    const side = Math.round(Math.min(58, Math.max(36, Math.min(sizeLimit * 0.5, span * 0.62))));
+    const angle = block.angle + rng.between(-0.1, 0.1);
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
     const x = block.center[0];
     const y = block.center[1];
-    // Precisa de um lote livre de ruas e água.
     let valid = true;
-    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7]] as Pt[]) {
-      const pointX = x + dx * side * 0.5;
-      const pointY = y + dy * side * 0.5;
-      const index = cellIndex(plan, pointX, pointY);
-      if (index < 0 || plan.land[index] === 0 || plan.road[index] === 1 || plan.park[index] === 1) {
-        valid = false;
-        break;
+    for (let u = -0.5; u <= 0.5 && valid; u += 0.25) {
+      for (let v = -0.5; v <= 0.5 && valid; v += 0.25) {
+        const px = x + (u * side) * cosA - (v * side) * sinA;
+        const py = y + (u * side) * sinA + (v * side) * cosA;
+        if (!freePoint(px, py, 6)) valid = false;
       }
     }
     if (!valid) continue;
@@ -756,161 +897,534 @@ export function generateCityPlan(cityId: string, seed = 0): CityPlan {
       id: `${cityId}-lote-${String(plotNumber).padStart(2, '0')}`,
       x: Math.round(x),
       y: Math.round(y),
-      w: Math.round(side),
-      d: Math.round(side),
+      w: side,
+      d: side,
       rot: angle,
       district: distanceLabel(x, y),
     });
-  }
-
-  // 8. Edificações sobre as quadras.
-  // Células reservadas aos lotes da sede: nenhum edifício nasce em cima delas.
-  const plotCells = new Uint8Array(cells * cells);
-  for (const plot of plan.plots) {
-    for (const [dx, dy] of [[0, 0], [1, 1], [-1, -1], [1, -1], [-1, 1]] as Pt[]) {
-      const index = cellIndex(plan, plot.x + dx * plot.w * 0.5, plot.y + dy * plot.d * 0.5);
-      if (index >= 0) plotCells[index] = 1;
+    // Reserva a área do lote (e um anel de praça) contra edificações.
+    const reserve = side * 0.5 + 4;
+    for (let u = -reserve; u <= reserve; u += 5) {
+      for (let v = -reserve; v <= reserve; v += 5) {
+        const index = cellIndex(plan, x + u * cosA - v * sinA, y + u * sinA + v * cosA);
+        if (index >= 0) plotCells[index] = 1;
+      }
     }
   }
-  const cityScale = city && city.pop > 2_000_000 ? 1.15 : city && city.pop < 400_000 ? 0.82 : 1;
-  const coreRadius = 980 * cityScale;
 
-  // Índice espacial simples (baldes de 18 m) para impedir sobreposição.
+  // 9. Zonas urbanas e composição de cada quadra.
+  //    Centro financeiro compacto, anel residencial, setor industrial e periferia
+  //    rarefeita: a transição é gradual e cada zona tem poucos tipos dominantes.
+  const cityScale = city && city.pop > 2_000_000 ? 1.15 : city && city.pop < 400_000 ? 0.82 : 1;
+  const coreRadius = 1000 * cityScale;
+  const suburbRadius = 2320 * cityScale;
+  const industryAngle = rng.between(0, Math.PI * 2);
+  const noiseFor = (key: number) => {
+    let hash = Math.imul(key + 1, 0x9e3779b1) ^ hashString(cityId);
+    hash ^= hash >>> 15;
+    hash = Math.imul(hash, 0x85ebca6b);
+    hash ^= hash >>> 13;
+    return (hash >>> 0) / 4294967296;
+  };
+  const zoneFor = (block: BlockShape): BuildingZone => {
+    const distance = Math.hypot(block.center[0], block.center[1]);
+    const noise = noiseFor(block.id * 7 + 13);
+    if (distance < coreRadius * (0.8 + noise * 0.34)) return 'centro';
+    const angle = Math.atan2(block.center[1], block.center[0]);
+    const delta = Math.abs(Math.atan2(Math.sin(angle - industryAngle), Math.cos(angle - industryAngle)));
+    if (distance > coreRadius * 0.8 && distance < suburbRadius * 1.2 && delta < 0.85 && noise > 0.12) return 'industrial';
+    if (distance > suburbRadius * (0.9 + noise * 0.26)) return 'periferia';
+    return 'residencial';
+  };
+  const blockZones = blockInfo.map(zoneFor);
+  // Garante um setor industrial em toda cidade: escolhe uma cunha equidistante
+  // do centro e reconverte as quadras ali (com folga para virar um distrito).
+  const industrialBlocks = blockInfo.filter((block) => blockZones[block.id] === 'industrial' && block.size > 5).length;
+  if (industrialBlocks < 10) {
+    // Cidade pequena ou recortada pela água: escolhe a cunha com mais quadras
+    // livres a uma distância industrial e converte tudo ali.
+    let industryStart = 0;
+    let bestWedge = -1;
+    for (let candidate = 0; candidate < 16; candidate += 1) {
+      const angle = (candidate / 16) * Math.PI * 2;
+      let count = 0;
+      for (const block of blockInfo) {
+        const distance = Math.hypot(block.center[0], block.center[1]);
+        if (distance < coreRadius * 0.72 || distance > suburbRadius * 1.25) continue;
+        const delta = Math.abs(Math.atan2(
+          Math.sin(Math.atan2(block.center[1], block.center[0]) - angle),
+          Math.cos(Math.atan2(block.center[1], block.center[0]) - angle),
+        ));
+        if (delta < 1.05) count += 1;
+      }
+      if (count > bestWedge) {
+        bestWedge = count;
+        industryStart = angle;
+      }
+    }
+    let converted = 0;
+    for (const block of blockInfo) {
+      const distance = Math.hypot(block.center[0], block.center[1]);
+      if (distance < coreRadius * 0.72 || distance > suburbRadius * 1.25) continue;
+      const angle = Math.atan2(block.center[1], block.center[0]);
+      const delta = Math.abs(Math.atan2(Math.sin(angle - industryStart), Math.cos(angle - industryStart)));
+      if (delta > 1.05) continue;
+      blockZones[block.id] = 'industrial';
+      converted += 1;
+    }
+    // Cidade pequena ou muito recortada: escolhe o bloco industrial mais
+    // próximo de uma âncora e cresce o distrito a partir dele.
+    if (converted < 8) {
+      const anchor: Pt = [Math.cos(industryStart) * suburbRadius * 0.7, Math.sin(industryStart) * suburbRadius * 0.7];
+      const anchors = blockInfo
+        .filter((block) => block.size > 5 && Math.hypot(block.center[0], block.center[1]) > coreRadius * 0.7)
+        .sort((a, b) => Math.hypot(a.center[0] - anchor[0], a.center[1] - anchor[1])
+          - Math.hypot(b.center[0] - anchor[0], b.center[1] - anchor[1]))
+        .slice(0, 10);
+      for (const block of anchors) blockZones[block.id] = 'industrial';
+    }
+  }
+
+  interface ZoneMass {
+    pitch: number;
+    fill: number;
+    gap: number;
+    cover: [number, number];
+    maxCols: number;
+    maxRows: number;
+  }
+  const ZONE_MASS: Record<BuildingZone, ZoneMass> = {
+    centro: { pitch: 58, fill: 0.84, gap: 8, cover: [0.68, 0.86], maxCols: 6, maxRows: 6 },
+    residencial: { pitch: 46, fill: 0.96, gap: 6, cover: [0.72, 0.9], maxCols: 8, maxRows: 8 },
+    industrial: { pitch: 58, fill: 0.94, gap: 10, cover: [0.72, 0.9], maxCols: 6, maxRows: 6 },
+    periferia: { pitch: 50, fill: 0.74, gap: 8, cover: [0.68, 0.86], maxCols: 8, maxRows: 8 },
+  };
+
+  // Ocupação: baldes de 24 m impedem que quadras vizinhas se interpenetrem.
   const buckets = new Map<number, Array<{ x: number; y: number; r: number }>>();
   const bucketKey = (i: number, j: number) => (i + 512) * 1024 + (j + 512);
   const canPlace = (x: number, y: number, radius: number): boolean => {
-    const bi = Math.floor(x / 18);
-    const bj = Math.floor(y / 18);
+    const bi = Math.floor(x / 24);
+    const bj = Math.floor(y / 24);
     for (let di = -1; di <= 1; di += 1) {
       for (let dj = -1; dj <= 1; dj += 1) {
         const list = buckets.get(bucketKey(bi + di, bj + dj));
         if (!list) continue;
         for (const other of list) {
-          if (Math.hypot(other.x - x, other.y - y) < (other.r + radius) * 0.72) return false;
+          if (Math.hypot(other.x - x, other.y - y) < (other.r + radius) * 0.5) return false;
         }
       }
     }
     return true;
   };
   const remember = (x: number, y: number, radius: number) => {
-    const bi = Math.floor(x / 18);
-    const bj = Math.floor(y / 18);
-    const key = bucketKey(bi, bj);
+    const key = bucketKey(Math.floor(x / 24), Math.floor(y / 24));
     const list = buckets.get(key);
     if (list) list.push({ x, y, r: radius });
     else buckets.set(key, [{ x, y, r: radius }]);
   };
 
-  for (const block of blockInfo) {
-    if (block.size < 2) continue;
-    if (plan.park[blockCells[block.id][0]]) continue;
-    const members = blockCells[block.id].slice();
-    // Ordem embaralhada determinística: quadras crescem sem padrão de varredura.
-    for (let index = members.length - 1; index > 0; index -= 1) {
-      const swap = rng.int(0, index);
-      const tmp = members[index];
-      members[index] = members[swap];
-      members[swap] = tmp;
-    }
-    const angle = block.angle + rng.between(-0.22, 0.22);
-    for (const cellId of members) {
-      if (plan.road[cellId] || plan.park[cellId] || plotCells[cellId]) continue;
-      if (!rng.chance(0.66)) continue;
-      const [cellX, cellY] = cellCenter(plan, cellId);
-      const x = cellX + rng.between(-7, 7);
-      const y = cellY + rng.between(-7, 7);
-      const distance = Math.hypot(x, y);
-      const zone: BuildingZone = distance < coreRadius ? 'centro' : distance < coreRadius * 2.1 ? 'meio' : 'borda';
-      const radial = Math.min(1, distance / half);
-      const archetype = pickArchetype(rng, zone, radial);
-      let width = rng.between(archetype.w[0], archetype.w[1]);
-      let depth = rng.between(archetype.d[0], archetype.d[1]);
-      if (archetype.kind === 'galpao') {
-        width = Math.min(width, 38);
-        depth = Math.min(depth, 26);
-      }
-      // Amostra os cantos um pouco para dentro: a fachada pode encostar na rua.
-      const halfWidth = width * 0.39;
-      const halfDepth = depth * 0.39;
-      const samples: Pt[] = [
-        [x, y],
-        [x + halfWidth, y + halfDepth],
-        [x - halfWidth, y + halfDepth],
-        [x + halfWidth, y - halfDepth],
-        [x - halfWidth, y - halfDepth],
-      ];
-      let valid = true;
-      for (const [px, py] of samples) {
+  const gardenSpots: Array<{ x: number; y: number; s: number }> = [];
+  const fits = (block: BlockShape, x: number, y: number, w: number, d: number, rot: number): boolean => {
+    const cosA = Math.cos(rot);
+    const sinA = Math.sin(rot);
+    const halfW = w / 2;
+    const halfD = d / 2;
+    for (let u = -halfW; u <= halfW + 0.001; u += 7) {
+      for (let v = -halfD; v <= halfD + 0.001; v += 7) {
+        const px = x + u * cosA - v * sinA;
+        const py = y + u * sinA + v * cosA;
+        if (Math.abs(px) > half * 0.92 || Math.abs(py) > half * 0.92) return false;
         const index = cellIndex(plan, px, py);
-        if (index < 0 || plan.land[index] === 0 || plan.road[index] === 1 || plan.park[index] === 1 || plotCells[index]) {
-          valid = false;
-          break;
+        if (index < 0) return false;
+        if (plan.land[index] === 0 || plan.road[index] === 1 || plan.park[index] === 1) return false;
+        if (plotCells[index] === 1) return false;
+        if (blockLabels[index] !== block.id) return false;
+      }
+    }
+    return true;
+  };
+
+  const edgeFade = (distance: number) => {
+    const t = Math.max(0, Math.min(1, (distance - half * 0.72) / (half * 0.2)));
+    return 1 - 0.55 * t;
+  };
+
+  /** Cria um volume a partir da zona da quadra e da posição no lote. */
+  const placeBuilding = (
+    block: BlockShape,
+    zone: BuildingZone,
+    archetype: BuildingArchetype,
+    x: number,
+    y: number,
+    width: number,
+    depth: number,
+    rot: number,
+    distance: number,
+    spot: number,
+  ): boolean => {
+    if (!fits(block, x, y, width, depth, rot)) return false;
+    const centerWeight = Math.exp(-distance / (1500 * cityScale));
+    let height = rng.between(archetype.h[0], archetype.h[1]);
+    // Fora do centro, a altura é limitada pela zona: é isso que impede um
+    // arranha-céu solto no meio das casas e mantém o horizonte legível.
+    const ceiling = zone === 'centro' ? 205 : zone === 'residencial' ? 34 : zone === 'industrial' ? 17 : 13;
+    height = Math.min(height, ceiling);
+    if (zone === 'centro') height *= 0.82 + 0.46 * centerWeight;
+    else if (zone === 'residencial') height *= 0.82 + 0.14 * centerWeight;
+    else if (zone === 'industrial') height *= 0.94;
+    else height *= 0.9;
+    if (archetype.kind === 'torre') height = Math.max(96, height);
+    height = Math.max(5.5, Math.min(205, height));
+    let kind = archetype.kind;
+    let roof = archetype.roof;
+    let crown = archetype.crown;
+    // Telha é exceção, não regra: a maior parte das casas tem laje e muro.
+    if (kind === 'casa') {
+      const roll = noiseFor(spot + 7);
+      if (roll < 0.46) {
+        roof = 'flat';
+        height = Math.min(9.5, height * 1.02);
+      } else if (roll < 0.66) {
+        roof = 'hip';
+        height = Math.min(9.5, height * 0.94);
+      }
+    }
+    if (kind === 'villa' && noiseFor(spot + 7) > 0.4) roof = 'flat';
+    if (kind === 'galpao' && noiseFor(spot + 8) < 0.3) roof = 'flat';
+    if (kind === 'torre' && noiseFor(spot + 9) < 0.16) {
+      kind = 'comercial';
+      crown = 1;
+      height = Math.min(height, 92);
+    }
+    const roofH = roof === 'gable' ? rng.between(3.0, 4.4)
+      : roof === 'hip' ? rng.between(2.2, 3.2)
+        : roof === 'saw' ? rng.between(2.4, 3.4)
+          : roof === 'crown' ? rng.between(1.4, 2.6)
+            : rng.between(0.5, 1.0);
+    const style = archetype.styles[rng.int(0, archetype.styles.length - 1)];
+    plan.buildings.push({
+      x: Math.round(x * 10) / 10,
+      y: Math.round(y * 10) / 10,
+      w: Math.round(width),
+      d: Math.round(depth),
+      h: Math.round(height * 10) / 10,
+      rot: Math.round(rot * 1000) / 1000,
+      tone: Math.round(noiseFor(spot + 10) * 1000) / 1000,
+      kind,
+      roof,
+      roofH: Math.round(roofH * 10) / 10,
+      style,
+      crown,
+      floors: Math.max(1, Math.round(height / 3.4)),
+      zone,
+    });
+    remember(x, y, Math.hypot(width, depth) * 0.5);
+    return true;
+  };
+
+  for (const block of blockInfo) {
+    if (block.size < 5 || parkBlocks[block.id] || blockRural[block.id]) continue;
+    const zone = blockZones[block.id];
+    const mass = ZONE_MASS[zone];
+    const cosA = Math.cos(block.angle);
+    const sinA = Math.sin(block.angle);
+    const spanU = Math.max(10, block.uMax - block.uMin);
+    const spanV = Math.max(10, block.vMax - block.vMin);
+    const distance = Math.hypot(block.center[0], block.center[1]);
+    const primary = pickArchetype(rng, zone);
+    const fade = zone === 'periferia' ? edgeFade(distance) : 1;
+    const toWorld = (u: number, v: number): Pt => [
+      block.center[0] + u * cosA - v * sinA,
+      block.center[1] + u * sinA + v * cosA,
+    ];
+
+    if (zone === 'residencial' || zone === 'periferia') {
+      // Habitação: lê a borda real das células da quadra e constrói frentes
+      // contínuas de casas, com quintais no miolo. Segue a forma da quadra
+      // (inclusive esquinas e ruas diagonais) em vez de um retângulo ideal.
+      const cellsUV: Array<{ u: number; v: number }> = [];
+      for (const cellId of blockCells[block.id]) {
+        const [cx, cy] = cellCenter(plan, cellId);
+        const du = cx - block.center[0];
+        const dv = cy - block.center[1];
+        cellsUV.push({ u: du * cosA + dv * sinA, v: -du * sinA + dv * cosA });
+      }
+      const bandDepth = Math.min(19, Math.max(15, Math.min(spanU, spanV) * 0.34));
+      const skip = zone === 'periferia' ? 0.42 : 0.2;
+      let spot = block.id * 97 + 5;
+
+      const placeRow = (cells: Array<{ u: number; v: number }>, alongU: boolean) => {
+        if (cells.length < 2) return;
+        const keyOf = (cell: { u: number; v: number }) => Math.round((alongU ? cell.u : cell.v) / plan.cell);
+        const sorted = [...cells].sort((a, b) => keyOf(a) - keyOf(b));
+        const runs: Array<Array<{ u: number; v: number }>> = [];
+        let run: Array<{ u: number; v: number }> = [];
+        let lastKey = Number.NaN;
+        for (const cell of sorted) {
+          const key = keyOf(cell);
+          if (Number.isFinite(lastKey) && key > lastKey + 1) {
+            runs.push(run);
+            run = [];
+          }
+          run.push(cell);
+          lastKey = key;
+        }
+        if (run.length) runs.push(run);
+        for (const group of runs) {
+          if (group.length < 2) continue;
+          const along = group.map((cell) => (alongU ? cell.u : cell.v));
+          const across = group.map((cell) => (alongU ? cell.v : cell.u));
+          const start = Math.min(...along);
+          const finish = Math.max(...along);
+          const length = finish - start + plan.cell;
+          const count = Math.max(1, Math.round(length / 34));
+          const width = length / count;
+          if (width < 20) continue;
+          const acrossMid = (Math.min(...across) + Math.max(...across)) / 2;
+          const inward = Math.sign(-acrossMid) || 1;
+          for (let index = 0; index < count; index += 1) {
+            spot += 3;
+            const position = start - plan.cell / 2 + width * (index + 0.5);
+            if (noiseFor(spot) > 1 - skip * fade) {
+              // Lote vazio vira quintal arborizado: o miolo da quadra respira.
+              if (noiseFor(spot + 1) < 0.34) {
+                const u = alongU ? position : acrossMid;
+                const v = alongU ? acrossMid : position;
+                const [gx, gy] = toWorld(u, v);
+                gardenSpots.push({ x: gx, y: gy, s: 3.6 + noiseFor(spot + 2) * 2 });
+              }
+              continue;
+            }
+            const depth = Math.min(bandDepth + 3, length * 0.5);
+            const u = alongU ? position : acrossMid + inward * bandDepth / 2;
+            const v = alongU ? acrossMid + inward * bandDepth / 2 : position;
+            const [x, y] = toWorld(u, v);
+            const archetype = noiseFor(spot + 2) < 0.72 ? primary : pickArchetype(rng, zone);
+            const width2 = width - 0.8;
+            const depth2 = depth;
+            const rot = block.angle + (alongU ? 0 : Math.PI / 2);
+            if (!canPlace(x, y, Math.hypot(width2, depth2) * 0.5)) continue;
+            placeBuilding(block, zone, archetype, x, y, width2, depth2, rot, distance, spot);
+          }
+        }
+      };
+
+      const vLow: typeof cellsUV = [];
+      const vHigh: typeof cellsUV = [];
+      const uLow: typeof cellsUV = [];
+      const uHigh: typeof cellsUV = [];
+      for (const cell of cellsUV) {
+        if (cell.v < block.vMin + plan.cell * 1.15) vLow.push(cell);
+        if (cell.v > block.vMax - plan.cell * 1.15) vHigh.push(cell);
+        if (cell.u < block.uMin + plan.cell * 1.15) uLow.push(cell);
+        if (cell.u > block.uMax - plan.cell * 1.15) uHigh.push(cell);
+      }
+      placeRow(vLow.filter((cell) => cell.u < block.uMax - plan.cell), true);
+      placeRow(vHigh.filter((cell) => cell.u < block.uMax - plan.cell), true);
+      placeRow(uLow.filter((cell) => cell.v < block.vMax - plan.cell), false);
+      placeRow(uHigh.filter((cell) => cell.v < block.vMax - plan.cell), false);
+
+      // Miolo: quadra de apartamentos ou quintal arborizado. Sem isso a
+      // frente de rua vira um anel com um buraco no meio.
+      const innerU = spanU - plan.cell * 2.2;
+      const innerV = spanV - plan.cell * 2.2;
+      if (innerU > 26 && innerV > 26) {
+        const pitch = 30;
+        const innerCols = Math.max(1, Math.min(3, Math.floor(innerU / pitch)));
+        const innerRows = Math.max(1, Math.min(3, Math.floor(innerV / pitch)));
+        const lotInnerW = Math.min(pitch, innerU / innerCols) - 6;
+        const lotInnerD = Math.min(pitch, innerV / innerRows) - 6;
+        for (let row = 0; row < innerRows; row += 1) {
+          for (let col = 0; col < innerCols; col += 1) {
+            const innerSpot = block.id * 211 + row * 17 + col * 5;
+            if (noiseFor(innerSpot) > (zone === 'periferia' ? 0.36 : 0.62)) continue;
+            if (lotInnerW < 16 || lotInnerD < 14) continue;
+            const u = -((innerCols - 1) * Math.min(pitch, innerU / innerCols)) / 2 + col * Math.min(pitch, innerU / innerCols);
+            const v = -((innerRows - 1) * Math.min(pitch, innerV / innerRows)) / 2 + row * Math.min(pitch, innerV / innerRows);
+            const [x, y] = toWorld(u, v);
+            const archetype = noiseFor(innerSpot + 1) < 0.7 ? MID_RISE : pickArchetype(rng, 'residencial');
+            const width = lotInnerW + rng.between(-2, 2);
+            const depth = lotInnerD + rng.between(-2, 2);
+            if (!canPlace(x, y, Math.hypot(width, depth) * 0.5)) continue;
+            placeBuilding(block, zone, archetype, x, y, width, depth, block.angle, distance, innerSpot);
+          }
+        }
+        const [gx, gy] = toWorld(0, 0);
+        gardenSpots.push({ x: gx, y: gy, s: 5 + noiseFor(block.id) * 3 });
+      } else if (innerU > 14 && innerV > 14) {
+        const [x, y] = toWorld(0, 0);
+        gardenSpots.push({ x, y, s: 6 + noiseFor(block.id) * 3 });
+      }
+      continue;
+    }
+
+    if (zone === 'industrial') {
+      // Naves seguem a quadra real: mede-se o corredor livre no eixo da
+      // quadra a partir do centro (quadras recortadas pela água incluídas).
+      const cellSet = new Set(blockCells[block.id]);
+      const key = (i: number, j: number) => j * cells + i;
+      const centerCell = cellIndex(plan, block.center[0], block.center[1]);
+      let i0 = block.center[0] < 0 ? -1 : 0;
+      let j0 = block.center[1] < 0 ? -1 : 0;
+      if (centerCell >= 0) {
+        i0 = centerCell % cells;
+        j0 = Math.floor(centerCell / cells);
+      } else {
+        // Centroide fora da quadra (formato em L): usa a primeira célula.
+        const fallback = blockCells[block.id][0];
+        i0 = fallback % cells;
+        j0 = Math.floor(fallback / cells);
+      }
+      if (cellSet.has(key(i0, j0))) {
+        let lo = i0;
+        let hi = i0;
+        while (cellSet.has(key(lo - 1, j0))) lo -= 1;
+        while (cellSet.has(key(hi + 1, j0))) hi += 1;
+        let top = j0;
+        let bottom = j0;
+        while (cellSet.has(key(i0, top - 1))) top -= 1;
+        while (cellSet.has(key(i0, bottom + 1))) bottom += 1;
+        const runU = (hi - lo + 1) * cell;
+        const runV = (bottom - top + 1) * cell;
+        const along = runU >= runV;
+        const width = Math.min(56, (along ? runU : runV) - 5);
+        const depth = Math.min(34, (along ? runV : runU) - 5);
+        if (width >= 18 && depth >= 14) {
+          const longRun = along ? runU : runV;
+          const bays = longRun > 150 ? 2 : 1;
+          for (let bay = 0; bay < bays; bay += 1) {
+            const shift = bays === 1 ? 0 : (bay === 0 ? -longRun * 0.24 : longRun * 0.24);
+            const uCenter = -half + (Math.floor((lo + hi) / 2) + 0.5) * cell - block.center[0]
+              + (along ? shift : 0);
+            const vCenter = -half + (Math.floor((top + bottom) / 2) + 0.5) * cell - block.center[1]
+              + (along ? 0 : shift);
+            const du = uCenter * cosA + vCenter * sinA;
+            const dv = -uCenter * sinA + vCenter * cosA;
+            const [x, y] = toWorld(du, dv);
+            const bayWidth = bays === 1 ? width : Math.min(width, longRun * 0.44);
+            if (!canPlace(x, y, Math.hypot(bayWidth, depth) * 0.5)) continue;
+            const spot = block.id * 61 + 7 + bay * 11;
+            const archetype = noiseFor(spot + 2) < 0.75 ? BUILDING_ARCHETYPES[6] : pickArchetype(rng, zone);
+            placeBuilding(block, zone, archetype, x, y, bayWidth, depth, block.angle, distance, spot);
+          }
         }
       }
-      if (!valid) continue;
-      const radius = Math.hypot(width, depth) / 2;
-      if (!canPlace(x, y, radius)) continue;
-      remember(x, y, radius);
+      continue;
+    }
 
-      // Altura: queda suave do centro para a borda, com variação por lote.
-      const center = Math.exp(-distance / (1500 * cityScale));
-      let height = rng.between(archetype.h[0], archetype.h[1]);
-      height *= (0.62 + 0.6 * center) * (0.94 + radial * 0.12);
-      height = Math.max(5.5, Math.min(160, height));
-      let kind = archetype.kind;
-      let roof = archetype.roof;
-      let crown = archetype.crown;
-      // Torres ocasionais no centro alto e casas geminadas na periferia.
-      if (kind === 'casa' && rng.chance(0.26)) {
-        roof = 'hip';
-        height = Math.min(9.5, height * 0.92);
+    // Centro: lotes regulares preenchendo a quadra.
+    const cols = Math.max(1, Math.min(mass.maxCols, Math.round(spanU / mass.pitch)));
+    const rows = Math.max(1, Math.min(mass.maxRows, Math.round(spanV / mass.pitch)));
+    const lotW = Math.min(spanU / cols, mass.pitch * 1.2);
+    const lotD = Math.min(spanV / rows, mass.pitch * 1.2);
+    const gridU = (block.uMin + block.uMax) / 2 - (cols * lotW) / 2;
+    const gridV = (block.vMin + block.vMax) / 2 - (rows * lotD) / 2;
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const spot = block.id * 61 + row * 11 + col * 3;
+        if (noiseFor(spot) > mass.fill) continue;
+        const archetype = noiseFor(spot + 1) < 0.72 ? primary : pickArchetype(rng, zone);
+        const u = gridU + (col + 0.5) * lotW + (noiseFor(spot + 2) - 0.5) * lotW * 0.06;
+        const v = gridV + (row + 0.5) * lotD + (noiseFor(spot + 3) - 0.5) * lotD * 0.06;
+        const [x, y] = toWorld(u, v);
+        if (!canPlace(x, y, Math.hypot(lotW, lotD) * 0.5)) continue;
+        const cover = mass.cover[0] + noiseFor(spot + 4) * (mass.cover[1] - mass.cover[0]);
+        const maxW = lotW - mass.gap;
+        const maxD = lotD - mass.gap;
+        // Centro: torres livres sobre praça, com pegada do catálogo.
+        const width = Math.min(maxW, Math.max(rng.between(archetype.w[0], archetype.w[1]), maxW * cover * 0.8));
+        const depth = Math.min(maxD, Math.max(rng.between(archetype.d[0], archetype.d[1]), maxD * cover * 0.8));
+        if (width < 11 || depth < 11) continue;
+        // Fachada alinhada à quadra com micro-variação, nunca torta.
+        const rot = block.angle + (noiseFor(spot + 6) - 0.5) * 0.04;
+        placeBuilding(block, zone, archetype, x, y, width, depth, rot, distance, spot);
       }
-      if (kind === 'predio' && rng.chance(0.14)) {
-        roof = 'gable';
-        height = Math.min(26, height * 0.8);
-      }
-      if (kind === 'galpao' && rng.chance(0.3)) roof = 'flat';
-      if (kind === 'torre' && rng.chance(0.18)) {
-        kind = 'comercial';
-        roof = 'crown';
-        crown = 1;
-      }
-      const roofH = roof === 'gable' ? rng.between(3.0, 4.6)
-        : roof === 'hip' ? rng.between(2.2, 3.4)
-          : roof === 'saw' ? rng.between(2.6, 3.6)
-            : roof === 'crown' ? rng.between(1.6, 3.0)
-              : rng.between(0.5, 1.1);
-      const style = archetype.styles[rng.int(0, archetype.styles.length - 1)];
-      plan.buildings.push({
-        x: Math.round(x * 10) / 10,
-        y: Math.round(y * 10) / 10,
-        w: Math.round(width),
-        d: Math.round(depth),
-        h: Math.round(height * 10) / 10,
-        rot: Math.round(angle * 1000) / 1000,
-        tone: rng.between(0, 1),
-        kind,
-        roof,
-        roofH: Math.round(roofH * 10) / 10,
-        style,
-        crown,
-        floors: Math.max(1, Math.round(height / 3.4)),
-      });
     }
   }
 
-  // 9. Árvores nos parques.
+  // Índice de ocupação para impedir árvores dentro de construções.
+  const solidBuckets = new Map<number, Array<{ x: number; y: number; r: number }>>();
+  for (const building of plan.buildings) {
+    const key = bucketKey(Math.floor(building.x / 24), Math.floor(building.y / 24));
+    const list = solidBuckets.get(key);
+    const entry = { x: building.x, y: building.y, r: Math.hypot(building.w, building.d) * 0.5 };
+    if (list) list.push(entry);
+    else solidBuckets.set(key, [entry]);
+  }
+  const clearOfBuildings = (x: number, y: number, margin: number): boolean => {
+    const bi = Math.floor(x / 24);
+    const bj = Math.floor(y / 24);
+    for (let di = -1; di <= 1; di += 1) {
+      for (let dj = -1; dj <= 1; dj += 1) {
+        const list = solidBuckets.get(bucketKey(bi + di, bj + dj));
+        if (!list) continue;
+        for (const other of list) {
+          if (Math.hypot(other.x - x, other.y - y) < other.r + margin) return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  // 10. Árvores: bosques nos parques, calçadas arborizadas e cinturão verde.
   for (let index = 0; index < plan.park.length; index += 1) {
-    if (!plan.park[index] || rng.chance(0.28)) continue;
+    if (!plan.park[index]) continue;
     const [x, y] = cellCenter(plan, index);
+    const grove = fbm(x / 210, y / 210, hashString(cityId) & 0xffff);
+    if (!rng.chance(0.22 + grove * 0.58)) continue;
     plan.trees.push({
       x: Math.round((x + rng.between(-7, 7)) * 10) / 10,
       y: Math.round((y + rng.between(-7, 7)) * 10) / 10,
-      s: Math.round(rng.between(3, 6.5) * 10) / 10,
+      s: Math.round(rng.between(3.4, 6.8) * 10) / 10,
+    });
+  }
+  for (const spot of gardenSpots) {
+    if (rng.chance(0.55)) continue;
+    plan.trees.push({
+      x: Math.round(spot.x * 10) / 10,
+      y: Math.round(spot.y * 10) / 10,
+      s: Math.round(spot.s * 10) / 10,
+    });
+  }
+  for (const road of roads) {
+    if (road.width < 20) continue;
+    const offset = road.width * 0.5 + 6.5;
+    for (let index = 0; index < road.pts.length - 1; index += 1) {
+      const [x1, y1] = road.pts[index];
+      const [x2, y2] = road.pts[index + 1];
+      const length = Math.hypot(x2 - x1, y2 - y1);
+      if (length < 14) continue;
+      const steps = Math.max(1, Math.round(length / 54));
+      const nx = (-(y2 - y1) / length) * offset;
+      const ny = ((x2 - x1) / length) * offset;
+      for (let step = 0; step < steps; step += 1) {
+        const t = (step + 0.5) / steps;
+        const side = (index + step) % 2 === 0 ? 1 : -1;
+        const x = x1 + (x2 - x1) * t + nx * side;
+        const y = y1 + (y2 - y1) * t + ny * side;
+        if (!freePoint(x, y) || !clearOfBuildings(x, y, 3)) continue;
+        if (!rng.chance(0.72)) continue;
+        plan.trees.push({ x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, s: Math.round(rng.between(3, 4.4) * 10) / 10 });
+      }
+    }
+  }
+  const beltStart = half * 0.9;
+  for (let index = 0; index < plan.land.length; index += 1) {
+    if (!plan.land[index] || plan.road[index] || plan.park[index]) continue;
+    const [x, y] = cellCenter(plan, index);
+    if (Math.max(Math.abs(x), Math.abs(y)) < beltStart) continue;
+    if (!rng.chance(0.16)) continue;
+    if (!clearOfBuildings(x, y, 5)) continue;
+    plan.trees.push({
+      x: Math.round((x + rng.between(-8, 8)) * 10) / 10,
+      y: Math.round((y + rng.between(-8, 8)) * 10) / 10,
+      s: Math.round(rng.between(4, 7.5) * 10) / 10,
     });
   }
 
-  // 10. Estatísticas e distritos.
+  // 11. Estatísticas e distritos.
   let roadMeters = 0;
   for (const road of roads) roadMeters += polylineLength(road.pts);
   const waterCells = plan.water.reduce((total, value) => total + value, 0);

@@ -57,24 +57,26 @@ export function CityPlan2D({
       .join(' ');
   }, [plan]);
 
-  // Tecido urbano em 2D: um único <path> por tipologia, sem rotação, para o
-  // fallback sem WebGL continuar leve mesmo com dezenas de milhares de casas.
+  // Tecido urbano em 2D: um único <path> por zona, sem rotação, para o
+  // fallback sem WebGL continuar leve mesmo com milhares de quadras.
   const fabric = useMemo(() => {
-    if (compact) return [];
-    const byKind = new Map<string, string[]>();
-    const limit = 9000;
-    const ordered = plan.buildings.length > limit
-      ? [...plan.buildings].sort((a, b) => b.w * b.d - a.w * a.d).slice(0, limit)
-      : plan.buildings;
+    const byZone = new Map<string, string[]>();
+    // O minimapa mostra a distribuição urbana, não cada casa: amostra uniforme.
+    const source = compact
+      ? plan.buildings.filter((_, index) => index % Math.max(1, Math.ceil(plan.buildings.length / 1400)) === 0)
+      : plan.buildings.length > 9000
+        ? [...plan.buildings].sort((a, b) => b.w * b.d - a.w * a.d).slice(0, 9000)
+        : plan.buildings;
+    const ordered = source;
     for (const building of ordered) {
-      const list = byKind.get(building.kind) ?? [];
+      const list = byZone.get(building.zone) ?? [];
       const x = building.x - building.w / 2;
       const y = -(building.y - building.d / 2);
       list.push(`M${x.toFixed(0)} ${y.toFixed(0)}h${building.w}v${-building.d}h${-building.w}z`);
-      byKind.set(building.kind, list);
+      byZone.set(building.zone, list);
     }
-    return [...byKind.entries()];
-  }, [plan, compact]);
+    return [...byZone.entries()];
+  }, [plan]);
 
   const half = plan.size / 2;
   return (
@@ -83,29 +85,41 @@ export function CityPlan2D({
       viewBox={`${-half} ${-half} ${plan.size} ${plan.size}`}
       role="img"
       aria-label={`Planta de ${cityLabel(plan.name)}`}
+      preserveAspectRatio="xMidYMid slice"
     >
       <defs>
-        <radialGradient id={`water-glow-${plan.cityId}`} cx="50%" cy="50%" r="70%">
-          <stop offset="0%" stopColor="#12414f" />
-          <stop offset="100%" stopColor="#0a2630" />
-        </radialGradient>
-        <radialGradient id={`land-glow-${plan.cityId}`} cx="48%" cy="42%" r="68%">
-          <stop offset="0%" stopColor="#3d4a39" />
-          <stop offset="62%" stopColor="#2b382b" />
-          <stop offset="100%" stopColor="#1d2a24" />
-        </radialGradient>
+        <linearGradient id={`water-glow-${plan.cityId}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#b7c9cd" />
+          <stop offset="100%" stopColor="#a5bcc2" />
+        </linearGradient>
+        <linearGradient id={`land-glow-${plan.cityId}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ece8db" />
+          <stop offset="100%" stopColor="#ded8c7" />
+        </linearGradient>
       </defs>
-      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill={`url(#land-glow-${plan.cityId})`} />
-      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill={`url(#water-glow-${plan.cityId})`} opacity={0.3} />
-      {/* água aproximada pelas células: retângulos agrupados por linha */}
+      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill={`url(#water-glow-${plan.cityId})`} />
+      <rect x={-half} y={-half} width={plan.size} height={plan.size} fill={`url(#land-glow-${plan.cityId})`} opacity={0.28} />
       {!compact && <WaterMask plan={plan} />}
       {!compact && <ParkMask plan={plan} />}
-      <path d={roads} fill="none" stroke="#3b4144" strokeWidth={compact ? 26 : 12} strokeLinecap="round" />
-      <path d={roads} fill="none" stroke="#5c625f" strokeWidth={compact ? 26 : 2} strokeLinecap="round" opacity={0.5} />
-      {fabric.map(([kind, path]) => (
-        <path key={kind} d={path.join('')} fill={PLAN2D_KINDS[kind] ?? '#6b6f66'} opacity={0.9} />
+      <path
+        d={roads}
+        fill="none"
+        stroke="#c9c3b5"
+        strokeWidth={compact ? 30 : 13}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d={roads}
+        fill="none"
+        stroke="#aca79a"
+        strokeWidth={compact ? 15 : 4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {fabric.map(([zone, path]) => (
+        <path key={zone} d={path.join('')} fill={PLAN2D_ZONES[zone] ?? '#b9ae99'} />
       ))}
-      {shore && <path d={shore} fill="none" stroke="#c9bd9a" strokeWidth={compact ? 30 : 13} opacity={0.55} />}
       {!compact && <TreeDots plan={plan} />}
       {plan.plots.map((plot) => {
         const isHq = plot.id === plotId;
@@ -115,10 +129,10 @@ export function CityPlan2D({
             key={plot.id}
             cx={plot.x}
             cy={-plot.y}
-            r={compact ? 46 : 26}
-            fill={isHq ? 'rgba(99,220,195,0.85)' : isChosen ? 'rgba(244,215,154,0.9)' : 'rgba(216,180,106,0.55)'}
-            stroke={isHq || isChosen ? '#f4d79a' : 'rgba(216,180,106,0.9)'}
-            strokeWidth={compact ? 12 : 6}
+            r={compact ? 42 : 24}
+            fill={isHq ? 'rgba(47,179,154,0.9)' : isChosen ? 'rgba(216,180,106,0.92)' : 'rgba(216,180,106,0.45)'}
+            stroke={isHq ? '#8fe3d2' : '#c9a25f'}
+            strokeWidth={compact ? 10 : 5}
             className={onPickPlot ? 'city-plan2d__plot' : undefined}
             onClick={onPickPlot ? () => onPickPlot(plot) : undefined}
           >
@@ -129,6 +143,14 @@ export function CityPlan2D({
     </svg>
   );
 }
+
+/** Cores do tecido urbano na planta 2D, por zona. */
+const PLAN2D_ZONES: Record<string, string> = {
+  centro: '#8d939a',
+  residencial: '#c2b096',
+  industrial: '#a3aeae',
+  periferia: '#d3c3a8',
+};
 
 /** Cores do tecido urbano na planta 2D, por tipologia. */
 const PLAN2D_KINDS: Record<string, string> = {
@@ -160,8 +182,8 @@ function WaterMask({ plan }: { plan: CityPlan }) {
             y={-y - step * plan.cell}
             width={(i - start) * plan.cell}
             height={step * plan.cell + 1}
-            fill="#0c2a34"
-            opacity={0.9}
+            fill="#b3c6ca"
+            opacity={1}
           />,
         );
         start = -1;
@@ -190,8 +212,8 @@ function ParkMask({ plan }: { plan: CityPlan }) {
             y={-y - step * plan.cell}
             width={(i - start) * plan.cell}
             height={step * plan.cell + 1}
-            fill="#2f5236"
-            opacity={0.85}
+            fill="#a8bf8f"
+            opacity={1}
           />,
         );
         start = -1;
@@ -214,8 +236,8 @@ function TreeDots({ plan }: { plan: CityPlan }) {
           cx={tree.x}
           cy={-tree.y}
           r={Math.max(3, tree.s * 0.55)}
-          fill="#4c7f4f"
-          opacity={0.75}
+          fill="#8ba474"
+          opacity={0.85}
         />
       ))}
     </g>

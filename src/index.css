@@ -8077,7 +8077,7 @@ button.quick-stat:hover {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: #070d12;
+  background: #d2d3c8;
 }
 
 .city-stage__canvas {
@@ -8105,7 +8105,7 @@ button.quick-stat:hover {
   display: block;
   width: 100%;
   height: 100%;
-  background: #16211c;
+  background: #e6e2d5;
 }
 
 .city-plan2d--compact {
@@ -8133,18 +8133,19 @@ button.quick-stat:hover {
   position: absolute;
   right: 14px;
   bottom: 14px;
-  width: 132px;
-  height: 132px;
-  padding: 4px;
-  border-radius: 10px;
-  background: rgba(6, 13, 16, 0.8);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(8px);
+  width: 138px;
+  height: 138px;
+  padding: 5px;
+  border-radius: 12px;
+  background: rgba(9, 15, 18, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
   pointer-events: none;
 }
 
 .city-minimap .city-plan2d {
-  border-radius: 7px;
+  border-radius: 8px;
 }
 
 .city-hud {
@@ -8154,11 +8155,12 @@ button.quick-stat:hover {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 10px 12px;
-  border-radius: 11px;
-  background: rgba(6, 13, 16, 0.78);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(10px);
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: rgba(9, 15, 18, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
   pointer-events: none;
 }
 
@@ -8207,10 +8209,11 @@ button.quick-stat:hover {
   flex-direction: column;
   gap: 2px;
   width: 208px;
-  padding: 8px 10px;
-  border-radius: 9px;
-  background: rgba(5, 12, 15, 0.95);
-  border: 1px solid var(--line-strong);
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(9, 15, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.28);
   pointer-events: none;
 }
 
@@ -8256,10 +8259,11 @@ button.quick-stat:hover {
 .segmented {
   display: inline-flex;
   padding: 3px;
-  border-radius: 9px;
-  background: rgba(6, 13, 16, 0.82);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  background: rgba(9, 15, 18, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
 }
 
 .segmented button {
@@ -8278,8 +8282,8 @@ button.quick-stat:hover {
 }
 
 .segmented button.is-active {
-  background: rgba(47, 179, 154, 0.16);
-  color: var(--teal-bright);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ink);
 }
 
 .city-caption {
@@ -8288,24 +8292,47 @@ button.quick-stat:hover {
   bottom: 14px;
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 8px 11px;
-  border-radius: 10px;
-  background: rgba(6, 13, 16, 0.8);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(8px);
+  gap: 3px;
+  padding: 10px 13px 10px;
+  border-radius: 12px;
+  background: rgba(9, 15, 18, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(12px);
   pointer-events: none;
 }
 
 .city-caption strong {
   font-family: var(--serif);
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .city-caption span {
   font-size: 9.5px;
   color: var(--ink-3);
+}
+
+.city-caption__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 2px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(233, 235, 226, 0.55);
+}
+
+.city-caption__meta span {
+  font-size: 9px;
+  color: rgba(233, 235, 226, 0.5);
+}
+
+.city-caption__meta b {
+  font-weight: 600;
+  color: rgba(244, 215, 154, 0.92);
 }
 
 .city-nav {
@@ -8315,27 +8342,28 @@ button.quick-stat:hover {
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px;
-  border-radius: 9px;
-  background: rgba(6, 13, 16, 0.86);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(8px);
+  gap: 1px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(9, 15, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
 }
 
 .city-nav button {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  color: var(--ink-3);
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  color: rgba(233, 235, 226, 0.72);
   transition: background 0.15s, color 0.15s;
 }
 
 .city-nav button:hover {
-  background: rgba(47, 179, 154, 0.16);
-  color: var(--teal-bright);
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--ink);
 }
 
 .city-floors {
@@ -8347,9 +8375,10 @@ button.quick-stat:hover {
   gap: 4px;
   padding: 5px 6px 5px 9px;
   border-radius: 10px;
-  background: rgba(6, 13, 16, 0.86);
-  border: 1px solid var(--line);
-  backdrop-filter: blur(8px);
+  background: rgba(9, 15, 18, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
 }
 
 .city-floors__label {
@@ -8658,9 +8687,7 @@ button.quick-stat:hover {
 }
 
 .city-stage {
-  background:
-    radial-gradient(circle at 50% 8%, rgba(120, 172, 186, 0.16), transparent 58%),
-    linear-gradient(180deg, #0e1b24 0%, #12211f 58%, #0b1512 100%);
+  background: linear-gradient(180deg, #c4cbc9 0%, #d4d5c9 52%, #dcd8c9 100%);
 }
 
 .callout--seat {
