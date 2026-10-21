@@ -33,6 +33,12 @@ describe('modelos da maquete 3D', () => {
       expect(roof.max.x - roof.min.x, model.key).toBeGreaterThan(model.w * 0.4);
       expect(roof.max.z - roof.min.z, model.key).toBeGreaterThan(model.d * 0.4);
       expect(roof.min.y, model.key).toBeGreaterThanOrEqual(-0.01);
+      // A mesclagem não pode ter descartado partes silenciosamente: cada parede
+      // contribui com 16 vértices e as coberturas têm volume de verdade.
+      const wallVertices = model.walls.getAttribute('position').count;
+      expect(wallVertices % 16, model.key).toBe(0);
+      expect(wallVertices, model.key).toBeGreaterThanOrEqual(16);
+      expect(model.roofGeometry.getAttribute('position').count, model.key).toBeGreaterThanOrEqual(12);
     }
   });
 
